@@ -34,7 +34,8 @@
         }
       ],
       "./plugins/with-mwa-queries",
-      "./plugins/with-release-signing"
+      "./plugins/with-release-signing",
+      "expo-asset"
     ]
   }
 }
