@@ -13,7 +13,7 @@ Record on an Android phone (Seeker if available) with screen recording on. Walle
 | 1:50-2:00 | Home screen, "Why this matters" card, repo URL on screen | "Settle Watch. Alerts and proof for prediction-market settlement, on your phone. Built on Solana Mobile." |
 
 Notes for recording
-- Say "settled differently from the disputed proposal". Do not say the outcome "flipped" or that rules were "edited"; say "bulletin-board update" or "clarification".
+- Use the exact wording "settled differently from the disputed proposal", and call bulletin-board posts "bulletin-board updates" or "clarifications".
 - The test alert is labelled [TEST]; do not present it as a real dispute.
 - Devnet only. Do not show mainnet balances.
 - If the in-app airdrop is rate limited, fund the wallet from faucet.solana.com before recording.
