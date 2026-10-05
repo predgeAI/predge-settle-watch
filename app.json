@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Settle Watch",
+    "slug": "predge-settle-watch",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
+    "scheme": "settlewatch",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0f14"
+    },
+    "android": {
+      "package": "io.predge.settlewatch",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b0f14"
+      },
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#f5a524"
+        }
+      ],
+      "./plugins/with-mwa-queries",
+      "./plugins/with-release-signing"
+    ]
+  }
+}
