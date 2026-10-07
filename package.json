@@ -8,7 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "verify:live": "tsx scripts/verify-live.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/selftest.ts"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@babel/core": "7.29.7",
     "@types/react": "18.3.31",
+    "tsx": "4.23.15",
     "typescript": "5.9.3"
   },
   "private": true,
