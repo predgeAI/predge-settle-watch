@@ -63,7 +63,7 @@ Jupiter's Prediction API aggregates liquidity from Polymarket and Kalshi, with P
 
 ### Presentation and demo
 - Demo video (about 3 minutes, recorded on a phone): link in the submission form.
-- Pitch deck: [`docs/Settle-Watch-deck.pdf`](docs/Settle-Watch-deck.pdf).
+- Pitch deck (PDF): link in the submission form.
 - Reproduce the claims yourself: `npm test` (offline checks) and `npx tsx scripts/verify-live.ts 5186278 4585694 601819` (verifies live signed records with the app's own verifier).
 
 ## Why mobile, why Solana Mobile
