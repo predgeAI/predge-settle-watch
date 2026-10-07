@@ -40,5 +40,4 @@ yarn-error.*
 /ios
 *.keystore
 build.log
-.claude/
 emulator.log
