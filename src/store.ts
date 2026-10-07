@@ -165,13 +165,15 @@ export function changesLast24h(item: WatchItem, now = Date.now()): TimelineEvent
 
 /** One plain-language line for the market's current state. */
 export function statusLine(s: Snapshot | undefined): string {
+  // Order matters: settled first, then the most urgent unsettled states.
   if (!s) return "Not checked yet";
   if (s.resolved_on_chain) return s.dispute_count ? `Settled on chain after ${s.dispute_count} dispute${s.dispute_count > 1 ? "s" : ""}` : "Settled on chain";
   if (s.paused) return "Resolution paused on chain";
   if (s.sent_to_uma_vote) return "Disputed twice: UMA token-holder vote";
   if (s.open_dispute) return "Open UMA dispute";
   if (s.bulletin_board_count) return `${s.bulletin_board_count} clarification${s.bulletin_board_count > 1 ? "s" : ""} posted, no open dispute`;
-  if (s.dispute_count) return "Past dispute, nothing open now";
+  if (s.dispute_count && s.uma_state.toLowerCase() === "requested") return "Disputed, reset for a new proposal";
+  if (s.dispute_count) return "Disputed, not settled yet";
   return "Quiet: no dispute, no clarification";
 }
 

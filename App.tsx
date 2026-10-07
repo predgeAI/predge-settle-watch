@@ -59,7 +59,7 @@ const RISK_LABEL: Record<string, string> = { caution: "Caution", watch: "Watch",
 const RISK_ORDER = ["caution", "watch", "ok", "resolved"];
 
 const EXAMPLES = [
-  { label: "Disputed, open", key: "5186278" },
+  { label: "Disputed, not settled", key: "5186278" },
   { label: "Disputed twice, settled", key: "4585694" },
   { label: "Quiet market", key: "601819" },
 ];
@@ -147,7 +147,7 @@ const STEPS = [
     kicker: "3 of 3 . Start",
     title: "Build your watchlist",
     body:
-      "Start with three real markets (one with an open dispute, one disputed twice and settled, one quiet), or paste your own Polymarket links. You also get one short digest a day. Connect a wallet later to anchor receipts on Solana.",
+      "Start with three real markets (one disputed and not settled yet, one disputed twice and settled, one quiet), or paste your own Polymarket links. You also get one short digest a day. Connect a wallet later to anchor receipts on Solana.",
   },
 ];
 
@@ -626,8 +626,7 @@ export default function App() {
               onPress={() => openDetail(it.key)}
               style={({ pressed }) => [
                 styles.card,
-                styles.watchRow,
-                { borderLeftColor: RISK_COLOR[it.last?.risk_level ?? ""] ?? C.line },
+                { borderColor: `${RISK_COLOR[it.last?.risk_level ?? ""] ?? C.line}66` },
                 pressed && { opacity: 0.8 },
               ]}
             >
@@ -895,7 +894,6 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   checkRow: { flexDirection: "row", alignItems: "flex-start", marginVertical: 4 },
   todayRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
-  watchRow: { borderLeftWidth: 4 },
   glance: { flexDirection: "row", gap: 8, marginTop: 8 },
   glanceCell: { flex: 1, backgroundColor: C.card, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingVertical: 8, alignItems: "center" },
   glanceNum: { fontSize: 22, fontWeight: "800" },
