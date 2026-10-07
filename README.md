@@ -158,3 +158,12 @@ Release signing: if the Gradle properties `SETTLEWATCH_UPLOAD_STORE_FILE`, `SETT
 ## Team
 
 Amir, solo developer of Predge.
+
+## Support development
+
+This repo is open source (MIT) and maintained by a solo developer as part of Predge. If it is useful to you, you can support its development with a crypto donation. Donations cover RPC and hosting costs, test vectors and ongoing maintenance of the open-source tools. A donation does not buy a service, a token or any special treatment.
+
+- EVM (Base preferred; the same address works on Arbitrum and Arc): `0x9084f5000E07C7133D6dA5eE4f271AB6D1821144`
+- Solana: `9dxMRRtC7RKZH5rFZpUywjmnQ87H9qHhtW43u5LYmpV`
+
+These are the same addresses Predge already uses to receive x402 payments. Send USDC or the network's native token only. You can also fund the repo through [Drips](https://www.drips.network/app/projects/github/predgeAI/predge-settle-watch). All options are listed on the [support page](https://predgeai.github.io/erc8004-outcome-validator/support/).
