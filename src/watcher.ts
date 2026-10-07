@@ -5,7 +5,17 @@ import { Platform } from "react-native";
 import { fetchSettlementRisk } from "./api";
 import { verifyRecord } from "./verify";
 import { BACKGROUND_TASK } from "./config";
-import { describeChanges, loadWatchlist, saveWatchlist, snapshotOf, type WatchItem } from "./store";
+import {
+  changesLast24h,
+  describeChanges,
+  loadSettings,
+  loadWatchlist,
+  localDay,
+  saveSettings,
+  saveWatchlist,
+  snapshotOf,
+  type WatchItem,
+} from "./store";
 
 export const ALERT_CHANNEL = "settlement-alerts";
 
@@ -50,9 +60,9 @@ export async function pollItem(item: WatchItem): Promise<{ item: WatchItem; chan
     const now = new Date().toISOString();
     const timeline = [...item.timeline];
     if (!item.snapshot) {
-      timeline.unshift({ at: now, text: `Watching. ${r.recommendation}`, verified: verification.verified });
+      timeline.unshift({ at: now, text: `Watching. ${r.recommendation}`, verified: verification.verified, kind: "info" });
     }
-    for (const c of changes) timeline.unshift({ at: now, text: c, verified: verification.verified });
+    for (const c of changes) timeline.unshift({ at: now, text: c, verified: verification.verified, kind: "change" });
     return {
       item: {
         ...item,
@@ -64,6 +74,7 @@ export async function pollItem(item: WatchItem): Promise<{ item: WatchItem; chan
         verification,
         lastError: undefined,
         lastPolledAt: now,
+        lastChangeAt: changes.length ? now : item.lastChangeAt,
         timeline: timeline.slice(0, 50),
       },
       changes,
@@ -99,7 +110,40 @@ export async function pollAll(): Promise<{ items: WatchItem[]; changed: number }
     return p ? { ...p, anchors: i.anchors.length >= p.anchors.length ? i.anchors : p.anchors } : i;
   });
   await saveWatchlist(merged);
+  await maybeSendDigest(merged);
   return { items: merged, changed };
+}
+
+/** Text of the daily digest for the current watchlist. */
+export function digestText(items: WatchItem[]): { title: string; body: string } {
+  const changed = items.filter((i) => changesLast24h(i).length > 0);
+  const open = items.filter((i) => i.snapshot?.open_dispute || i.snapshot?.sent_to_uma_vote).length;
+  const n = items.length;
+  const title = changed.length
+    ? `Settle Watch daily: ${changed.length} of ${n} market${n > 1 ? "s" : ""} changed status`
+    : `Settle Watch daily: no status changes across ${n} market${n > 1 ? "s" : ""}`;
+  const lines = changed
+    .slice(0, 3)
+    .map((i) => `${(i.question ?? i.key).slice(0, 60)}: ${changesLast24h(i)[0].text}`);
+  if (changed.length > 3) lines.push(`and ${changed.length - 3} more`);
+  lines.push(open ? `${open} with an open dispute or UMA vote.` : "No open disputes on your watchlist.");
+  return { title, body: lines.join("\n") };
+}
+
+/**
+ * Once a day, after the user's digest hour, sends one summary notification of the
+ * watchlist: which markets changed status in the last 24 h and how many are still
+ * disputed. Runs from both the foreground poll and the background task.
+ */
+export async function maybeSendDigest(items: WatchItem[], now = new Date()): Promise<boolean> {
+  if (!items.length) return false;
+  const s = await loadSettings();
+  const today = localDay(now);
+  if (!s.digest || !s.onboarded || s.lastDigestDay === today || now.getHours() < s.digestHour) return false;
+  const { title, body } = digestText(items);
+  await saveSettings({ lastDigestDay: today });
+  await notify(title, body, { digest: true });
+  return true;
 }
 
 export function defineBackgroundTask(): void {
