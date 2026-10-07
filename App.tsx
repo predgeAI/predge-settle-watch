@@ -77,6 +77,12 @@ function ago(iso?: string) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
+/** 3005 -> "3,005" without relying on Intl support in the JS engine. */
+function num(v: unknown) {
+  const s = String(v ?? "");
+  return /^\d+$/.test(s) ? s.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : s;
+}
+
 function hh(h: number) {
   return `${String(h).padStart(2, "0")}:00`;
 }
@@ -576,7 +582,9 @@ export default function App() {
           ) : today.length === 0 ? (
             <Text style={styles.body}>
               No status changes across your {items.length} market{items.length > 1 ? "s" : ""}.{" "}
-              {counts.caution ? `${counts.caution} still need${counts.caution > 1 ? "" : "s"} attention.` : "Nothing needs attention."}
+              {counts.caution + counts.watch
+                ? `${counts.caution + counts.watch} still need${counts.caution + counts.watch > 1 ? "" : "s"} attention.`
+                : "Nothing needs attention."}
             </Text>
           ) : (
             today.map(({ item, changes }) => (
@@ -723,9 +731,9 @@ export default function App() {
           <View style={[styles.card, { marginTop: 16 }]}>
             <Text style={styles.cardTitle}>Why this matters</Text>
             <Text style={styles.body}>
-              {String(context.period)}: {String(context.disputes)} UMA disputes on {String(context.disputed_markets)} Polymarket
-              markets. Of {String(context.settled_disputed_markets)} disputed markets that settled,{" "}
-              {String(context.settled_differently_from_disputed_proposal)} ({String(context.settled_differently_share)}) settled
+              {String(context.period)}: {num(context.disputes)} UMA disputes on {num(context.disputed_markets)} Polymarket
+              markets. Of {num(context.settled_disputed_markets)} disputed markets that settled,{" "}
+              {num(context.settled_differently_from_disputed_proposal)} ({String(context.settled_differently_share)}) settled
               differently from the disputed proposal.
             </Text>
             <Text style={[styles.dim, { marginTop: 6 }]}>Source: {String(context.source)}</Text>

@@ -117,7 +117,7 @@ export async function pollAll(): Promise<{ items: WatchItem[]; changed: number }
 /** Text of the daily digest for the current watchlist. */
 export function digestText(items: WatchItem[]): { title: string; body: string } {
   const changed = items.filter((i) => changesLast24h(i).length > 0);
-  const open = items.filter((i) => i.snapshot?.open_dispute || i.snapshot?.sent_to_uma_vote).length;
+  const attention = items.filter((i) => i.last?.risk_level === "caution" || i.last?.risk_level === "watch").length;
   const n = items.length;
   const title = changed.length
     ? `Settle Watch daily: ${changed.length} of ${n} market${n > 1 ? "s" : ""} changed status`
@@ -126,14 +126,18 @@ export function digestText(items: WatchItem[]): { title: string; body: string } 
     .slice(0, 3)
     .map((i) => `${(i.question ?? i.key).slice(0, 60)}: ${changesLast24h(i)[0].text}`);
   if (changed.length > 3) lines.push(`and ${changed.length - 3} more`);
-  lines.push(open ? `${open} with an open dispute or UMA vote.` : "No open disputes on your watchlist.");
+  lines.push(
+    attention
+      ? `${attention} market${attention > 1 ? "s" : ""} still need${attention > 1 ? "" : "s"} attention (Caution or Watch).`
+      : "Nothing on your watchlist needs attention."
+  );
   return { title, body: lines.join("\n") };
 }
 
 /**
  * Once a day, after the user's digest hour, sends one summary notification of the
- * watchlist: which markets changed status in the last 24 h and how many are still
- * disputed. Runs from both the foreground poll and the background task.
+ * watchlist: which markets changed status in the last 24 h and how many still need
+ * attention. Runs from both the foreground poll and the background task.
  */
 export async function maybeSendDigest(items: WatchItem[], now = new Date()): Promise<boolean> {
   if (!items.length) return false;
