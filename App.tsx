@@ -70,6 +70,8 @@ import { FLAGS } from "./src/features";
 import { DiscoverCard, DiscoverModal } from "./src/discover/Discover";
 import { RuleDetectiveCard, RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
 import { GlossaryEntry, GlossaryModal } from "./src/glossary/Glossary";
+import { LEAGUE_ENABLED } from "./src/league/config";
+import { LeagueCard, LeagueModal } from "./src/league/LeagueEntry";
 import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
 
@@ -208,6 +210,7 @@ export default function App() {
   const [puzzleTick, setPuzzleTick] = useState(0);
   const [glossOpen, setGlossOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
+  const [leagueOpen, setLeagueOpen] = useState(false);
   const [discoverOpen, setDiscoverOpen] = useState(false);
   const [glossTick, setGlossTick] = useState(0);
   const [introDone, setIntroDone] = useState(false);
@@ -679,7 +682,7 @@ export default function App() {
   const recap = weeklyRecap(game);
   const canIn = canClockIn(game);
   const unlocked = BADGES.filter((b) => game.badges[b.id]).length;
-  const top = discoverOpen ? "discover" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
+  const top = leagueOpen ? "league" : discoverOpen ? "discover" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
   const overlays = (where: string) => (
     <>
       <XpToast text={toast.text} tick={toast.tick} />
@@ -913,6 +916,7 @@ export default function App() {
           </PixelBox>
 
           {FLAGS.discover ? <DiscoverCard onOpen={() => setDiscoverOpen(true)} /> : null}
+          {LEAGUE_ENABLED ? <LeagueCard onOpen={() => setLeagueOpen(true)} /> : null}
           {FLAGS.ruleDetective ? <RuleDetectiveCard onOpen={() => setRuleOpen(true)} /> : null}
           {FLAGS.glossary ? <GlossaryEntry game={game} refreshKey={glossTick} onOpen={() => setGlossOpen(true)} /> : null}
 
@@ -1233,6 +1237,7 @@ export default function App() {
             overlay={overlays("discover")}
           />
         ) : null}
+        {LEAGUE_ENABLED ? <LeagueModal visible={leagueOpen} onClose={() => setLeagueOpen(false)} overlay={overlays("league")} /> : null}
         {FLAGS.ruleDetective ? (
           <RuleDetectiveModal visible={ruleOpen} onClose={() => setRuleOpen(false)} award={(kind, ref) => award(kind, { ref })} overlay={overlays("rule")} />
         ) : null}
