@@ -39,7 +39,6 @@ t("missing market is rejected", () => assert.throws(() => assertSettlementRisk({
 t("canonical JSON sorts keys at every level", () =>
   assert.equal(canonicalize({ b: 1, a: { d: [2, { z: 1, y: 2 }], c: null } }), '{"a":{"c":null,"d":[2,{"y":2,"z":1}]},"b":1}'));
 
-console.log(`${n} checks passed`);
 
 // ---- clock-in loop: streak, XP, levels, badges, recap ----
 import {
@@ -190,3 +189,158 @@ t("last seven days row and storage sanitising", () => {
   assert.equal(sanitizeGame("junk").xp, 0);
   assert.equal(sanitizeGame({ xp: -5, streak: "x" }).streak, 0);
 });
+
+
+// ---- Daily Dispute ----
+import { isCorrect, liveStreak as puzzleStreak, NEW_PUZZLE_STATE, play as playPuzzle, playedToday, puzzleFor, puzzleNumber, revealLine, sanitizePuzzleState, shareText, shuffledOrder, type Puzzle } from "../src/dailyDispute/logic";
+import puzzlesRaw from "../src/dailyDispute/puzzles.json";
+
+const PZ = puzzlesRaw as Puzzle[];
+const ps = (n: number): Puzzle[] =>
+  Array.from({ length: n }, (_, i) => ({ id: String(i), q: `q${i}`, proposal: "Yes", final: i % 2 ? "No" : "Yes", date: "2026-08-01", diff: (i % 2) as 0 | 1, cat: "sports" }));
+
+t("puzzle data: facts agree with the label, no banned words", () => {
+  assert.ok(PZ.length >= 100);
+  for (const p of PZ) {
+    assert.equal(p.final !== p.proposal ? 1 : 0, p.diff, p.id);
+    assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(p.date));
+    assert.ok(!/\b(bet|odds|wager|trump|kill)\b/i.test(p.q), p.q);
+  }
+});
+t("puzzle rotation: same day same puzzle, no repeats across the set, number from epoch", () => {
+  const a = puzzleFor("2026-10-12", PZ);
+  assert.equal(a.puzzle.id, puzzleFor("2026-10-12", PZ).puzzle.id);
+  assert.equal(a.number, 12);
+  assert.equal(puzzleNumber("2026-10-01"), 1);
+  const seen = new Set<string>();
+  for (let d = 0; d < PZ.length; d++) seen.add(puzzleFor(`2026-11-${String((d % 28) + 1).padStart(2, "0")}`, PZ).puzzle.id + d);
+  const order = shuffledOrder(PZ.length);
+  assert.equal(new Set(order).size, PZ.length);
+  const first = new Set<string>();
+  for (let i = 1; i <= PZ.length; i++) {
+    const day = new Date(Date.UTC(2026, 9, 1) + (i - 1) * 86400000).toISOString().slice(0, 10);
+    first.add(puzzleFor(day, PZ).puzzle.id);
+  }
+  assert.equal(first.size, PZ.length);
+});
+t("hold and change are scored against the label", () => {
+  const [stood, changed] = [ps(2)[0], ps(2)[1]];
+  assert.equal(isCorrect("hold", stood), true);
+  assert.equal(isCorrect("change", stood), false);
+  assert.equal(isCorrect("change", changed), true);
+  assert.equal(isCorrect("hold", changed), false);
+});
+t("one play per day: locked until tomorrow", () => {
+  const p = ps(2)[1];
+  const a = playPuzzle(NEW_PUZZLE_STATE, "2026-10-12", "change", p);
+  assert.equal(a.correct, true);
+  assert.equal(a.state.solved, 1);
+  const b = playPuzzle(a.state, "2026-10-12", "hold", p);
+  assert.equal(b.already, true);
+  assert.equal(b.state, a.state);
+  assert.equal(playedToday(a.state, "2026-10-12")?.pick, "change");
+  assert.equal(playedToday(a.state, "2026-10-13"), null);
+});
+t("puzzle streak counts consecutive days played and resets after a gap", () => {
+  const p = ps(2)[0];
+  let s = NEW_PUZZLE_STATE;
+  for (const d of ["2026-10-12", "2026-10-13", "2026-10-14"]) s = playPuzzle(s, d, "change", p).state; // wrong calls still count as played
+  assert.equal(s.streak, 3);
+  assert.equal(s.solved, 0);
+  assert.equal(puzzleStreak(s, "2026-10-15"), 3);
+  assert.equal(puzzleStreak(s, "2026-10-16"), 0);
+  assert.equal(playPuzzle(s, "2026-10-16", "hold", p).state.streak, 1);
+  assert.equal(playPuzzle(s, "2026-10-16", "hold", p).state.best, 3);
+});
+t("share text has no link; reveal line is plain; storage is sanitised", () => {
+  assert.equal(shareText(12, true, 4), "Settle Watch Daily Dispute #12 \u2705 streak 4");
+  assert.ok(!/http/.test(shareText(12, false, 0)));
+  assert.ok(revealLine(ps(2)[1]).startsWith("It settled differently"));
+  assert.ok(revealLine(ps(2)[0]).startsWith("The proposed answer stood"));
+  assert.equal(sanitizePuzzleState({ plays: { bad: 1 }, streak: -1 }).streak, 0);
+});
+t("puzzle XP and badge: 15 for a right call, 5 for playing, badge after 3 right", () => {
+  let g = NEW_GAME;
+  const w1 = applyAction(g, "puzzle_win", { ref: "2026-10-12" }, at("2026-10-12"));
+  assert.equal(w1.gained, 15);
+  assert.equal(applyAction(w1.state, "puzzle_win", { ref: "2026-10-12" }, at("2026-10-12")).gained, 0);
+  assert.equal(applyAction(w1.state, "puzzle_play", { ref: "2026-10-13" }, at("2026-10-13")).gained, 5);
+  const w2 = applyAction(w1.state, "puzzle_win", { ref: "2026-10-13" }, at("2026-10-13"));
+  const w3 = applyAction(w2.state, "puzzle_win", { ref: "2026-10-14" }, at("2026-10-14"));
+  assert.deepEqual(w3.badges, ["puzzles"]);
+  assert.deepEqual(w2.badges, []);
+});
+
+// ---- Glossary cards ----
+import { CARDS, unlockedCards } from "../src/glossary/cards";
+
+t("glossary: 12 short cards, free card first, unlocks follow actions", () => {
+  assert.equal(CARDS.length, 12);
+  for (const c of CARDS) {
+    assert.ok(c.text.length <= 140, c.id);
+    assert.ok(!/(\bbet\b|odds|wager|payout|flipped|\u2014)/i.test(c.title + c.text), c.id);
+  }
+  assert.deepEqual(unlockedCards(NEW_GAME), ["dispute"]);
+  let g = applyAction(NEW_GAME, "verify", { ref: "m1" }, at("2026-10-12")).state;
+  assert.ok(unlockedCards(g).includes("signature"));
+  g = applyAction(g, "puzzle_play", { ref: "2026-10-12" }, at("2026-10-12")).state;
+  assert.ok(unlockedCards(g).includes("final") && unlockedCards(g).includes("proposal"));
+  g = applyAction(g, "anchor", {}, at("2026-10-12")).state;
+  assert.ok(unlockedCards(g).includes("receipt"));
+  assert.equal(unlockedCards({ ...g, best: 7 }).includes("bond"), true);
+});
+// ---- Rule Detective ----
+import { caseIndex, KIND_HINT, segments, type Case } from "../src/ruleDetective/logic";
+import casesRaw from "../src/ruleDetective/cases.json";
+
+t("rule detective: cases have 3+ real phrases that appear in the text; segments rebuild the text", () => {
+  const cs = casesRaw as Case[];
+  assert.ok(cs.length >= 15);
+  for (const c of cs) {
+    assert.ok(c.phrases.length >= 3 && new Set(c.phrases.map((p) => p.kind)).size >= 3, c.id);
+    for (const p of c.phrases) assert.ok(c.text.includes(p.t), `${c.id}: ${p.t}`);
+    assert.equal(segments(c).map((s) => s.text).join(""), c.text, c.id);
+    assert.ok(!/(\bbet\b|odds|wager)/i.test(c.q), c.q);
+  }
+  for (const h of Object.values(KIND_HINT)) assert.ok(!/(\u2014|\bbet\b|odds|wager)/i.test(h));
+  assert.equal(caseIndex(12, 0, 19), caseIndex(12, 19, 19));
+  assert.notEqual(caseIndex(12, 0, 19), caseIndex(13, 0, 19));
+});
+// ---- Discover ----
+import { canCall, fmtVolume, parseMarkets, parseSegment, tierOf } from "../src/discover/api";
+
+t("discover: market parsing drops bad ids and calm-feed words; segment parsing and tiers", () => {
+  const ms = parseMarkets([
+    { id: "123", question: "Will it rain in Paris on May 5?", slug: "rain", endDate: "2026-05-05T00:00:00Z", volume24hr: 1500 },
+    { id: "abc", question: "bad id" },
+    { id: "9", question: "Will someone be killed?" },
+    { id: "10", question: "x".repeat(200) },
+    null,
+  ]);
+  assert.equal(ms.length, 1);
+  assert.equal(ms[0].endDate, "2026-05-05");
+  assert.equal(parseMarkets({} as unknown).length, 0);
+  const seg = parseSegment({ segment: "politics", rate: "0.011683", markets: "28502", disputed: "333", ci95: ["0.0105", "0.013"] });
+  assert.equal(seg?.disputed, 333);
+  assert.equal(parseSegment({ segment: "x", rate: "7" }), null);
+  assert.equal(tierOf(0.0117), "mid");
+  assert.equal(tierOf(0.005), "low");
+  assert.equal(tierOf(0.05), "high");
+  assert.equal(fmtVolume(2_500_000), "2.5M");
+  assert.equal(canCall(), true);
+});
+import { onXpAwarded } from "../src/game";
+t("xp listener sees every award and cannot break the game", () => {
+  const seen: string[] = [];
+  const off = onXpAwarded((e) => seen.push(`${e.kind}:${e.xp}`));
+  const off2 = onXpAwarded(() => {
+    throw new Error("boom");
+  });
+  clockIn(NEW_GAME, at("2026-10-20"));
+  applyAction(NEW_GAME, "anchor", {}, at("2026-10-20"));
+  off();
+  off2();
+  applyAction(NEW_GAME, "anchor", {}, at("2026-10-20"));
+  assert.deepEqual(seen, ["clock_in:12", "anchor:50"]);
+});
+console.log(`${n} checks passed`);

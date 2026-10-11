@@ -2,7 +2,7 @@
   "expo": {
     "name": "Settle Watch",
     "slug": "predge-settle-watch",
-    "version": "0.3.1",
+    "version": "0.3.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "io.predge.settlewatch",
-      "versionCode": 4,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-icon-mono.png",

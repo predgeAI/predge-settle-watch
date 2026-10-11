@@ -64,6 +64,11 @@ import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, Flame, LevelBadge, LiveMascot, PixelBar, PixelBox, Press, Reveal, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
 import { PixelIcon, type Mood } from "./src/sprites";
 import Onboarding from "./src/Onboarding";
+import { FLAGS } from "./src/features";
+import { DiscoverCard, DiscoverModal } from "./src/discover/Discover";
+import { RuleDetectiveCard, RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
+import { GlossaryEntry, GlossaryModal } from "./src/glossary/Glossary";
+import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
 
 const EXAMPLES = [
@@ -186,6 +191,12 @@ export default function App() {
   const [rejectPlay, setRejectPlay] = useState(0);
   const [stamp, setStamp] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
+  const [puzzleOpen, setPuzzleOpen] = useState(false);
+  const [puzzleTick, setPuzzleTick] = useState(0);
+  const [glossOpen, setGlossOpen] = useState(false);
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [discoverOpen, setDiscoverOpen] = useState(false);
+  const [glossTick, setGlossTick] = useState(0);
   const [introDone, setIntroDone] = useState(false);
   const [clockPlay, setClockPlay] = useState(0);
   const reduced = useReducedMotion();
@@ -589,7 +600,7 @@ export default function App() {
   const recap = weeklyRecap(game);
   const canIn = canClockIn(game);
   const unlocked = BADGES.filter((b) => game.badges[b.id]).length;
-  const top = badgesOpen ? "badges" : detail ? "detail" : "main";
+  const top = discoverOpen ? "discover" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
   const overlays = (where: string) => (
     <>
       <XpToast text={toast.text} tick={where === top ? toast.tick : 0} />
@@ -725,6 +736,8 @@ export default function App() {
             </Text>
           </PixelBox>
 
+          {FLAGS.dailyDispute ? <DailyDisputeCard refreshKey={puzzleTick} onOpen={() => setPuzzleOpen(true)} /> : null}
+
           {/* Wallet: one compact row */}
           <PixelBox style={styles.cardGap} inner={[styles.cardPad, styles.rowBetween]}>
             <View style={{ flex: 1 }}>
@@ -811,6 +824,10 @@ export default function App() {
               ))}
             </View>
           </PixelBox>
+
+          {FLAGS.discover ? <DiscoverCard onOpen={() => setDiscoverOpen(true)} /> : null}
+          {FLAGS.ruleDetective ? <RuleDetectiveCard onOpen={() => setRuleOpen(true)} /> : null}
+          {FLAGS.glossary ? <GlossaryEntry game={game} refreshKey={glossTick} onOpen={() => setGlossOpen(true)} /> : null}
 
           {/* Weekly recap */}
           <PixelBox border={C.purple} bg="#1b1233" style={styles.cardGap} inner={styles.cardPad}>
@@ -1120,6 +1137,40 @@ export default function App() {
             <Scanlines />
           </SafeAreaView>
         </Modal>
+        {FLAGS.discover ? (
+          <DiscoverModal
+            visible={discoverOpen}
+            onClose={() => setDiscoverOpen(false)}
+            watchingIds={items.map((i) => i.marketId ?? i.key)}
+            onWatch={(id) => addMarket(id)}
+            overlay={overlays("discover")}
+          />
+        ) : null}
+        {FLAGS.ruleDetective ? (
+          <RuleDetectiveModal visible={ruleOpen} onClose={() => setRuleOpen(false)} award={(kind, ref) => award(kind, { ref })} overlay={overlays("rule")} />
+        ) : null}
+        {FLAGS.glossary ? (
+          <GlossaryModal
+            visible={glossOpen}
+            game={game}
+            refreshKey={glossTick}
+            onClose={() => {
+              setGlossOpen(false);
+              setGlossTick((n) => n + 1);
+            }}
+          />
+        ) : null}
+        {FLAGS.dailyDispute ? (
+          <DailyDisputeModal
+            visible={puzzleOpen}
+            onClose={() => {
+              setPuzzleOpen(false);
+              setPuzzleTick((n) => n + 1);
+            }}
+            award={(kind, ref) => award(kind, { ref })}
+            overlay={overlays("puzzle")}
+          />
+        ) : null}
         <Scanlines />
       </SafeAreaView>
     );

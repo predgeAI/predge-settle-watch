@@ -2,7 +2,7 @@
 // Pure functions only (no React Native imports) so they run in the offline selftest.
 // Everything is local to the phone. No server, no tokens, no money.
 
-export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch";
+export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play";
 
 export const XP: Record<ActionKind | "clock_in", number> = {
   clock_in: 10,
@@ -11,6 +11,9 @@ export const XP: Record<ActionKind | "clock_in", number> = {
   anchor: 50,
   add_market: 10,
   early_catch: 40,
+  puzzle_win: 15,
+  puzzle_play: 5,
+  rule_play: 5,
 };
 
 export const ACTION_LABEL: Record<ActionKind | "clock_in", string> = {
@@ -20,6 +23,9 @@ export const ACTION_LABEL: Record<ActionKind | "clock_in", string> = {
   anchor: "Anchored a receipt on Solana",
   add_market: "Added a market",
   early_catch: "Caught a change within 1 h",
+  puzzle_win: "Called the Daily Dispute right",
+  puzzle_play: "Played the Daily Dispute",
+  rule_play: "Spotted a risky phrase (once per case)",
 };
 
 export const LEVELS = [
@@ -36,6 +42,7 @@ export const BADGES = [
   { id: "streak_7", name: "7-day streak", hint: "Clock in 7 days in a row" },
   { id: "early_dispute", name: "Dispute spotted early", hint: "Open a disputed market within 1 h of the alert" },
   { id: "watch_5", name: "5 markets watched", hint: "Watch 5 markets at once" },
+  { id: "puzzles", name: "Puzzles solved", hint: "Call 3 Daily Disputes right" },
 ] as const;
 export type BadgeId = (typeof BADGES)[number]["id"];
 
@@ -189,6 +196,17 @@ export function lastSeven(s: GameState, now: Date = new Date()): WeekCell[] {
 
 // ---- xp --------------------------------------------------------------------
 
+// One place that sees every XP award, so other modules (for example a league) can report it.
+type XpListener = (e: { kind: ActionKind | "clock_in"; xp: number; at: string; total: number }) => void;
+const xpListeners: XpListener[] = [];
+export function onXpAwarded(fn: XpListener): () => void {
+  xpListeners.push(fn);
+  return () => {
+    const i = xpListeners.indexOf(fn);
+    if (i >= 0) xpListeners.splice(i, 1);
+  };
+}
+
 function credit(s: GameState, kind: ActionKind | "clock_in", xp: number, now: Date): { state: GameState; levelUp?: string } {
   const before = levelOf(s.xp).index;
   const next: GameState = {
@@ -197,6 +215,13 @@ function credit(s: GameState, kind: ActionKind | "clock_in", xp: number, now: Da
     events: [...s.events, { at: now.toISOString(), day: dayOf(now), kind, xp }].slice(-300),
   };
   const after = levelOf(next.xp).index;
+  for (const fn of xpListeners) {
+    try {
+      fn({ kind, xp, at: now.toISOString(), total: next.xp });
+    } catch {
+      // a listener must never break the game loop
+    }
+  }
   return { state: next, levelUp: after > before ? LEVELS[after].name : undefined };
 }
 
@@ -250,6 +275,7 @@ export function unlockBadges(s: GameState, ctx: BadgeCtx, now: Date = new Date()
   if (!has("streak_7") && s.streak >= 7) want.push("streak_7");
   if (!has("early_dispute") && ctx.earlyDisputed) want.push("early_dispute");
   if (!has("watch_5") && ctx.watching >= 5) want.push("watch_5");
+  if (!has("puzzles") && count("puzzle_win") >= 3) want.push("puzzles");
   if (!want.length) return { state: s, unlocked: [] };
   const badges = { ...s.badges };
   for (const id of want) badges[id] = now.toISOString();

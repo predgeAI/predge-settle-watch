@@ -1,0 +1,1055 @@
+[
+{
+"id": "1831352",
+"q": "Will any AI model reach 1520 Overall Arena Score by September 30, 2026?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-09-15",
+"diff": 0,
+"cat": "tech"
+},
+{
+"id": "3102463",
+"q": "Will WTI Crude Oil (WTI) hit (LOW) $85 in August?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-02",
+"diff": 0,
+"cat": "finance"
+},
+{
+"id": "3649960",
+"q": "Cincinnati Open: Completed Match: Joao Fonseca vs Christopher O'Connell",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-08-18",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4549717",
+"q": "Solana Up or Down - September 16, 6AM ET",
+"proposal": "Down",
+"final": "Up",
+"date": "2026-09-16",
+"diff": 1,
+"cat": "crypto"
+},
+{
+"id": "4909553",
+"q": "Map 1 Rounds Handicap: Eternal Fire (-6.5) vs Betclic Apogee Esports (+6.5)",
+"proposal": "Eternal Fire",
+"final": "Betclic Apogee Esports",
+"date": "2026-09-24",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "2496475",
+"q": "Will \"hate that i made you love me - Ariana Grande\" be the song of the summer?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-02",
+"diff": 0,
+"cat": "culture"
+},
+{
+"id": "4868074",
+"q": "Will Albion FC win on 2026-09-28?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4868946",
+"q": "Montevideo Wanderers vs. Albion FC: Montevideo Wanderers O/U 4.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3907687",
+"q": "Prescot Cables FC vs. Horbury Town FC: Prescot Cables FC 2nd Half O/U 1.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-06",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4870702",
+"q": "Koike vs. Alarcon: Match O/U 22.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-09-23",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3647052",
+"q": "Map Handicap: GX GC (-1.5) vs SK Nebula (+1.5)",
+"proposal": "SK Nebula",
+"final": "SK Nebula",
+"date": "2026-08-16",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4790443",
+"q": "LoL: FURIA Esports vs RED Canids (BO5) - CBLOL Playoffs",
+"proposal": "RED Canids",
+"final": "FURIA Esports",
+"date": "2026-09-26",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "3898313",
+"q": "Sahdiieva/Tian vs. Chong/Yang: Match O/U 21.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-08-27",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4422902",
+"q": "Tomase vs. Gentili: Set 1 Games O/U 10.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-10",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "5051965",
+"q": "Map 2 Rounds Handicap: GamerLegion (-6.5) vs Sinners (+6.5)",
+"proposal": "Sinners",
+"final": "Sinners",
+"date": "2026-09-27",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4168792",
+"q": "M15 Monastir: Nicolas Jadoun vs Stevan Popovic",
+"proposal": "Stevan Popovic",
+"final": "Nicolas Jadoun",
+"date": "2026-09-03",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4597498",
+"q": "Petkovic vs. Zanolini: Set 1 Games O/U 8.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-09-16",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3466950",
+"q": "Glossop North End AFC vs. Tadcaster Albion AFC: Tadcaster Albion AFC 1st Half O/U 0.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-08-25",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3038214",
+"q": "KKS Lech Poznań vs. Aarhus GF: Total Corners Odd or Even?",
+"proposal": "Odd",
+"final": "Even",
+"date": "2026-08-03",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3394742",
+"q": "Map Handicap: WAL (-1.5) vs Black Phoenix (+1.5)",
+"proposal": "Black Phoenix",
+"final": "Black Phoenix",
+"date": "2026-08-07",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4890109",
+"q": "Will Ted Hurst III score the first touchdown?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-27",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3467344",
+"q": "Nantwich Town FC vs. Sporting Khalsa FC: O/U 0.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4423781",
+"q": "Luc Fomba vs. Alexander Vasilev: Total Sets O/U 2.5",
+"proposal": "Over 2.5",
+"final": "Over 2.5",
+"date": "2026-09-10",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3466793",
+"q": "Ossett United FC vs. Abbey Hey FC: O/U 2.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-08-12",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "5052145",
+"q": "Map 2 Rounds Handicap: GamerLegion (-9.5) vs Sinners (+9.5)",
+"proposal": "Sinners",
+"final": "Sinners",
+"date": "2026-09-27",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4605821",
+"q": "Will the lowest temperature in Manila be 26°C on September 18?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-18",
+"diff": 1,
+"cat": "weather"
+},
+{
+"id": "3454843",
+"q": "Will Sporting Khalsa FC win on 2026-08-11?",
+"proposal": "No",
+"final": "No",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3806813",
+"q": "Will there be a run scored in the first inning?: Chicago White Sox vs. Minnesota Twins",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-08-29",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4467276",
+"q": "T20 Series Japan vs Malaysia, Women: Japan vs Malaysia",
+"proposal": "Japan",
+"final": "Malaysia",
+"date": "2026-09-13",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4288464",
+"q": "Club Brugge vs. Royal Antwerp FC: O/U 13.5 Total Corners",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-13",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4625563",
+"q": "Hipfl vs. Salazar: Match O/U 21.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-17",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4703487",
+"q": "Northern Illinois vs. Arizona: O/U 38.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-09-20",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3917067",
+"q": "Will Anna Wintour attend Proenza Schouler?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-26",
+"diff": 1,
+"cat": "culture"
+},
+{
+"id": "3824489",
+"q": "Garland vs. Gormaz: Set 1 Games O/U 10.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-08-25",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4825852",
+"q": "Dota 2: Travoman Team vs NS Team - Game 2 Winner",
+"proposal": "Travoman Team",
+"final": "Travoman Team",
+"date": "2026-09-22",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "3389482",
+"q": "FC Gintra-Universitetas vs. Rīga FC: 2nd Half O/U 4.5 Total Corners",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-08-08",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4868947",
+"q": "Montevideo Wanderers vs. Albion FC: Montevideo Wanderers O/U 5.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4910614",
+"q": "Mensik vs. Nakashima: Match O/U 21.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-25",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3466959",
+"q": "Glossop North End AFC vs. Tadcaster Albion AFC: Tadcaster Albion AFC 2nd Half O/U 1.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-08-25",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4582881",
+"q": "Sobolieva vs. Zoldakova: Set 1 Games O/U 8.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-16",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3329700",
+"q": "Will FK Polissia win on 2026-08-17?",
+"proposal": "No",
+"final": "No",
+"date": "2026-08-17",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4868951",
+"q": "Montevideo Wanderers vs. Albion FC: Albion FC O/U 3.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3951559",
+"q": "AEK vs. OFI: Neither team to score first?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-02",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3096414",
+"q": "Will WTI Crude Oil (WTI) hit (LOW) $80 in August?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-02",
+"diff": 0,
+"cat": "finance"
+},
+{
+"id": "3438919",
+"q": "Map Handicap: RSTR (-1.5) vs Abyssal (+1.5)",
+"proposal": "Abyssal",
+"final": "Abyssal",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "3355734",
+"q": "LoL: Team Heretics vs G2 Esports (BO3) - LEC Regular Season",
+"proposal": "G2 Esports",
+"final": "G2 Esports",
+"date": "2026-08-09",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "5124568",
+"q": "Ruchkina vs. Blazkova: Set 1 Games O/U 9.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-30",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4463902",
+"q": "USA vs. France",
+"proposal": "USA",
+"final": "USA",
+"date": "2026-09-13",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4503298",
+"q": "Snizek Michal vs. Holub Martin",
+"proposal": "Snizek Michal",
+"final": "Snizek Michal",
+"date": "2026-09-13",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4711468",
+"q": "Will another app be #2 Free App in the US Apple App Store on September 25?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-25",
+"diff": 1,
+"cat": "culture"
+},
+{
+"id": "3487273",
+"q": "Cagliari Calcio vs. SS Arezzo: 2nd Half O/U 5.5 Total Corners",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-08-14",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3128872",
+"q": "Will Marriott (MAR) Q2 worldwide RevPAR be above $139?",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-08-03",
+"diff": 1,
+"cat": "finance"
+},
+{
+"id": "3853833",
+"q": "Rakki vs. Stabauer: Match O/U 21.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-08-25",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4056576",
+"q": "Will FK Shakhtar Donetsk vs. FK Chornomorets Odesa end in a draw?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-14",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4545375",
+"q": "Junior vs. Bruno: Set 2 Games O/U 9.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-14",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3467352",
+"q": "Nantwich Town FC vs. Sporting Khalsa FC: O/U 4.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "1361023",
+"q": "Will Maxx Crosby play for Indianapolis Colts next?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-01",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4790441",
+"q": "LoL: FURIA Esports vs RED Canids - Game 3 Winner",
+"proposal": "RED Canids",
+"final": "RED Canids",
+"date": "2026-09-26",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4409965",
+"q": "Will Cooper Dossey finish in the Top 10 at the 2026 Simmons Bank Open?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-14",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4890131",
+"q": "Will Myles Price score the first touchdown?",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-09-27",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4597488",
+"q": "Romane Longueville vs. Valentina Steiner: Total Sets O/U 2.5",
+"proposal": "Over 2.5",
+"final": "Over 2.5",
+"date": "2026-09-16",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "5052143",
+"q": "Map 2 Rounds Handicap: Sinners (-3.5) vs GamerLegion (+3.5)",
+"proposal": "Sinners",
+"final": "GamerLegion",
+"date": "2026-09-27",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "4544241",
+"q": "Palicova/Struplova vs. Novak/Sebestova: Set 2 Games O/U 10.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-09-16",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4810032",
+"q": "Oklahoma State vs. West Virginia: 3Q O/U 19.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-27",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3467371",
+"q": "Nantwich Town FC vs. Sporting Khalsa FC: Sporting Khalsa FC O/U 0.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4868073",
+"q": "Will Montevideo Wanderers vs. Albion FC end in a draw?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3481964",
+"q": "Map 2 Rounds Handicap: Rooster (-3.5) vs Abyssal (+3.5)",
+"proposal": "Abyssal",
+"final": "Abyssal",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4810029",
+"q": "Oklahoma State vs. West Virginia: 3Q O/U 16.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-27",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4359705",
+"q": "Yodpetch vs. Kim: Set 2 Games O/U 10.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-09",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3467038",
+"q": "Broadfields United FC vs. Herne Bay FC: 1st Half O/U 0.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-08-12",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3651521",
+"q": "Veldman vs. Mckenzie: Match O/U 22.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-08-17",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4868969",
+"q": "Montevideo Wanderers vs. Albion FC: Montevideo Wanderers 2nd Half O/U 1.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3707303",
+"q": "CA Bucaramanga to score first vs. AD Cali?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-08-31",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3892283",
+"q": "Neus Torner Sensano vs. Sayaka Ishii: Total Sets O/U 2.5",
+"proposal": "Under 2.5",
+"final": "Under 2.5",
+"date": "2026-08-26",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4247533",
+"q": "W15 Grodzisk Mazowiecki: Zuzanna Bednarz vs Kateryna Lazarenko",
+"proposal": "Kateryna Lazarenko",
+"final": "Kateryna Lazarenko",
+"date": "2026-09-06",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "5061675",
+"q": "Klimas vs. Mikovic: Set 1 Games O/U 10.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-28",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4553631",
+"q": "Cocola vs. Wessels: Set 1 Games O/U 9.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-15",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4267576",
+"q": "Maristany vs. Ribera: Set 1 Games O/U 8.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-08",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4648437",
+"q": "Will \"Monster: The Lizzie Borden Story\" be the top US Netflix show this week?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-22",
+"diff": 1,
+"cat": "culture"
+},
+{
+"id": "4661102",
+"q": "Detroit Tigers vs. Chicago White Sox: O/U 7.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-09-19",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3711507",
+"q": "ITF M15 Krakow Men: Adam Majchrzak vs Tom Zeuch",
+"proposal": "Tom Zeuch",
+"final": "Tom Zeuch",
+"date": "2026-08-19",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4648409",
+"q": "Will \"Monster: The Lizzie Borden Story\" be the top global Netflix show this week?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-09-22",
+"diff": 1,
+"cat": "culture"
+},
+{
+"id": "3158152",
+"q": "Will Chungbuk Cheongju FC vs. Suwon Bluewings end in a draw?",
+"proposal": "No",
+"final": "Yes",
+"date": "2026-08-01",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3776418",
+"q": "Map 2 Rounds Handicap: WRAITH PCIFIC (-6.5) vs Bebop (+6.5)",
+"proposal": "Bebop",
+"final": "WRAITH PCIFIC",
+"date": "2026-08-22",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "4581669",
+"q": "LoL: Meavedron vs eSuba - Game 1 Winner",
+"proposal": "eSuba",
+"final": "eSuba",
+"date": "2026-09-16",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "3329704",
+"q": "Will FK Zorya Luhansk win on 2026-08-17?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-17",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4758324",
+"q": "M15 Baku: Alexey Aleshchev vs Pavel Skvortcov",
+"proposal": "Pavel Skvortcov",
+"final": "Pavel Skvortcov",
+"date": "2026-09-21",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3364478",
+"q": "Will fnatic Qualify to the EWC Main Event",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-08-09",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "608558",
+"q": "Will Raphinha win the 2026 Ballon d'Or?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-08",
+"diff": 0,
+"cat": "culture"
+},
+{
+"id": "3808555",
+"q": "Maple Leafs vs. Canadiens: O/U 6.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-20",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "5108216",
+"q": "W15 Nashville, TN: Margaret Sohns vs Astra Sharma",
+"proposal": "Margaret Sohns",
+"final": "Astra Sharma",
+"date": "2026-09-30",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4479895",
+"q": "Ahouda vs. Delage: Match O/U 23.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-12",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3677386",
+"q": "KAA Gent vs. Hibernian FC: O/U 9.5 Total Corners",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-28",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4648422",
+"q": "Will another show be the top global Netflix show this week?",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-09-22",
+"diff": 1,
+"cat": "culture"
+},
+{
+"id": "3712451",
+"q": "Alujas vs. Puerto: Match O/U 21.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-08-19",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4596106",
+"q": "W35 Santa Margherita di Pula: Romane Longueville vs Valentina Steiner",
+"proposal": "Valentina Steiner",
+"final": "Valentina Steiner",
+"date": "2026-09-16",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3336177",
+"q": "Will there be a run scored in the first inning?: Colorado Rockies vs. Arizona Diamondbacks",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-11",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3851546",
+"q": "ITF M25 Poznan Men: Bruno Kokot vs Jan Chlodnicki",
+"proposal": "Jan Chlodnicki",
+"final": "Jan Chlodnicki",
+"date": "2026-08-25",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4868973",
+"q": "Montevideo Wanderers vs. Albion FC: Albion FC 2nd Half O/U 1.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-09-29",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3929828",
+"q": "Will it rain in Atlanta, GA on August 27?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-28",
+"diff": 0,
+"cat": "weather"
+},
+{
+"id": "4758328",
+"q": "M15 Baku, Qualifying: Completed Match: Alexey Aleshchev vs Pavel Skvortcov",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-09-21",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "3907685",
+"q": "Prescot Cables FC vs. Horbury Town FC: 2nd Half O/U 2.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-06",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3929827",
+"q": "Will it rain in Washington, DC on August 27?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-28",
+"diff": 0,
+"cat": "weather"
+},
+{
+"id": "3471364",
+"q": "Map 2 Rounds Handicap: Ground Zero (-3.5) vs Mindfreak (+3.5)",
+"proposal": "Ground Zero",
+"final": "Ground Zero",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "esports"
+},
+{
+"id": "4811690",
+"q": "Houston Christian vs. North Texas: 2Q O/U 13.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-09-27",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4239337",
+"q": "Will the highest temperature in Amsterdam be 21°C on September 7?",
+"proposal": "No",
+"final": "No",
+"date": "2026-09-07",
+"diff": 0,
+"cat": "weather"
+},
+{
+"id": "3929819",
+"q": "Will it rain in New York, NY on August 27?",
+"proposal": "Yes",
+"final": "Yes",
+"date": "2026-08-28",
+"diff": 0,
+"cat": "weather"
+},
+{
+"id": "3467350",
+"q": "Nantwich Town FC vs. Sporting Khalsa FC: O/U 3.5",
+"proposal": "Under",
+"final": "Under",
+"date": "2026-08-10",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4545790",
+"q": "Khamurda Vitalii vs. Derevynskyi Dmytro",
+"proposal": "Derevynskyi Dmytro",
+"final": "Khamurda Vitalii",
+"date": "2026-09-23",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4134798",
+"q": "Map 2 Rounds Handicap: Color (-3.5) vs B8 (+3.5)",
+"proposal": "B8",
+"final": "Color",
+"date": "2026-09-02",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "3907682",
+"q": "Prescot Cables FC vs. Horbury Town FC: Both Teams to Score in Second Half",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-09-06",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "3115827",
+"q": "Honor of Kings: JLY vs LT Gaming - Game 3 Winner",
+"proposal": "JLY",
+"final": "LT Gaming",
+"date": "2026-08-03",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "4051119",
+"q": "LoL: T1 Academy vs KT Rolster Challengers - Game 2 Winner",
+"proposal": "KT Rolster Challengers",
+"final": "T1 Academy",
+"date": "2026-09-08",
+"diff": 1,
+"cat": "esports"
+},
+{
+"id": "4515991",
+"q": "Forti/Romano vs. Clarke/Gill: Match O/U 23.5",
+"proposal": "Over",
+"final": "Under",
+"date": "2026-09-16",
+"diff": 1,
+"cat": "sports"
+},
+{
+"id": "4696768",
+"q": "SMU vs. Louisville: 1Q O/U 15.5",
+"proposal": "Over",
+"final": "Over",
+"date": "2026-09-19",
+"diff": 0,
+"cat": "sports"
+},
+{
+"id": "4648453",
+"q": "Will another show be the top US Netflix show this week?",
+"proposal": "Yes",
+"final": "No",
+"date": "2026-09-22",
+"diff": 1,
+"cat": "culture"
+},
+{
+"id": "3412389",
+"q": "Dolehide vs. Gorgodze: Match O/U 22.5",
+"proposal": "Under",
+"final": "Over",
+"date": "2026-08-08",
+"diff": 1,
+"cat": "sports"
+}
+]
