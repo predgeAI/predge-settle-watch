@@ -1,6 +1,6 @@
 // Settle Watch League: social layer (friends, weekly league, clans). Everything under src/league is self-contained.
-// Set LEAGUE_ENABLED to false to drop the League from a build. The App.tsx hook-in is gated on this flag.
-export const LEAGUE_ENABLED = false;
+// Defaults to true after the production smoke tests passed (11 Oct 2026). Set LEAGUE_ENABLED to false to drop the League from a build. The App.tsx hook-in is gated on this flag.
+export const LEAGUE_ENABLED = true;
 
 export const LEAGUE_API = "https://settle-watch-league.vercel.app";
 export const LEAGUE_DISCLAIMER = "League scores are game points reported by the app. They are not verified and have no value.";
