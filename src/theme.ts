@@ -31,6 +31,8 @@ export const STATUS: Record<string, { color: string; label: string; word: string
 };
 export const STATUS_ORDER = ["caution", "watch", "ok", "resolved"];
 
+// Bundled OFL pixel font (assets/fonts, embedded by the expo-font plugin).
+export const PX = "PressStart2P-Regular";
 export const MONO = Platform.select({ android: "monospace", default: "Menlo" }) as string;
 
 // Type scale (px): micro 11, small 13, body 15, heading 18, title 24, display 34.

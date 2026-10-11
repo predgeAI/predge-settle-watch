@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import Svg, { Circle, Defs, G, LinearGradient as SvgGradient, Line, Path, Stop } from "react-native-svg";
-import { alpha, C, MONO, T } from "./theme";
+import Svg, { Defs, Pattern, Rect } from "react-native-svg";
+import { alpha, C, PX, T } from "./theme";
 import * as haptic from "./haptic";
 import type { BadgeId } from "./game";
+import { FLAME, Mascot, Medal, PixelIcon, Sprite, type MascotFrame } from "./sprites";
 
 // ---------------------------------------------------------------------------
 // Motion helpers
@@ -31,43 +32,78 @@ export function useShake() {
   return { x, flash, run };
 }
 
-// ---------------------------------------------------------------------------
-// Brand mark: clock ring + check, same drawing as the app icon
-// ---------------------------------------------------------------------------
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const RING_LEN = 2 * Math.PI * 42;
-const CHECK_LEN = 72;
-
-export function Mark(props: { size: number; ring?: Animated.Value | number; check?: Animated.Value | number; ticks?: Animated.Value | number }) {
-  const ring = props.ring ?? 1;
-  const check = props.check ?? 1;
-  const off = (v: Animated.Value | number, len: number) => (typeof v === "number" ? len * (1 - v) : v.interpolate({ inputRange: [0, 1], outputRange: [len, 0] }));
-  return (
-    <Svg width={props.size} height={props.size} viewBox="0 0 100 100">
-      <Defs>
-        <SvgGradient id="mg" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0.1" stopColor="#9945ff" />
-          <Stop offset="0.55" stopColor="#28bee6" />
-          <Stop offset="0.95" stopColor="#14f195" />
-        </SvgGradient>
-      </Defs>
-      <G rotation={-90} origin="50, 50">
-        <AnimatedCircle cx="50" cy="50" r="42" stroke="url(#mg)" strokeWidth="7" fill="none" strokeLinecap="round" strokeDasharray={`${RING_LEN}`} strokeDashoffset={off(ring, RING_LEN) as never} />
-      </G>
-      <G opacity={(props.ticks ?? 1) as never}>
-        {[0, 90, 180, 270].map((a) => (
-          <Line key={a} x1="50" y1="14" x2="50" y2="19" stroke="url(#mg)" strokeWidth="3" strokeLinecap="round" transform={`rotate(${a} 50 50)`} />
-        ))}
-      </G>
-      <AnimatedPath d="M30 52 L44 66 L71 33" stroke="#28d6c0" strokeWidth="8" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={`${CHECK_LEN}`} strokeDashoffset={off(check, CHECK_LEN) as never} />
-    </Svg>
-  );
+/** Ticks a value on an interval, used for 2-frame sprite animation. */
+export function useTicker(ms: number, on = true): number {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    const id = setInterval(() => setN((v) => v + 1), ms);
+    return () => clearInterval(id);
+  }, [ms, on]);
+  return n;
 }
 
 // ---------------------------------------------------------------------------
-// Pressable with scale feedback and haptic tick
+// Pixel box: stepped corners, no smooth radius
+// ---------------------------------------------------------------------------
+
+export function PixelBox(props: {
+  border?: string;
+  bg?: string;
+  p?: number;
+  lift?: string; // thicker darker bottom edge, arcade-button style
+  style?: StyleProp<ViewStyle>;
+  inner?: StyleProp<ViewStyle>;
+  children?: React.ReactNode;
+}) {
+  const p = props.p ?? 3;
+  const border = props.border ?? C.line;
+  return (
+    <View style={props.style}>
+      <View style={{ height: p, marginHorizontal: p, backgroundColor: border }} />
+      <View style={{ borderLeftWidth: p, borderRightWidth: p, borderColor: border, backgroundColor: props.bg ?? C.surface }}>
+        <View style={props.inner}>{props.children}</View>
+      </View>
+      <View style={{ height: props.lift ? p * 2 : p, marginHorizontal: p, backgroundColor: props.lift ?? border }} />
+    </View>
+  );
+}
+
+/** Subtle CRT scanlines over a screen. */
+export function Scanlines() {
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 200 }]}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <Pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+            <Rect x="0" y="0" width="4" height="1" fill="#000000" opacity="0.12" />
+          </Pattern>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#scan)" />
+      </Svg>
+    </View>
+  );
+}
+
+/** Segmented XP bar. */
+export function PixelBar({ value, blocks = 14, color = C.green }: { value: number; blocks?: number; color?: string }) {
+  const filled = Math.round(Math.min(1, Math.max(0, value)) * blocks);
+  return (
+    <View style={{ flexDirection: "row", gap: 2 }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}>
+      {Array.from({ length: blocks }).map((_, i) => (
+        <View key={i} style={{ flex: 1, height: 10, backgroundColor: i < filled ? color : alpha(C.text, 0.1) }} />
+      ))}
+    </View>
+  );
+}
+
+export function StatusIcon({ level, color, px = 3 }: { level?: string; color: string; px?: number }) {
+  const name = level === "caution" ? "caution" : level === "watch" ? "eye" : level === "resolved" ? "settled" : "quiet";
+  return <PixelIcon name={name} color={color} px={px} />;
+}
+
+// ---------------------------------------------------------------------------
+// Pressable with pixel press feedback and haptic tick
 // ---------------------------------------------------------------------------
 
 export function Press(props: {
@@ -80,22 +116,21 @@ export function Press(props: {
   role?: "button" | "tab" | "switch";
   fill?: boolean; // take an equal share of a row
 }) {
-  const s = useRef(new Animated.Value(1)).current;
-  const to = (v: number) => Animated.spring(s, { toValue: v, speed: 40, bounciness: 4, useNativeDriver: true }).start();
+  const [down, setDown] = useState(false);
   return (
     <Pressable
       onPress={() => {
         if (props.haptics !== false) haptic.tap();
         props.onPress?.();
       }}
-      onPressIn={() => to(0.96)}
-      onPressOut={() => to(1)}
+      onPressIn={() => setDown(true)}
+      onPressOut={() => setDown(false)}
       disabled={props.disabled}
       accessibilityRole={props.role ?? "button"}
       accessibilityLabel={props.label}
       style={props.fill ? { flex: 1 } : undefined}
     >
-      <Animated.View style={[props.style, { transform: [{ scale: s }], opacity: props.disabled ? 0.5 : 1 }]}>{props.children}</Animated.View>
+      <View style={[props.style, { transform: [{ translateY: down ? 2 : 0 }], opacity: props.disabled ? 0.5 : 1 }]}>{props.children}</View>
     </Pressable>
   );
 }
@@ -103,88 +138,50 @@ export function Press(props: {
 export function Button(props: { title: string; onPress: () => void; kind?: "primary" | "ghost"; disabled?: boolean; small?: boolean; style?: StyleProp<ViewStyle> }) {
   const primary = props.kind !== "ghost";
   return (
-    <Press
-      onPress={props.onPress}
-      disabled={props.disabled}
-      label={props.title}
-      style={[st.btn, props.small && st.btnSmall, primary ? st.btnPrimary : st.btnGhost, props.style]}
-    >
-      <Text style={[st.btnText, !primary && { color: C.text }, props.small && { fontSize: T.small }]}>{props.title}</Text>
+    <Press onPress={props.onPress} disabled={props.disabled} label={props.title} style={props.style}>
+      <PixelBox
+        border={primary ? "#2f6b38" : C.line}
+        bg={primary ? C.green : C.surfaceHi}
+        lift={primary ? "#2f6b38" : "#0d1710"}
+        inner={{ paddingVertical: props.small ? 8 : 12, paddingHorizontal: props.small ? 8 : 12, alignItems: "center" }}
+      >
+        <Text style={[st.btnText, !primary && { color: C.text }, props.small && { fontSize: 9 }]}>{props.title}</Text>
+      </PixelBox>
     </Press>
   );
 }
 
 export function Chip({ text, color }: { text: string; color: string }) {
   return (
-    <View style={[st.chip, { borderColor: alpha(color, 0.6), backgroundColor: alpha(color, 0.12) }]}>
+    <PixelBox p={2} border={alpha(color, 0.8)} bg={alpha(color, 0.14)} inner={{ paddingHorizontal: 6, paddingVertical: 4 }}>
       <Text style={[st.chipText, { color }]}>{text}</Text>
-    </View>
+    </PixelBox>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Streak flame, level ring, badge icons
+// Streak flame, level box, badge medals
 // ---------------------------------------------------------------------------
 
-export function Flame({ size = 28, lit = true }: { size?: number; lit?: boolean }) {
-  const pulse = useRef(new Animated.Value(0)).current;
+export function Flame({ size = 4, lit = true }: { size?: number; lit?: boolean }) {
+  const t = useTicker(450, lit);
   const reduced = useReducedMotion();
-  useEffect(() => {
-    if (!lit || reduced) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [lit, reduced, pulse]);
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] });
+  const hot = lit && !reduced && t % 2 === 0;
+  const map = FLAME;
+  const pal = lit ? { O: hot ? C.orange : "#ff9a4d", Y: hot ? "#ffd29a" : "#fff0c8" } : { O: "#3a4a3f", Y: "#55665a" };
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path d="M12 2c1 3.5 5.5 5.5 5.5 11a5.5 5.5 0 0 1-11 0c0-2 .8-3.3 1.8-4.3.2 1.2.9 2 1.7 2.3C9.5 8 10.5 4.5 12 2z" fill={lit ? C.orange : "#3a4a3f"} />
-        <Path d="M12 12.5c.6 1.2 2.2 1.9 2.2 3.6a2.2 2.2 0 0 1-4.4 0c0-1.2.9-1.8 1.4-2.6.3.5.5.7.8.8z" fill={lit ? "#ffd29a" : "#55665a"} />
-      </Svg>
-    </Animated.View>
+    <View style={{ transform: [{ translateY: hot ? -2 : 0 }] }}>
+      <Sprite map={map} px={size} palette={pal} />
+    </View>
   );
 }
 
 export function LevelBadge(props: { index: number; progress: number; size?: number }) {
-  const size = props.size ?? 56;
-  const r = 21;
-  const len = 2 * Math.PI * r;
-  const val = useRef(new Animated.Value(props.progress)).current;
-  useEffect(() => {
-    Animated.timing(val, { toValue: props.progress, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-  }, [props.progress, val]);
   return (
-    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Svg width={size} height={size} viewBox="0 0 50 50" style={StyleSheet.absoluteFill}>
-        <Defs>
-          <SvgGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#9945ff" />
-            <Stop offset="1" stopColor="#14f195" />
-          </SvgGradient>
-        </Defs>
-        <Circle cx="25" cy="25" r={r} stroke={alpha(C.text, 0.14)} strokeWidth="4" fill="none" />
-        <G rotation={-90} origin="25, 25">
-          <AnimatedCircle
-            cx="25"
-            cy="25"
-            r={r}
-            stroke="url(#lg)"
-            strokeWidth="4"
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={`${len}`}
-            strokeDashoffset={val.interpolate({ inputRange: [0, 1], outputRange: [len, 0] }) as never}
-          />
-        </G>
-      </Svg>
-      <Text style={{ color: C.text, fontFamily: MONO, fontWeight: "800", fontSize: size * 0.3 }}>{props.index + 1}</Text>
-    </View>
+    <PixelBox p={3} border={C.green} bg={C.bg} inner={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: "center", minWidth: 54 }}>
+      <Text style={{ color: C.greenDeep, fontFamily: PX, fontSize: 8 }}>LV</Text>
+      <Text style={{ color: C.greenBright, fontFamily: PX, fontSize: 18, marginTop: 4 }}>{props.index + 1}</Text>
+    </PixelBox>
   );
 }
 
@@ -196,58 +193,35 @@ const BADGE_COLOR: Record<BadgeId, string> = {
   early_dispute: C.teal,
   watch_5: C.greenBright,
 };
+const BADGE_GLYPH: Record<BadgeId, string> = {
+  first_verify: "check",
+  tamper_caught: "tamper",
+  first_receipt: "receipt",
+  streak_7: "flame",
+  early_dispute: "bell",
+  watch_5: "eye",
+};
 
 export function BadgeIcon({ id, size = 56, locked = false }: { id: BadgeId; size?: number; locked?: boolean }) {
-  const col = locked ? "#4a5a4f" : BADGE_COLOR[id];
-  const glyph = (() => {
-    switch (id) {
-      case "first_verify":
-        return <Path d="M16 25l6 6 12-13" stroke={col} strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />;
-      case "tamper_caught":
-        return (
-          <>
-            <Path d="M25 12l11 4v8c0 7-5 11-11 14-6-3-11-7-11-14v-8z" stroke={col} strokeWidth="3" fill="none" strokeLinejoin="round" />
-            <Path d="M20 21l10 10M30 21l-10 10" stroke={col} strokeWidth="3" strokeLinecap="round" />
-          </>
-        );
-      case "first_receipt":
-        return (
-          <>
-            <Path d="M15 12h20v26l-4-3-3 3-3-3-3 3-3-3-4 3z" stroke={col} strokeWidth="3" fill="none" strokeLinejoin="round" />
-            <Path d="M20 20h10M20 26h10" stroke={col} strokeWidth="3" strokeLinecap="round" />
-          </>
-        );
-      case "streak_7":
-        return <Path d="M25 11c1 4 8 7 8 15a8 8 0 0 1-16 0c0-3 1.2-5 2.6-6.4.3 1.8 1.2 2.9 2.4 3.4C21.5 18 23 14 25 11z" fill={col} />;
-      case "early_dispute":
-        return (
-          <>
-            <Path d="M25 12c-5 0-8 4-8 9v6l-3 4h22l-3-4v-6c0-5-3-9-8-9z" stroke={col} strokeWidth="3" fill="none" strokeLinejoin="round" />
-            <Path d="M22 36a3 3 0 0 0 6 0" stroke={col} strokeWidth="3" fill="none" />
-          </>
-        );
-      case "watch_5":
-        return (
-          <>
-            <Path d="M10 25c4-7 10-10 15-10s11 3 15 10c-4 7-10 10-15 10S14 32 10 25z" stroke={col} strokeWidth="3" fill="none" strokeLinejoin="round" />
-            <Circle cx="25" cy="25" r="4.5" fill={col} />
-          </>
-        );
-    }
-  })();
-  return (
-    <Svg width={size} height={size} viewBox="0 0 50 50">
-      <Path d="M25 3l19 11v22L25 47 6 36V14z" fill={locked ? "#111a13" : alpha(col, 0.14)} stroke={locked ? "#2b3a30" : alpha(col, 0.7)} strokeWidth="2" strokeLinejoin="round" />
-      {glyph}
-    </Svg>
-  );
+  return <Medal glyph={BADGE_GLYPH[id]} color={BADGE_COLOR[id]} locked={locked} px={Math.max(2, Math.round(size / 12))} />;
 }
 
 // ---------------------------------------------------------------------------
-// Success / reject burst
+// Success / reject burst: pixel check or cross with square sparks
 // ---------------------------------------------------------------------------
 
-/** Draws a ring and a check (or cross) with a small spray of sparks. Re-plays when `play` changes. */
+const SPARK_DIRS = [
+  [1, 0],
+  [0.7, 0.7],
+  [0, 1],
+  [-0.7, 0.7],
+  [-1, 0],
+  [-0.7, -0.7],
+  [0, -1],
+  [0.7, -0.7],
+];
+
+/** Pops a pixel check (or cross) with a spray of pixel sparks. Re-plays when `play` changes. */
 export function Burst(props: { play: number; kind?: "ok" | "bad"; size?: number }) {
   const size = props.size ?? 64;
   const p = useRef(new Animated.Value(0)).current;
@@ -257,33 +231,35 @@ export function Burst(props: { play: number; kind?: "ok" | "bad"; size?: number 
   useEffect(() => {
     if (!props.play) return;
     p.setValue(0);
-    Animated.timing(p, { toValue: 1, duration: reduced ? 1 : 900, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    Animated.timing(p, { toValue: 1, duration: reduced ? 1 : 800, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [props.play, reduced, p]);
-  const ringOff = p.interpolate({ inputRange: [0, 0.55], outputRange: [RING_LEN, 0], extrapolate: "clamp" });
-  const markOff = p.interpolate({ inputRange: [0.35, 0.8], outputRange: [CHECK_LEN, 0], extrapolate: "clamp" });
-  const sparkR = p.interpolate({ inputRange: [0.4, 1], outputRange: [30, 48], extrapolate: "clamp" });
-  const sparkO = p.interpolate({ inputRange: [0.4, 0.6, 1], outputRange: [0, 1, 0], extrapolate: "clamp" });
-  const pop = p.interpolate({ inputRange: [0, 0.6, 0.8, 1], outputRange: [0.85, 1.0, 1.12, 1], extrapolate: "clamp" });
+  const pop = p.interpolate({ inputRange: [0, 0.35, 0.55, 1], outputRange: [0.3, 1.25, 1, 1], extrapolate: "clamp" });
+  const spark = p.interpolate({ inputRange: [0.2, 1], outputRange: [0, 1], extrapolate: "clamp" });
+  const sparkO = p.interpolate({ inputRange: [0.2, 0.4, 1], outputRange: [0, 1, 0], extrapolate: "clamp" });
+  const px = Math.max(3, Math.floor(size / 12));
   return (
-    <Animated.View style={{ width: size, height: size, transform: [{ scale: reduced ? 1 : pop }] }}>
-      <Svg width={size} height={size} viewBox="-10 -10 120 120">
-        <G rotation={-90} origin="50, 50">
-          <AnimatedCircle cx="50" cy="50" r="42" stroke={col} strokeWidth="7" fill={alpha(col, 0.1)} strokeLinecap="round" strokeDasharray={`${RING_LEN}`} strokeDashoffset={ringOff as never} />
-        </G>
-        {bad ? (
-          <AnimatedPath d="M34 34 L66 66 M66 34 L34 66" stroke={col} strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray="90" strokeDashoffset={markOff.interpolate({ inputRange: [0, CHECK_LEN], outputRange: [0, 90] }) as never} />
-        ) : (
-          <AnimatedPath d="M30 52 L44 66 L71 33" stroke={col} strokeWidth="8" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={`${CHECK_LEN}`} strokeDashoffset={markOff as never} />
-        )}
-        {reduced
-          ? null
-          : [0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
-              <G key={a} rotation={a} origin="50, 50">
-                <AnimatedCircle cx="50" cy={sparkR.interpolate({ inputRange: [30, 48], outputRange: [20, 0] }) as never} r="2.6" fill={a % 90 ? C.purpleSoft : col} opacity={sparkO as never} />
-              </G>
-            ))}
-      </Svg>
-    </Animated.View>
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      {reduced
+        ? null
+        : SPARK_DIRS.map(([dx, dy], i) => (
+            <Animated.View
+              key={i}
+              style={{
+                position: "absolute",
+                width: px,
+                height: px,
+                backgroundColor: i % 2 ? C.purpleSoft : col,
+                opacity: sparkO,
+                transform: [{ translateX: spark.interpolate({ inputRange: [0, 1], outputRange: [0, dx * size * 0.62] }) }, { translateY: spark.interpolate({ inputRange: [0, 1], outputRange: [0, dy * size * 0.62] }) }],
+              }}
+            />
+          ))}
+      <Animated.View style={{ transform: [{ scale: reduced ? 1 : pop }] }}>
+        <PixelBox p={Math.max(2, px - 1)} border={col} bg={alpha(col, 0.16)} inner={{ padding: px * 1.5 }}>
+          <PixelIcon name={bad ? "cross" : "check"} px={Math.max(3, Math.floor(size / 16))} color={col} />
+        </PixelBox>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -303,6 +279,7 @@ export interface Celebration {
 export function CelebrationOverlay({ item, onClose }: { item: Celebration | null; onClose: () => void }) {
   const s = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
+  const t = useTicker(350, !!item && !reduced);
   useEffect(() => {
     if (!item) return;
     haptic.success();
@@ -314,12 +291,20 @@ export function CelebrationOverlay({ item, onClose }: { item: Celebration | null
   return (
     <Animated.View style={[st.celeb, { opacity: s }]} accessibilityViewIsModal>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
-      <Animated.View style={[st.celebCard, { transform: [{ scale }] }]} pointerEvents="box-none">
-        <Text style={st.celebKicker}>{item.kind === "badge" ? "BADGE UNLOCKED" : "LEVEL UP"}</Text>
-        {item.kind === "badge" && item.badge ? <BadgeIcon id={item.badge} size={104} /> : <LevelBadge index={item.level ?? 0} progress={1} size={104} />}
-        <Text style={st.celebTitle}>{item.title}</Text>
-        <Text style={st.celebSub}>{item.sub}</Text>
-        <Button title="Nice" onPress={onClose} style={{ alignSelf: "stretch", marginTop: 16 }} />
+      <Animated.View style={{ transform: [{ scale }], width: "100%", maxWidth: 340 }} pointerEvents="box-none">
+        <PixelBox border={C.green} bg={C.surfaceHi} inner={{ padding: 22, alignItems: "center" }}>
+          <Text style={st.celebKicker}>{item.kind === "badge" ? "BADGE UNLOCKED" : "LEVEL UP!"}</Text>
+          {item.kind === "badge" && item.badge ? (
+            <BadgeIcon id={item.badge} size={96} />
+          ) : (
+            <View style={{ transform: [{ translateY: t % 2 ? -6 : 0 }] }}>
+              <Mascot mood="cheer" px={8} />
+            </View>
+          )}
+          <Text style={st.celebTitle}>{item.title}</Text>
+          <Text style={st.celebSub}>{item.sub}</Text>
+          <Button title="NICE" onPress={onClose} style={{ alignSelf: "stretch", marginTop: 16 }} />
+        </PixelBox>
       </Animated.View>
     </Animated.View>
   );
@@ -338,11 +323,10 @@ export function XpToast({ text, tick }: { text: string; tick: number }) {
   }, [tick, v]);
   if (!tick) return null;
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[st.toast, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }] }]}
-    >
-      <Text style={st.toastText}>{text}</Text>
+    <Animated.View pointerEvents="none" style={[st.toast, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }] }]}>
+      <PixelBox p={3} border="#2f6b38" bg={C.green} inner={{ paddingHorizontal: 14, paddingVertical: 8 }}>
+        <Text style={st.toastText}>{text}</Text>
+      </PixelBox>
     </Animated.View>
   );
 }
@@ -357,20 +341,25 @@ export function Reveal({ children, delay = 0, style }: { children: React.ReactNo
   return <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }]}>{children}</Animated.View>;
 }
 
+/** Mascot that bobs on a 2-frame loop. Pass `walking` to alternate feet. */
+export function LiveMascot({ mood = "idle", px = 4, walking = false }: { mood?: MascotFrame; px?: number; walking?: boolean }) {
+  const reduced = useReducedMotion();
+  const t = useTicker(walking ? 200 : 600, !reduced);
+  let frame: MascotFrame = mood;
+  if (walking) frame = t % 2 ? "walk2" : "walk";
+  const bob = !reduced && mood !== "sleep" && !walking && t % 2 === 1;
+  return <View style={{ transform: [{ translateY: bob ? -px : 0 }] }}><Mascot mood={frame} px={px} /></View>;
+}
+
+export { Sprite };
 
 const st = StyleSheet.create({
-  btn: { borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center" },
-  btnSmall: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
-  btnPrimary: { backgroundColor: C.green },
-  btnGhost: { borderColor: C.line, borderWidth: 1, backgroundColor: alpha(C.text, 0.03) },
-  btnText: { color: "#07120a", fontWeight: "800", fontSize: T.body, fontFamily: MONO, letterSpacing: 0.2 },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  chipText: { fontSize: T.micro, fontWeight: "800", letterSpacing: 0.6, fontFamily: MONO },
+  btnText: { color: "#07120a", fontFamily: PX, fontSize: 11, textTransform: "uppercase" },
+  chipText: { fontSize: 8, fontFamily: PX },
   celeb: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000000cc", alignItems: "center", justifyContent: "center", padding: 28, zIndex: 50 },
-  celebCard: { backgroundColor: C.surfaceHi, borderColor: C.greenDeep, borderWidth: 1, borderRadius: 24, padding: 24, alignItems: "center", width: "100%", maxWidth: 340 },
-  celebKicker: { color: C.green, fontFamily: MONO, fontWeight: "800", letterSpacing: 2, fontSize: T.small, marginBottom: 14 },
-  celebTitle: { color: C.text, fontSize: T.title, fontWeight: "800", marginTop: 14, textAlign: "center" },
-  celebSub: { color: C.dim, fontSize: T.body, marginTop: 6, textAlign: "center", lineHeight: 21 },
-  toast: { position: "absolute", top: 54, alignSelf: "center", backgroundColor: C.green, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, zIndex: 60 },
-  toastText: { color: "#07120a", fontFamily: MONO, fontWeight: "800", fontSize: T.body },
+  celebKicker: { color: C.green, fontFamily: PX, fontSize: T.small - 1, marginBottom: 16 },
+  celebTitle: { color: C.text, fontFamily: PX, fontSize: 14, lineHeight: 22, marginTop: 16, textAlign: "center" },
+  celebSub: { color: C.dim, fontSize: T.body, marginTop: 8, textAlign: "center", lineHeight: 21 },
+  toast: { position: "absolute", top: 54, alignSelf: "center", zIndex: 60 },
+  toastText: { color: "#07120a", fontFamily: PX, fontSize: 12 },
 });

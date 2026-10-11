@@ -20,7 +20,6 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
-import Svg, { Path } from "react-native-svg";
 import { fetchSettlementRisk, MAX_INPUT_LENGTH, parseMarketInput, type SettlementRisk } from "./src/api";
 import { verifyRecord, type Verification } from "./src/verify";
 import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, MAX_WATCHLIST, PINNED_KID, type Cluster } from "./src/config";
@@ -60,9 +59,11 @@ import {
 } from "./src/game";
 import { loadGame, saveGame } from "./src/gameStore";
 import { scheduleClockInNudge } from "./src/nudge";
-import { alpha, C, MONO, STATUS, STATUS_ORDER, T } from "./src/theme";
+import { alpha, C, MONO, PX, STATUS, STATUS_ORDER, T } from "./src/theme";
 import * as haptic from "./src/haptic";
-import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, Flame, LevelBadge, Mark, Press, Reveal, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
+import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, Flame, LevelBadge, LiveMascot, PixelBar, PixelBox, Press, Reveal, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
+import { PixelIcon, type Mood } from "./src/sprites";
+import Onboarding from "./src/Onboarding";
 import Intro from "./src/Intro";
 
 const EXAMPLES = [
@@ -113,7 +114,7 @@ function VerifiedBadge({ v }: { v?: Verification }) {
   return <Chip text={v.verified ? "VERIFIED ON DEVICE" : "NOT VERIFIED"} color={v.verified ? C.green : C.red} />;
 }
 
-/** Bold, color-coded market card. Pulses when its status changes. */
+/** Bold, color-coded market card with a pixel icon. Pulses when its status changes. */
 function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; onOpen: () => void }) {
   const level = item.last?.risk_level ?? "";
   const color = statusColor(level);
@@ -129,14 +130,16 @@ function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; o
   }, [level, flash]);
   const changedToday = changesLast24h(item).length > 0;
   return (
-    <Reveal delay={Math.min(index, 6) * 60}>
-      <Press onPress={onOpen} label={item.question ?? item.key} style={[styles.market, { backgroundColor: alpha(color, 0.1), borderColor: alpha(color, 0.5) }]}>
-        <View style={[styles.stripe, { backgroundColor: color }]} />
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] }) }]} />
-        <View style={{ paddingLeft: 10 }}>
+    <Reveal delay={Math.min(index, 6) * 60} style={{ marginTop: 12 }}>
+      <Press onPress={onOpen} label={item.question ?? item.key}>
+        <PixelBox border={color} bg={alpha(color, 0.1)} lift={alpha(color, 0.55)} inner={{ padding: 14 }}>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] }) }]} />
           <View style={styles.rowBetween}>
-            <Text style={[styles.statusWord, { color }]}>{(STATUS[level]?.word ?? "CHECKING")}</Text>
-            <Text style={styles.dim}>
+            <View style={styles.statusHead}>
+              <StatusIcon level={level} color={color} px={3} />
+              <Text style={[styles.statusWord, { color }]}>{STATUS[level]?.word ?? "CHECKING"}</Text>
+            </View>
+            <Text style={[styles.dim, { flexShrink: 1, textAlign: "right" }]}>
               checked {ago(item.lastPolledAt)}
               {item.lastError ? ` . error: ${item.lastError.slice(0, 80)}` : ""}
             </Text>
@@ -150,78 +153,9 @@ function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; o
             {changedToday ? <Chip text="CHANGED TODAY" color={C.orange} /> : null}
             {item.anchors.length ? <Chip text={`RECEIPT x${item.anchors.length}`} color={C.purpleSoft} /> : null}
           </View>
-        </View>
+        </PixelBox>
       </Press>
     </Reveal>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Onboarding: three short screens on first launch.
-// ---------------------------------------------------------------------------
-
-const STEPS = [
-  {
-    kicker: "1 of 3 . The problem",
-    title: "Prediction markets settle after trading",
-    body:
-      "On Polymarket a proposed outcome can be disputed. From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 markets, and 853 of 2,543 settled disputed markets (33.5%) settled differently from the disputed proposal. Most holders hear about it late.",
-  },
-  {
-    kicker: "2 of 3 . What Settle Watch does",
-    title: "An alert you can check yourself",
-    body:
-      "Add markets to your watchlist. When one gets a dispute, a clarification, a UMA vote or settles on chain, your phone alerts you. Every record is signed by Predge, and this phone verifies the signature before it shows you anything.",
-  },
-  {
-    kicker: "3 of 3 . Start",
-    title: "Build your watchlist",
-    body:
-      "Start with three real markets (one disputed and not settled yet, one disputed twice and settled, one quiet), or paste your own Polymarket links. You also get one short digest a day. Connect a wallet later to anchor receipts on Solana.",
-  },
-];
-
-function Onboarding(props: { onDone: (addExamples: boolean) => void }) {
-  const [step, setStep] = useState(0);
-  const s = STEPS[step];
-  const last = step === STEPS.length - 1;
-  return (
-    <View style={styles.root}>
-      <LinearGradient colors={["#2a1458", "#0f2616", C.bg]} locations={[0, 0.35, 0.75]} style={StyleSheet.absoluteFill} />
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.onb}>
-          <View style={styles.brandRow}>
-            <Mark size={30} />
-            <Text style={styles.brand}>SETTLE WATCH</Text>
-          </View>
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            <Reveal key={step}>
-              <Text style={styles.kicker}>{s.kicker}</Text>
-              <Text style={styles.onbTitle}>{s.title}</Text>
-              <Text style={styles.onbBody}>{s.body}</Text>
-              {step === 0 ? <Text style={[styles.dim, { marginTop: 12 }]}>Source: UMA and Polymarket adapter logs on Polygon, scanned by Predge.</Text> : null}
-            </Reveal>
-          </View>
-          <View style={styles.dots}>
-            {STEPS.map((_, i) => (
-              <View key={i} style={[styles.dot, i === step && { backgroundColor: C.green, width: 26 }]} />
-            ))}
-          </View>
-          {last ? (
-            <>
-              <Button title="Add 3 example markets" onPress={() => props.onDone(true)} />
-              <View style={{ height: 8 }} />
-              <Button kind="ghost" title="I will paste my own" onPress={() => props.onDone(false)} />
-            </>
-          ) : (
-            <View style={styles.rowBetween}>
-              <Button kind="ghost" title={step === 0 ? "Skip" : "Back"} onPress={() => (step === 0 ? props.onDone(false) : setStep(step - 1))} />
-              <Button title="Next" onPress={() => setStep(step + 1)} />
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
-    </View>
   );
 }
 
@@ -449,15 +383,16 @@ export default function App() {
   );
 
   const finishOnboarding = useCallback(
-    async (addExamples: boolean) => {
+    async (addExamples: boolean, clockedIn = false) => {
       await updateSettings({ onboarded: true });
+      if (clockedIn) doClockIn();
       await setupNotifications();
       setBgOk(await registerBackgroundPolling());
       if (addExamples) {
         for (const e of [...EXAMPLES].reverse()) await addMarket(e.key, { quiet: true });
       }
     },
-    [updateSettings, addMarket]
+    [updateSettings, addMarket, doClockIn]
   );
 
   const removeMarket = useCallback(
@@ -661,12 +596,15 @@ export default function App() {
       <CelebrationOverlay item={where === top ? (celebs[0] ?? null) : null} onClose={() => setCelebs((c) => c.slice(1))} />
     </>
   );
+  // The Watcher mirrors the watchlist: asleep when quiet, alarmed on caution or watch, cheering once clocked in.
+  const homeMood: Mood = !items.length ? "sleep" : counts.caution + counts.watch > 0 ? "alarm" : !canIn ? "cheer" : "sleep";
+  const detailMood: Mood = !detail ? "idle" : detail.last?.risk_level === "caution" || detail.last?.risk_level === "watch" ? "alarm" : detail.last?.risk_level === "resolved" ? "cheer" : "sleep";
 
   let content: React.ReactNode;
   if (!settings) {
     content = (
-      <SafeAreaView style={[styles.root, { justifyContent: "center" }]}>
-        <ActivityIndicator color={C.green} />
+      <SafeAreaView style={[styles.root, { justifyContent: "center", alignItems: "center" }]}>
+        <LiveMascot mood="idle" px={6} />
       </SafeAreaView>
     );
   } else if (!settings.onboarded) {
@@ -679,29 +617,37 @@ export default function App() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={C.green} progressBackgroundColor={C.surfaceHi} />}
           keyboardShouldPersistTaps="handled"
         >
-          <LinearGradient colors={["#2f1763", "#123022", C.bg]} locations={[0, 0.55, 1]} style={styles.header}>
+          <View style={styles.header}>
             <View style={styles.rowBetween}>
-              <View style={styles.brandRow}>
-                <Mark size={30} />
-                <Text style={styles.brand}>SETTLE WATCH</Text>
-              </View>
+              <Text style={styles.brand}>SETTLE WATCH</Text>
               <Press onPress={() => setBadgesOpen(true)} label={`Level ${level.index + 1} ${level.name}, open badges`}>
-                <LevelBadge index={level.index} progress={level.progress} size={52} />
+                <LevelBadge index={level.index} progress={level.progress} />
               </Press>
             </View>
-            <Text style={styles.display}>{level.name}</Text>
-            <Text style={styles.subtitle}>
+            <Text style={styles.display}>{level.name.toUpperCase()}</Text>
+            <View style={{ marginTop: 10 }}>
+              <PixelBar value={level.progress} />
+            </View>
+            <Text style={[styles.subtitle, { marginTop: 8 }]}>
               {game.xp} XP{level.next ? ` . ${level.toNext} to ${level.next}` : " . top level"}
             </Text>
-            <Text style={[styles.subtitle, { marginTop: 10 }]}>Settlement alerts for Polymarket, verified on your phone</Text>
-          </LinearGradient>
+            <Text style={[styles.subtitle, { marginTop: 8 }]}>Settlement alerts for Polymarket, verified on your phone</Text>
+            <View style={styles.stepRow}>
+              {Array.from({ length: 24 }).map((_, i) => (
+                <View key={i} style={[styles.stepBit, { backgroundColor: i % 3 === 0 ? alpha(C.purple, 0.55) : alpha(C.green, 0.35) }]} />
+              ))}
+            </View>
+          </View>
 
           {/* Today: the hero, on paper */}
-          <View style={styles.hero}>
+          <PixelBox border={C.ink} bg={C.cream} lift="#8c7f66" style={{ marginTop: 14 }} inner={{ padding: 16 }}>
             <View style={styles.rowBetween}>
               <Text style={styles.heroKicker}>TODAY</Text>
-              <Text style={styles.heroDim}>last 24 h . checked {ago(lastCheck)}</Text>
+              <View style={{ marginTop: -4 }}>
+                <LiveMascot mood={homeMood} px={4} />
+              </View>
             </View>
+            <Text style={styles.heroDim}>last 24 h . checked {ago(lastCheck)}</Text>
             {items.length === 0 ? (
               <Text style={styles.heroBody}>Add a market below and its status changes will show up here.</Text>
             ) : today.length === 0 ? (
@@ -738,10 +684,10 @@ export default function App() {
 
             <View style={styles.heroRule} />
             <View style={styles.streakRow}>
-              <Flame size={34} lit={streak > 0} />
+              <Flame size={5} lit={streak > 0} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.streakNum}>
-                  {streak} <Text style={styles.streakUnit}>day streak</Text>
+                  {streak} <Text style={styles.streakUnit}>DAY STREAK</Text>
                 </Text>
                 <Text style={styles.heroDim}>One free miss per week keeps it alive. Best: {game.best}.</Text>
               </View>
@@ -753,15 +699,11 @@ export default function App() {
                     style={[
                       styles.weekDot,
                       d.done && { backgroundColor: C.ink, borderColor: C.ink },
-                      d.saved && !d.done && { borderColor: C.purple, backgroundColor: alpha(C.purple, 0.15) },
+                      d.saved && !d.done && { borderColor: C.purple, backgroundColor: alpha(C.purple, 0.2) },
                       d.today && !d.done && { borderColor: C.ink, borderStyle: "dashed" },
                     ]}
                   >
-                    {d.done ? (
-                      <Svg width={14} height={14} viewBox="0 0 24 24">
-                        <Path d="M5 12.5l4.5 4.5L19 7" stroke={C.green} strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                      </Svg>
-                    ) : null}
+                    {d.done ? <PixelIcon name="check" px={3} color={C.green} /> : null}
                   </View>
                   <Text style={styles.weekLabel}>{d.label}</Text>
                 </View>
@@ -770,19 +712,21 @@ export default function App() {
             <View style={styles.clockRow}>
               {clockPlay > 0 && !canIn ? <Burst play={clockPlay} size={46} /> : null}
               <View style={{ flex: 1 }}>
-                <Press onPress={doClockIn} disabled={!canIn} haptics={false} label={canIn ? "Clock in" : "Clocked in today"} style={[styles.clockBtn, !canIn && { backgroundColor: alpha(C.ink, 0.12) }]}>
-                  <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? `CLOCK IN  +${XP.clock_in + Math.min(streak + 1, 7) * 2} XP` : "CLOCKED IN TODAY"}</Text>
+                <Press onPress={doClockIn} disabled={!canIn} haptics={false} label={canIn ? "Clock in" : "Clocked in today"}>
+                  <PixelBox border={canIn ? C.ink : alpha(C.ink, 0.25)} bg={canIn ? C.ink : alpha(C.ink, 0.1)} lift={canIn ? "#000000" : undefined} inner={{ paddingVertical: 15, alignItems: "center" }}>
+                    <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? `CLOCK IN +${XP.clock_in + Math.min(streak + 1, 7) * 2} XP` : "CLOCKED IN TODAY"}</Text>
+                  </PixelBox>
                 </Press>
               </View>
             </View>
             <Text style={[styles.heroDim, { marginTop: 10 }]}>
               {settings.digest ? `Daily digest at ${hh(settings.digestHour)}.` : "Daily digest is off."}{" "}
-              {bgOk === false ? "Background checks are off on this phone." : "Checked every minute while open, about every 15 min in the background."}
+              {bgOk === false ? "Background checks are off on this phone." : "Live checks while open, about every 15 min in the background."}
             </Text>
-          </View>
+          </PixelBox>
 
           {/* Wallet: one compact row */}
-          <View style={[styles.card, styles.rowBetween]}>
+          <PixelBox style={styles.cardGap} inner={[styles.cardPad, styles.rowBetween]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardLabel}>Wallet . Solana {net}</Text>
               {wallet ? (
@@ -806,22 +750,24 @@ export default function App() {
             ) : (
               <Button small title="Connect wallet" onPress={onConnect} disabled={!!busy} />
             )}
-          </View>
+          </PixelBox>
 
           {/* Watchlist at a glance */}
-          <Text style={styles.section}>Watchlist ({items.length})</Text>
+          <Text style={styles.section}>WATCHLIST ({items.length})</Text>
           {items.length ? (
             <View style={styles.glance}>
               {STATUS_ORDER.map((r) => (
-                <Press
-                  key={r}
-                  onPress={() => setFilter(filter === r ? null : r)}
-                  label={`Show ${STATUS[r].label} markets`}
-                  fill
-                  style={[styles.glanceCell, { backgroundColor: alpha(STATUS[r].color, filter === r ? 0.28 : 0.1), borderColor: alpha(STATUS[r].color, filter === r ? 1 : 0.4) }]}
-                >
-                  <Text style={[styles.glanceNum, { color: STATUS[r].color }]}>{counts[r]}</Text>
-                  <Text style={[styles.glanceLabel, { color: STATUS[r].color }]}>{STATUS[r].label}</Text>
+                <Press key={r} onPress={() => setFilter(filter === r ? null : r)} label={`Show ${STATUS[r].label} markets`} fill>
+                  <PixelBox
+                    p={3}
+                    border={alpha(STATUS[r].color, filter === r ? 1 : 0.5)}
+                    bg={alpha(STATUS[r].color, filter === r ? 0.28 : 0.1)}
+                    inner={{ paddingVertical: 10, alignItems: "center", gap: 6 }}
+                  >
+                    <StatusIcon level={r} color={STATUS[r].color} px={2} />
+                    <Text style={[styles.glanceNum, { color: STATUS[r].color }]}>{counts[r]}</Text>
+                    <Text style={[styles.glanceLabel, { color: STATUS[r].color }]}>{STATUS[r].label}</Text>
+                  </PixelBox>
                 </Press>
               ))}
             </View>
@@ -832,21 +778,25 @@ export default function App() {
           ))}
 
           {/* Add a market */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Watch a market</Text>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder="polymarket.com link, slug or market id"
-              placeholderTextColor={C.dim}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={MAX_INPUT_LENGTH}
-              onSubmitEditing={() => addMarket(input)}
-            />
+          <PixelBox style={styles.cardGap} inner={styles.cardPad}>
+            <Text style={styles.cardTitle}>WATCH A MARKET</Text>
+            <PixelBox p={2} border={C.line} bg={C.bg} style={{ marginVertical: 8 }} inner={{ paddingHorizontal: 12 }}>
+              <TextInput
+                value={input}
+                onChangeText={setInput}
+                placeholder="polymarket.com link, slug or market id"
+                placeholderTextColor={C.dim}
+                style={styles.input}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={MAX_INPUT_LENGTH}
+                onSubmitEditing={() => addMarket(input)}
+              />
+            </PixelBox>
             <View style={styles.row}>
-              <Button title={busy === "add" ? "Checking..." : "Add to watchlist"} onPress={() => addMarket(input)} disabled={!!busy} />
+              <View style={{ flex: 1 }}>
+                <Button title={busy === "add" ? "Checking..." : "Add to watchlist"} onPress={() => addMarket(input)} disabled={!!busy} />
+              </View>
               <Button
                 kind="ghost"
                 title="Paste"
@@ -854,40 +804,40 @@ export default function App() {
                 disabled={!!busy}
               />
             </View>
-            <Text style={[styles.dim, { marginTop: 8 }]}>Examples (real markets)</Text>
+            <Text style={[styles.dim, { marginTop: 10 }]}>Examples (real markets)</Text>
             <View style={styles.rowWrap}>
               {EXAMPLES.map((e) => (
                 <Button key={e.key} small kind="ghost" title={e.label} onPress={() => addMarket(e.key)} disabled={!!busy} />
               ))}
             </View>
-          </View>
+          </PixelBox>
 
           {/* Weekly recap */}
-          <LinearGradient colors={["#2a1458", "#10281a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.recap}>
+          <PixelBox border={C.purple} bg="#1b1233" style={styles.cardGap} inner={styles.cardPad}>
             <Text style={styles.cardLabel}>Weekly recap</Text>
             <Text style={styles.recapText}>{recap.text}</Text>
             <Text style={styles.dim}>{recap.xp} XP earned since Monday.</Text>
-          </LinearGradient>
+          </PixelBox>
 
           {/* Badges */}
-          <View style={styles.card}>
+          <PixelBox style={styles.cardGap} inner={styles.cardPad}>
             <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>Badges</Text>
+              <Text style={styles.cardTitle}>BADGES</Text>
               <Text style={styles.dim}>
                 {unlocked} of {BADGES.length} unlocked
               </Text>
             </View>
-            <View style={[styles.rowBetween, { marginVertical: 8 }]}>
+            <View style={[styles.rowBetween, { marginVertical: 10 }]}>
               {BADGES.map((b) => (
-                <BadgeIcon key={b.id} id={b.id} size={44} locked={!game.badges[b.id]} />
+                <BadgeIcon key={b.id} id={b.id} size={40} locked={!game.badges[b.id]} />
               ))}
             </View>
             <Button small kind="ghost" title="All badges" onPress={() => setBadgesOpen(true)} />
-          </View>
+          </PixelBox>
 
           {/* Settings */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Settings</Text>
+          <PixelBox style={styles.cardGap} inner={styles.cardPad}>
+            <Text style={styles.cardTitle}>SETTINGS</Text>
             <View style={styles.rowBetween}>
               <Text style={styles.body}>Daily digest notification</Text>
               <Switch
@@ -906,36 +856,44 @@ export default function App() {
                 </View>
               </View>
             ) : null}
-            <View style={[styles.rowBetween, { marginTop: 10 }]}>
+            <View style={[styles.rowBetween, { marginTop: 12 }]}>
               <Text style={styles.body}>Receipt network</Text>
-              <View style={styles.segment}>
+              <View style={styles.row}>
                 {(["devnet", "mainnet-beta"] as Cluster[]).map((c) => (
-                  <Pressable key={c} onPress={() => onSwitchCluster(c)} style={[styles.segItem, cluster === c && { backgroundColor: C.green }]} accessibilityRole="button">
-                    <Text style={[styles.chipText, { color: cluster === c ? "#07120a" : C.text }]}>{CLUSTERS[c].label.toUpperCase()}</Text>
-                  </Pressable>
+                  <Press key={c} onPress={() => onSwitchCluster(c)} label={CLUSTERS[c].label}>
+                    <PixelBox p={2} border={cluster === c ? "#2f6b38" : C.line} bg={cluster === c ? C.green : C.surfaceHi} inner={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                      <Text style={[styles.chipText, { color: cluster === c ? "#07120a" : C.text }]}>{CLUSTERS[c].label.toUpperCase()}</Text>
+                    </PixelBox>
+                  </Press>
                 ))}
               </View>
             </View>
-            <View style={[styles.rowWrap, { marginTop: 10 }]}>
+            <View style={[styles.rowWrap, { marginTop: 12 }]}>
               <Button small kind="ghost" title="Check now" onPress={refreshAll} />
               <Button small kind="ghost" title="Digest now" onPress={onDigestNow} />
               <Button small kind="ghost" title="Send test alert" onPress={onTestAlert} />
               <Button small kind="ghost" title="Show intro" onPress={() => updateSettings({ onboarded: false })} />
             </View>
-          </View>
-
-          {context ? (
-            <View style={[styles.card, { marginTop: 16 }]}>
-              <Text style={styles.cardTitle}>Why this matters</Text>
-              <Text style={styles.body}>
-                {String(context.period)}: {num(context.disputes)} UMA disputes on {num(context.disputed_markets)} Polymarket
-                markets. Of {num(context.settled_disputed_markets)} disputed markets that settled,{" "}
-                {num(context.settled_differently_from_disputed_proposal)} ({String(context.settled_differently_share)}) settled
-                differently from the disputed proposal.
-              </Text>
-              <Text style={[styles.dim, { marginTop: 6 }]}>Source: {String(context.source)}</Text>
-            </View>
-          ) : null}
+            <View style={styles.howRule} />
+            <Text style={styles.cardTitle}>HOW IT WORKS</Text>
+            <Text style={styles.body}>
+              On Polymarket a proposed outcome can be disputed in a UMA vote. Add markets to your watchlist. When one gets a dispute, a clarification, a UMA vote or settles on chain, your phone alerts you.
+            </Text>
+            <Text style={styles.body}>
+              Every record is signed by Predge with ed25519, and this phone verifies the signature before it shows you anything. Anchor a receipt to save a Solana memo of exactly what you saw, signed by your wallet.
+            </Text>
+            {context ? (
+              <>
+                <Text style={[styles.body, { marginTop: 6 }]}>
+                  {String(context.period)}: {num(context.disputes)} UMA disputes on {num(context.disputed_markets)} Polymarket
+                  markets. Of {num(context.settled_disputed_markets)} disputed markets that settled,{" "}
+                  {num(context.settled_differently_from_disputed_proposal)} ({String(context.settled_differently_share)}) settled
+                  differently from the disputed proposal.
+                </Text>
+                <Text style={[styles.dim, { marginTop: 6 }]}>Source: {String(context.source)}</Text>
+              </>
+            ) : null}
+          </PixelBox>
 
           <Text style={[styles.dim, { marginTop: 16, textAlign: "center" }]}>
             Data: Predge API (api.predge.io), ed25519 signed, key {PINNED_KID}. Not advice.
@@ -948,7 +906,7 @@ export default function App() {
           <SafeAreaView style={styles.root}>
             {detail ? (
               <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>
-                <LinearGradient colors={[alpha(statusColor(detail.last?.risk_level), 0.45), C.bg]} style={styles.detailHead}>
+                <View style={[styles.detailHead, { backgroundColor: alpha(statusColor(detail.last?.risk_level), 0.16), borderBottomColor: statusColor(detail.last?.risk_level) }]}>
                   <View style={styles.rowBetween}>
                     <Button small kind="ghost" title="Back" onPress={() => setDetailKey(null)} />
                     <Button
@@ -963,23 +921,31 @@ export default function App() {
                       }
                     />
                   </View>
-                  <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 18 }]}>{STATUS[detail.last?.risk_level ?? ""]?.word ?? "CHECKING"}</Text>
-                  <Text style={[styles.question, { fontSize: T.heading + 2 }]}>{detail.question}</Text>
+                  <View style={[styles.rowBetween, { marginTop: 18 }]}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.statusHead}>
+                        <StatusIcon level={detail.last?.risk_level} color={statusColor(detail.last?.risk_level)} px={4} />
+                        <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20 }]}>{STATUS[detail.last?.risk_level ?? ""]?.word ?? "CHECKING"}</Text>
+                      </View>
+                    </View>
+                    <LiveMascot mood={detailMood} px={4} />
+                  </View>
+                  <Text style={[styles.question, { fontSize: T.heading + 2, marginTop: 12 }]}>{detail.question}</Text>
                   <Text style={[styles.statusBig, { color: statusColor(detail.last?.risk_level) }]}>{statusLine(detail.snapshot)}</Text>
                   <View style={styles.rowWrap}>
                     <RiskBadge level={detail.last?.risk_level} />
                     <VerifiedBadge v={detail.verification} />
                   </View>
-                </LinearGradient>
+                </View>
                 {detail.last ? <Text style={[styles.body, { marginTop: 12 }]}>{detail.last.recommendation}</Text> : null}
 
                 <Animated.View style={{ transform: [{ translateX: shake.x }] }}>
-                  <View style={[styles.card, { borderColor: detail.verification?.verified ? C.green : C.red, overflow: "hidden" }]}>
+                  <PixelBox border={detail.verification?.verified ? C.green : C.red} style={styles.cardGap} inner={styles.cardPad}>
                     <View style={styles.verifyHead}>
-                      <Burst play={verifyPlay} kind={detail.verification?.verified ? "ok" : "bad"} size={64} />
+                      <Burst play={verifyPlay} kind={detail.verification?.verified ? "ok" : "bad"} size={72} />
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.cardTitle, { color: detail.verification?.verified ? C.green : C.red, marginBottom: 0 }]}>
-                          {detail.verification?.verified ? "Verified on this phone" : "Not verified"}
+                        <Text style={[styles.cardTitle, { color: detail.verification?.verified ? C.green : C.red, marginBottom: 6 }]}>
+                          {detail.verification?.verified ? "VERIFIED ON THIS PHONE" : "NOT VERIFIED"}
                         </Text>
                         <Text style={styles.bigCount}>
                           {detail.verification?.checks.filter((c) => c.ok).length ?? 0}
@@ -994,7 +960,7 @@ export default function App() {
                     {showChecks
                       ? detail.verification?.checks.map((c) => (
                           <View key={c.label} style={styles.checkRow}>
-                            <Text style={{ color: c.ok ? C.green : C.red, width: 28, fontWeight: "800", fontFamily: MONO }}>{c.ok ? "OK" : "X"}</Text>
+                            <Text style={{ color: c.ok ? C.green : C.red, width: 36, fontFamily: PX, fontSize: 10 }}>{c.ok ? "OK" : "X"}</Text>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.body}>{c.label}</Text>
                               {c.detail ? <Text style={[styles.mono, { fontSize: 11, color: C.dim }]}>{c.detail}</Text> : null}
@@ -1007,8 +973,8 @@ export default function App() {
                       <Button small kind="ghost" title="Tamper test" onPress={() => onTamperTest(detail)} />
                     </View>
                     {tamper ? (
-                      <View style={[styles.rowBetween, { marginTop: 10, justifyContent: "flex-start", gap: 12 }]}>
-                        {!tamper.verified ? <Burst play={rejectPlay} kind="bad" size={44} /> : null}
+                      <View style={[styles.rowBetween, { marginTop: 12, justifyContent: "flex-start", gap: 12 }]}>
+                        {!tamper.verified ? <Burst play={rejectPlay} kind="bad" size={52} /> : null}
                         <Text style={[styles.body, { flex: 1, color: tamper.verified ? C.red : C.greenBright }]}>
                           Tamper test: one character of the signed bytes changed.{" "}
                           {tamper.verified ? "Still verified (unexpected)." : "Rejected, as it should be."}
@@ -1019,17 +985,17 @@ export default function App() {
                       pointerEvents="none"
                       style={[StyleSheet.absoluteFill, { backgroundColor: C.red, opacity: shake.flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] }) }]}
                     />
-                  </View>
+                  </PixelBox>
                 </Animated.View>
 
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Receipt on Solana {net}</Text>
+                <PixelBox style={styles.cardGap} inner={styles.cardPad}>
+                  <Text style={styles.cardTitle}>RECEIPT ON SOLANA {net.toUpperCase()}</Text>
                   <Text style={styles.dim}>
                     Writes the hash of this verified record into a memo transaction, signed by your wallet through Mobile Wallet Adapter. You keep
                     a public, timestamped proof of exactly what you were shown.
                   </Text>
                   {detail.verification?.packHash && detail.last ? (
-                    <Text style={[styles.mono, { fontSize: 11, marginVertical: 6, color: C.greenDeep }]}>
+                    <Text style={[styles.mono, { fontSize: 11, marginVertical: 8, color: C.greenDeep }]}>
                       {(() => {
                         try {
                           return memoText({
@@ -1060,10 +1026,10 @@ export default function App() {
                       </Text>
                     </Pressable>
                   ))}
-                </View>
+                </PixelBox>
 
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Timeline</Text>
+                <PixelBox style={styles.cardGap} inner={styles.cardPad}>
+                  <Text style={styles.cardTitle}>TIMELINE</Text>
                   {detail.timeline.map((t, i) => (
                     <Text key={`${t.at}-${i}`} style={styles.body}>
                       <Text style={styles.dim}>{t.at.replace("T", " ").slice(0, 16)} </Text>
@@ -1072,7 +1038,7 @@ export default function App() {
                   ))}
                   {detail.last?.disputes?.length ? (
                     <>
-                      <Text style={[styles.cardTitle, { marginTop: 10 }]}>Disputes on chain</Text>
+                      <Text style={[styles.cardTitle, { marginTop: 12 }]}>DISPUTES ON CHAIN</Text>
                       {detail.last.disputes.map((d, i) => (
                         <Text key={i} style={[styles.mono, { fontSize: 11, color: C.dim }]}>
                           {JSON.stringify(d).slice(0, 240)}
@@ -1080,7 +1046,7 @@ export default function App() {
                       ))}
                     </>
                   ) : null}
-                </View>
+                </PixelBox>
                 <Text style={[styles.dim, { marginTop: 12 }]}>
                   market {detail.last?.market.market_id} . condition {short(detail.last?.market.condition_id ?? "", 8)}
                 </Text>
@@ -1093,6 +1059,7 @@ export default function App() {
               </View>
             ) : null}
             {overlays("detail")}
+            <Scanlines />
           </SafeAreaView>
         </Modal>
 
@@ -1100,50 +1067,60 @@ export default function App() {
         <Modal visible={badgesOpen} statusBarTranslucent animationType="slide" onRequestClose={() => setBadgesOpen(false)}>
           <SafeAreaView style={styles.root}>
             <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>
-              <LinearGradient colors={["#2f1763", "#123022", C.bg]} locations={[0, 0.55, 1]} style={styles.detailHead}>
+              <View style={styles.header}>
                 <View style={styles.rowBetween}>
                   <Button small kind="ghost" title="Back" onPress={() => setBadgesOpen(false)} />
-                  <LevelBadge index={level.index} progress={level.progress} size={52} />
+                  <LevelBadge index={level.index} progress={level.progress} />
                 </View>
-                <Text style={[styles.display, { marginTop: 14 }]}>{level.name}</Text>
-                <Text style={styles.subtitle}>
+                <View style={[styles.rowBetween, { marginTop: 14 }]}>
+                  <Text style={[styles.display, { marginTop: 0 }]}>{level.name.toUpperCase()}</Text>
+                  <LiveMascot mood="cheer" px={4} />
+                </View>
+                <View style={{ marginTop: 10 }}>
+                  <PixelBar value={level.progress} />
+                </View>
+                <Text style={[styles.subtitle, { marginTop: 8 }]}>
                   Level {level.index + 1} . {game.xp} XP{level.next ? ` . ${level.toNext} to ${level.next}` : ""}
                 </Text>
                 <Text style={[styles.subtitle, { marginTop: 4 }]}>
                   Streak {streak} . best {game.best} . kept on this phone only
                 </Text>
-              </LinearGradient>
+              </View>
               <Text style={styles.section}>
-                Badges ({unlocked} of {BADGES.length})
+                BADGES ({unlocked} of {BADGES.length})
               </Text>
               <View style={styles.badgeGrid}>
                 {BADGES.map((b) => {
                   const at = game.badges[b.id];
                   return (
-                    <View key={b.id} style={[styles.badgeCell, at ? { borderColor: alpha(C.green, 0.5) } : { opacity: 0.75 }]} accessibilityLabel={`${b.name}, ${at ? "unlocked" : "locked"}`}>
-                      <BadgeIcon id={b.id} size={72} locked={!at} />
-                      <Text style={[styles.badgeName, !at && { color: C.dim }]}>{b.name}</Text>
-                      <Text style={[styles.dim, { textAlign: "center" }]}>{at ? `Unlocked ${at.slice(0, 10)}` : b.hint}</Text>
+                    <View key={b.id} style={{ width: "48%", flexGrow: 1 }} accessibilityLabel={`${b.name}, ${at ? "unlocked" : "locked"}`}>
+                      <PixelBox border={at ? C.green : C.line} inner={[styles.badgeCell, !at && { opacity: 0.8 }]}>
+                        <BadgeIcon id={b.id} size={72} locked={!at} />
+                        <Text style={[styles.badgeName, !at && { color: C.dim }]}>{b.name}</Text>
+                        <Text style={[styles.dim, { textAlign: "center" }]}>{at ? `Unlocked ${at.slice(0, 10)}` : b.hint}</Text>
+                      </PixelBox>
                     </View>
                   );
                 })}
               </View>
-              <Text style={styles.section}>How XP works</Text>
-              <View style={styles.card}>
+              <Text style={styles.section}>HOW XP WORKS</Text>
+              <PixelBox style={styles.cardGap} inner={styles.cardPad}>
                 {(Object.keys(XP) as (keyof typeof XP)[]).map((k) => (
-                  <View key={k} style={[styles.rowBetween, { paddingVertical: 4 }]}>
+                  <View key={k} style={[styles.rowBetween, { paddingVertical: 5 }]}>
                     <Text style={[styles.body, { flex: 1 }]}>{ACTION_LABEL[k]}</Text>
-                    <Text style={[styles.mono, { color: C.green }]}>+{XP[k]}</Text>
+                    <Text style={[styles.chipText, { color: C.green, fontSize: 10 }]}>+{XP[k]}</Text>
                   </View>
                 ))}
                 <Text style={[styles.dim, { marginTop: 8 }]}>
                   Each market counts once for verify and add. Levels: {LEVELS.map((l) => `${l.name} ${l.min}`).join(", ")}. XP is a personal log, not money.
                 </Text>
-              </View>
+              </PixelBox>
             </ScrollView>
             {overlays("badges")}
+            <Scanlines />
           </SafeAreaView>
         </Modal>
+        <Scanlines />
       </SafeAreaView>
     );
   }
@@ -1160,78 +1137,58 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   scroll: { paddingHorizontal: 16, paddingBottom: 56 },
-  header: { marginHorizontal: -16, paddingHorizontal: 20, paddingTop: 48, paddingBottom: 28, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  detailHead: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 18, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  brand: { color: C.greenBright, fontFamily: MONO, fontSize: T.small, fontWeight: "800", letterSpacing: 3 },
-  display: { color: C.text, fontFamily: MONO, fontSize: T.display, fontWeight: "800", marginTop: 16, letterSpacing: 0.5 },
-  subtitle: { color: C.dim, fontSize: T.small, marginTop: 2, lineHeight: 19 },
-  hero: { backgroundColor: C.cream, borderRadius: 24, padding: 18, marginTop: -8, shadowColor: "#000", elevation: 8 },
-  heroKicker: { color: C.ink, fontFamily: MONO, fontWeight: "800", fontSize: T.heading, letterSpacing: 4 },
+  header: { marginHorizontal: -16, paddingHorizontal: 20, paddingTop: 52, paddingBottom: 18, backgroundColor: "#160f2b", borderBottomWidth: 4, borderBottomColor: C.purple },
+  detailHead: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 18, borderBottomWidth: 4 },
+  stepRow: { flexDirection: "row", marginTop: 14, marginHorizontal: -20, marginBottom: -18 },
+  stepBit: { flex: 1, height: 4 },
+  brand: { color: C.greenBright, fontFamily: PX, fontSize: 10 },
+  display: { color: C.text, fontFamily: PX, fontSize: 22, marginTop: 18 },
+  subtitle: { color: C.dim, fontSize: T.small, lineHeight: 19 },
+  heroKicker: { color: C.ink, fontFamily: PX, fontSize: 16 },
   heroDim: { color: C.inkSoft, fontSize: T.small, lineHeight: 18 },
   heroBody: { color: C.ink, fontSize: T.body, lineHeight: 22, marginTop: 8 },
   heroRowTitle: { color: C.ink, fontSize: T.body, fontWeight: "700" },
-  heroRule: { height: 1, backgroundColor: alpha(C.ink, 0.18), marginVertical: 14 },
-  streakRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  streakNum: { color: C.ink, fontFamily: MONO, fontWeight: "800", fontSize: 30 },
-  streakUnit: { fontSize: T.body, fontWeight: "700" },
-  weekRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
-  weekCell: { alignItems: "center", gap: 4 },
-  weekDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: alpha(C.ink, 0.25), alignItems: "center", justifyContent: "center" },
-  weekLabel: { color: C.inkSoft, fontFamily: MONO, fontSize: T.micro, fontWeight: "700" },
-  clockRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
-  clockBtn: { backgroundColor: C.ink, borderRadius: 16, paddingVertical: 15, alignItems: "center" },
-  clockBtnText: { color: C.greenBright, fontFamily: MONO, fontWeight: "800", fontSize: T.body, letterSpacing: 1.5 },
-  card: { backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 20, padding: 16, marginTop: 14 },
-  market: { borderWidth: 1, borderRadius: 20, padding: 14, marginTop: 12, overflow: "hidden" },
-  stripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 6 },
-  statusWord: { fontFamily: MONO, fontSize: T.heading, fontWeight: "800", letterSpacing: 2 },
-  recap: { borderRadius: 20, padding: 16, marginTop: 14, borderWidth: 1, borderColor: alpha(C.purple, 0.4) },
+  heroRule: { height: 3, backgroundColor: alpha(C.ink, 0.18), marginVertical: 14 },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  streakNum: { color: C.ink, fontFamily: PX, fontSize: 22, marginBottom: 6 },
+  streakUnit: { fontSize: 10 },
+  weekRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 14 },
+  weekCell: { alignItems: "center", gap: 6 },
+  weekDot: { width: 34, height: 34, borderWidth: 3, borderColor: alpha(C.ink, 0.3), alignItems: "center", justifyContent: "center" },
+  weekLabel: { color: C.inkSoft, fontFamily: PX, fontSize: 8 },
+  clockRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
+  clockBtnText: { color: C.greenBright, fontFamily: PX, fontSize: 11 },
+  cardGap: { marginTop: 14 },
+  cardPad: { padding: 14 },
+  statusHead: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  statusWord: { fontFamily: PX, fontSize: 13 },
   recapText: { color: C.text, fontSize: T.heading, fontWeight: "700", lineHeight: 25, marginVertical: 6 },
-  cardTitle: { color: C.text, fontSize: T.body + 1, fontWeight: "800", marginBottom: 6 },
-  cardLabel: { color: C.dim, fontSize: T.micro, fontWeight: "800", letterSpacing: 1, marginBottom: 2, textTransform: "uppercase", fontFamily: MONO },
-  section: { color: C.text, fontSize: T.heading, fontWeight: "800", marginTop: 24, fontFamily: MONO },
-  question: { color: C.text, fontSize: T.body + 1, fontWeight: "700", marginVertical: 4, lineHeight: 22 },
+  cardTitle: { color: C.text, fontFamily: PX, fontSize: 11, lineHeight: 18, marginBottom: 8 },
+  cardLabel: { color: C.dim, fontSize: 8, marginBottom: 4, textTransform: "uppercase", fontFamily: PX },
+  section: { color: C.greenBright, fontSize: 12, marginTop: 26, fontFamily: PX },
+  question: { color: C.text, fontSize: T.body + 1, fontWeight: "700", marginVertical: 6, lineHeight: 22 },
   statusBig: { fontSize: T.heading, fontWeight: "700", marginBottom: 6 },
   body: { color: C.text, fontSize: T.body, lineHeight: 21, marginVertical: 2 },
   dim: { color: C.dim, fontSize: T.small, lineHeight: 18 },
   mono: { color: C.text, fontFamily: MONO, fontSize: T.small },
-  input: {
-    borderColor: C.line,
-    borderWidth: 1,
-    borderRadius: 14,
-    backgroundColor: C.bg,
-    color: C.text,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: T.body,
-    marginVertical: 8,
-  },
+  input: { color: C.text, paddingVertical: 12, fontSize: T.body },
   row: { flexDirection: "row", gap: 8, marginTop: 8, alignItems: "center" },
-  rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" },
+  rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8, alignItems: "center" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   checkRow: { flexDirection: "row", alignItems: "flex-start", marginVertical: 4 },
   todayRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
-  glance: { flexDirection: "row", gap: 8, marginTop: 10 },
-  glanceCell: { flex: 1, borderWidth: 1, borderRadius: 16, paddingVertical: 10, alignItems: "center" },
-  glanceNum: { fontSize: 26, fontWeight: "800", fontFamily: MONO },
-  glanceLabel: { fontSize: T.micro, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase", fontFamily: MONO },
-  segment: { flexDirection: "row", borderColor: C.line, borderWidth: 1, borderRadius: 12, overflow: "hidden" },
-  segItem: { paddingHorizontal: 12, paddingVertical: 8 },
-  chipText: { fontSize: T.micro, fontWeight: "800", letterSpacing: 0.6, fontFamily: MONO },
-  verifyHead: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 8 },
-  bigCount: { color: C.text, fontFamily: MONO, fontSize: T.display, fontWeight: "800" },
-  bigCountOf: { color: C.dim, fontSize: T.heading },
+  glance: { flexDirection: "row", gap: 8, marginTop: 12 },
+  glanceNum: { fontSize: 18, fontFamily: PX },
+  glanceLabel: { fontSize: 7, textTransform: "uppercase", fontFamily: PX },
+  chipText: { fontSize: 8, fontFamily: PX },
+  verifyHead: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
+  bigCount: { color: C.text, fontFamily: PX, fontSize: 28 },
+  bigCountOf: { color: C.dim, fontSize: 14 },
   stamp: { ...StyleSheet.absoluteFillObject, backgroundColor: "#0a0f0bd9", alignItems: "center", justifyContent: "center", zIndex: 40 },
-  stampText: { color: C.greenBright, fontFamily: MONO, fontWeight: "800", letterSpacing: 4, marginTop: 18, fontSize: T.body },
-  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
-  badgeCell: { width: "48%", flexGrow: 1, backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 18, padding: 14, alignItems: "center", gap: 6 },
-  badgeName: { color: C.text, fontWeight: "800", fontSize: T.body, textAlign: "center" },
-  onb: { flex: 1, padding: 24, paddingTop: 56 },
-  kicker: { color: C.green, fontSize: T.small, fontWeight: "800", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10, fontFamily: MONO },
-  onbTitle: { color: C.text, fontSize: 30, fontWeight: "800", lineHeight: 36, marginBottom: 14 },
-  onbBody: { color: C.text, fontSize: 16, lineHeight: 25 },
-  dots: { flexDirection: "row", gap: 6, justifyContent: "center", marginBottom: 20 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.line },
-  dotBig: { width: 12, height: 12, borderRadius: 6 },
+  stampText: { color: C.greenBright, fontFamily: PX, marginTop: 22, fontSize: 12 },
+  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
+  badgeCell: { padding: 14, alignItems: "center", gap: 8 },
+  badgeName: { color: C.text, fontFamily: PX, fontSize: 9, lineHeight: 14, textAlign: "center" },
+  howRule: { height: 3, backgroundColor: C.line, marginVertical: 16 },
+  dotBig: { width: 12, height: 12 },
 });

@@ -1,0 +1,214 @@
+{
+ "palette": {
+  "G": "#86e28a",
+  "D": "#2f6b38",
+  "B": "#c2ffc4",
+  "W": "#f4fff4",
+  "K": "#0a0f0b",
+  "O": "#e2703a",
+  "P": "#9945ff",
+  "R": "#ff5d4d",
+  "Y": "#ffd29a",
+  "T": "#28bee6"
+ },
+ "mascot": {
+  "idle": [
+   ".....P......",
+   ".....P......",
+   "..DDDDDDDD..",
+   ".DGGGGGGGGD.",
+   "DGGWWWWWWGGD",
+   "DGGWWKKWWGGD",
+   "DGGWWKKWWGGD",
+   "DGGWWWWWWGGD",
+   "DGGGGGGGGGGD",
+   ".DGGGGGGGGD.",
+   ".DGGDDDDGGD.",
+   "..DD....DD.."
+  ],
+  "walk": [
+   ".....P......",
+   ".....P......",
+   "..DDDDDDDD..",
+   ".DGGGGGGGGD.",
+   "DGGWWWWWWGGD",
+   "DGGWWWWKKGGD",
+   "DGGWWWWKKGGD",
+   "DGGWWWWWWGGD",
+   "DGGGGGGGGGGD",
+   ".DGGGGGGGGD.",
+   ".DGGDDDDGGD.",
+   ".DD......DD."
+  ],
+  "sleep": [
+   ".....P....TT",
+   ".....P.....T",
+   "..DDDDDDDD..",
+   ".DGGGGGGGGD.",
+   "DGGGGGGGGGGD",
+   "DGGGGGGGGGGD",
+   "DGGKKKKKKGGD",
+   "DGGGGGGGGGGD",
+   "DGGGGGGGGGGD",
+   ".DGGGGGGGGD.",
+   ".DGGDDDDGGD.",
+   "..DD....DD.."
+  ],
+  "alarm": [
+   "....OOOO....",
+   "....OOOO....",
+   "..DDDDDDDD..",
+   ".DOOOOOOOOD.",
+   "DOOWWWWWWOOD",
+   "DOWWRRRRWWOD",
+   "DOWWRKKRWWOD",
+   "DOWWRRRRWWOD",
+   "DOOWWWWWWOOD",
+   ".DOOOOOOOOD.",
+   ".DOODDDDOOD.",
+   "..DD....DD.."
+  ],
+  "cheer": [
+   ".....P......",
+   ".....P......",
+   "..DDDDDDDD..",
+   ".DGGGGGGGGD.",
+   "DGGGGGGGGGGD",
+   "DGGKGGGGKGGD",
+   "DGGGKKKKGGGD",
+   "DGGGGGGGGGGD",
+   "DGGGGGGGGGGD",
+   "BDGGGGGGGGDB",
+   "BDGGDDDDGGDB",
+   "..DD....DD.."
+  ]
+ },
+ "icons": {
+  "check": [
+   "........",
+   "......X.",
+   ".....XX.",
+   "X...XX..",
+   "XX.XX...",
+   ".XXXX...",
+   "..XX....",
+   "........"
+  ],
+  "cross": [
+   "........",
+   ".XX..XX.",
+   "..XXXX..",
+   "...XX...",
+   "...XX...",
+   "..XXXX..",
+   ".XX..XX.",
+   "........"
+  ],
+  "tamper": [
+   ".XXXXXX.",
+   "XXXXXXXX",
+   "XX.XX.XX",
+   "XXX..XXX",
+   "XXX..XXX",
+   "XX.XX.XX",
+   ".XXXXXX.",
+   "..XXXX.."
+  ],
+  "receipt": [
+   ".XXXXXX.",
+   ".X....X.",
+   ".X.XX.X.",
+   ".X....X.",
+   ".X.XX.X.",
+   ".X....X.",
+   ".XXXXXX.",
+   ".X.XX.X."
+  ],
+  "flame": [
+   "...X....",
+   "..XX....",
+   "..XXX...",
+   ".XXXXX..",
+   "XXXXXXX.",
+   "XXXXXXX.",
+   "XXXXXXX.",
+   ".XXXXX.."
+  ],
+  "bell": [
+   "...XX...",
+   "..XXXX..",
+   ".XXXXXX.",
+   ".XXXXXX.",
+   ".XXXXXX.",
+   "XXXXXXXX",
+   "........",
+   "...XX..."
+  ],
+  "eye": [
+   "........",
+   "..XXXX..",
+   ".XX..XX.",
+   "XX.XX.XX",
+   "XX.XX.XX",
+   ".XX..XX.",
+   "..XXXX..",
+   "........"
+  ],
+  "caution": [
+   "...XX...",
+   "..XXXX..",
+   "..XKKX..",
+   ".XXKKXX.",
+   ".XXXXXX.",
+   "XXXKKXXX",
+   "XXXXXXXX",
+   "........"
+  ],
+  "quiet": [
+   "..XXX...",
+   ".XX.....",
+   "XX......",
+   "XX......",
+   "XX......",
+   ".XX...X.",
+   "..XXXXX.",
+   "........"
+  ],
+  "settled": [
+   "XXXXXXXX",
+   "X......X",
+   "X.....XX",
+   "X.X.XX.X",
+   "X.XXX..X",
+   "X..X...X",
+   "X......X",
+   "XXXXXXXX"
+  ],
+  "medal": [
+   "...XXXXXX...",
+   "..XXXXXXXX..",
+   ".XXXXXXXXXX.",
+   "XXXXXXXXXXXX",
+   "XXXXXXXXXXXX",
+   "XXXXXXXXXXXX",
+   "XXXXXXXXXXXX",
+   "XXXXXXXXXXXX",
+   "XXXXXXXXXXXX",
+   ".XXXXXXXXXX.",
+   "..XXXXXXXX..",
+   "...XXXXXX..."
+  ],
+  "flame2": [
+   "...O....",
+   "..OO....",
+   "..OOO...",
+   ".OOOO.O.",
+   ".OOYOOO.",
+   "OOOYYOOO",
+   "OOYYYYOO",
+   "OOYYYYOO",
+   ".OOYYOO.",
+   "..OOOO.."
+  ]
+ }
+}
