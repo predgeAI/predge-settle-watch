@@ -28,7 +28,9 @@ import {
   DEFAULT_SETTINGS,
   loadSettings,
   loadWallet,
+  loadPending,
   loadWatchlist,
+  savePending,
   saveSettings,
   saveWallet,
   saveWatchlist,
@@ -39,7 +41,7 @@ import {
   type WatchItem,
 } from "./src/store";
 import { digestText, notify, pollAll, registerBackgroundPolling, setupNotifications } from "./src/watcher";
-import { anchorPack, balanceSol, connectWallet, disconnectWallet, memoText, requestDevnetAirdrop } from "./src/wallet";
+import { anchorPack, balanceSol, confirmByPolling, connectionFor, connectWallet, disconnectWallet, friendlyWalletError, memoText, requestDevnetAirdrop, type PendingReceipt } from "./src/wallet";
 import {
   ACTION_LABEL,
   applyAction,
@@ -119,6 +121,15 @@ function VerifiedBadge({ v }: { v?: Verification }) {
   return <Chip text={v.verified ? "VERIFIED ON DEVICE" : "NOT VERIFIED"} color={v.verified ? C.green : C.red} />;
 }
 
+/** Plain wording for a failed add. */
+function friendlyAddError(e: unknown): string {
+  const m = (e as Error)?.message ?? "";
+  if (/network request failed|timed out|failed to fetch|HTTP 5\d\d|aborted/i.test(m)) {
+    return "Could not reach the market data right now. Check your connection and try again in a moment.";
+  }
+  return m.slice(0, 200) || "Something went wrong. Try again.";
+}
+
 /** Bold, color-coded market card with a pixel icon. Pulses when its status changes. */
 function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; onOpen: () => void }) {
   const level = item.last?.risk_level ?? "";
@@ -181,6 +192,7 @@ export default function App() {
   const [bgOk, setBgOk] = useState<boolean | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
   const pollingRef = useRef(false);
+  const anchoringRef = useRef(false);
   const itemsRef = useRef<WatchItem[]>([]);
   const [game, setGame] = useState<GameState>(NEW_GAME);
   const gameRef = useRef<GameState>(NEW_GAME);
@@ -192,6 +204,7 @@ export default function App() {
   const [stamp, setStamp] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
   const [puzzleOpen, setPuzzleOpen] = useState(false);
+  const [pendingExamples, setPendingExamples] = useState<string[]>([]);
   const [puzzleTick, setPuzzleTick] = useState(0);
   const [glossOpen, setGlossOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
@@ -343,24 +356,27 @@ export default function App() {
   }, [refreshAll]);
 
   const addMarket = useCallback(
-    async (raw: string, opts: { quiet?: boolean } = {}) => {
+    async (raw: string, opts: { quiet?: boolean } = {}): Promise<boolean> => {
       const key = parseMarketInput(raw);
       if (!key) {
         if (!opts.quiet) Alert.alert("Not a market", "Paste a polymarket.com link, a market slug, a numeric market id or a 0x condition id.");
-        return;
+        return false;
       }
       const current = await loadWatchlist();
-      if (current.length >= MAX_WATCHLIST) return Alert.alert("Watchlist full", `Up to ${MAX_WATCHLIST} markets. Remove one first.`);
+      if (current.length >= MAX_WATCHLIST) {
+        Alert.alert("Watchlist full", `Up to ${MAX_WATCHLIST} markets. Remove one first.`);
+        return false;
+      }
       if (current.some((i) => i.key === key || i.marketId === key)) {
         if (!opts.quiet) Alert.alert("Already watching", key);
-        return;
+        return true;
       }
       setBusy("add");
       try {
         const r = await fetchSettlementRisk(key);
         if (current.some((i) => i.marketId === r.market.market_id)) {
           if (!opts.quiet) Alert.alert("Already watching", r.market.question);
-          return;
+          return true;
         }
         const v = await verifyRecord(r);
         const now = new Date().toISOString();
@@ -384,8 +400,11 @@ export default function App() {
         setInput("");
         award("add_market", { ref: r.market.market_id });
         if (v.verified) award("verify", { ref: r.market.market_id });
+        return true;
       } catch (e) {
-        Alert.alert("Could not add market", (e as Error).message);
+        // Quiet adds (the example markets) retry on their own, so no alert for a network problem.
+        if (!opts.quiet) Alert.alert("Could not add market", friendlyAddError(e));
+        return false;
       } finally {
         setBusy(null);
       }
@@ -400,7 +419,9 @@ export default function App() {
       await setupNotifications();
       setBgOk(await registerBackgroundPolling());
       if (addExamples) {
-        for (const e of [...EXAMPLES].reverse()) await addMarket(e.key, { quiet: true });
+        const missed: string[] = [];
+        for (const e of [...EXAMPLES].reverse()) if (!(await addMarket(e.key, { quiet: true }))) missed.push(e.key);
+        setPendingExamples(missed);
       }
     },
     [updateSettings, addMarket, doClockIn]
@@ -463,6 +484,26 @@ export default function App() {
     }
   }, [wallet, cluster, refreshBalance]);
 
+  /** Adds a finished receipt to the market's list and timeline, and credits the XP. */
+  const recordAnchor = useCallback(
+    async (key: string, signature: string, packHash: string, action: "watch" | "acknowledge", riskLevel: string, c: Cluster) => {
+      const now = new Date().toISOString();
+      const list = await loadWatchlist();
+      const next = list.map((i) =>
+        i.key === key && !i.anchors.some((a) => a.signature === signature)
+          ? {
+              ...i,
+              anchors: [{ signature, packHash, action, riskLevel, at: now, cluster: c }, ...i.anchors],
+              timeline: [{ at: now, text: `Receipt anchored on Solana ${CLUSTERS[c].label} (${action})`, verified: true, kind: "receipt" as const }, ...i.timeline],
+            }
+          : i
+      );
+      await persist(next);
+      award("anchor", { ref: signature });
+    },
+    [persist, award]
+  );
+
   const doAnchor = useCallback(
     async (item: WatchItem, action: "watch" | "acknowledge") => {
       if (!wallet) return;
@@ -470,51 +511,56 @@ export default function App() {
       const last = item.last;
       if (!v?.verified || !v.packHash || !last) return;
       const packHash = v.packHash;
+      const pending: PendingReceipt = {
+        key: item.key,
+        marketId: last.market.market_id,
+        riskLevel: last.risk_level,
+        packHash,
+        action,
+        cluster,
+        startedAt: new Date().toISOString(),
+      };
       setBusy(`anchor:${item.key}`);
+      anchoringRef.current = true;
+      let signed = false;
       try {
-        const { signature, wallet: w } = await anchorPack(
+        // Remember the attempt, so if Android recreates the app behind the wallet we can finish or explain.
+        await savePending(pending);
+        const { signature, wallet: w, confirmed } = await anchorPack(
           wallet,
-          { action, marketId: last.market.market_id, riskLevel: last.risk_level, packHash },
-          cluster
+          { action, marketId: pending.marketId, riskLevel: pending.riskLevel, packHash },
+          cluster,
+          async (sig) => {
+            signed = true;
+            await savePending({ ...pending, signature: sig });
+          }
         );
         setWallet(w);
         await saveWallet(w);
-        const now = new Date().toISOString();
-        const list = await loadWatchlist();
-        const next = list.map((i) =>
-          i.key === item.key
-            ? {
-                ...i,
-                anchors: [{ signature, packHash, action, riskLevel: last.risk_level, at: now, cluster }, ...i.anchors],
-                timeline: [
-                  { at: now, text: `Receipt anchored on Solana ${net} (${action})`, verified: true, kind: "receipt" as const },
-                  ...i.timeline,
-                ],
-              }
-            : i
-        );
-        await persist(next);
+        await recordAnchor(item.key, signature, packHash, action, last.risk_level, cluster);
+        await savePending(null);
         refreshBalance(w, cluster);
-        award("anchor", { ref: signature });
         haptic.success();
         setStampPlay((n) => n + 1);
         setStamp(true);
         await new Promise((res) => setTimeout(res, reduced ? 300 : 1300));
         setStamp(false);
-        Alert.alert(`Receipt on Solana ${net}`, `Memo tx ${short(signature, 6)}`, [
+        Alert.alert(`Receipt on Solana ${net}`, `Memo tx ${short(signature, 6)}${confirmed ? "" : "\n\nSent. The network has not confirmed it yet, so the explorer may take a minute."}`, [
           { text: "Open explorer", onPress: () => openExplorer(signature, cluster) },
           { text: "OK" },
         ]);
       } catch (e) {
+        if (!signed) await savePending(null);
         Alert.alert(
           "Anchor failed",
-          `${(e as Error).message}\n\n${cluster === "devnet" ? 'On devnet the wallet needs a little SOL for the fee: tap "Devnet SOL".' : "The wallet needs a little SOL for the network fee."}`
+          `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? 'On devnet the wallet needs a little SOL for the fee: tap "Devnet SOL".' : "The wallet needs a little SOL for the network fee."}`
         );
       } finally {
+        anchoringRef.current = false;
         setBusy(null);
       }
     },
-    [wallet, cluster, net, persist, refreshBalance, award, reduced]
+    [wallet, cluster, net, refreshBalance, reduced, recordAnchor]
   );
 
   const onAnchor = useCallback(
@@ -533,6 +579,39 @@ export default function App() {
     },
     [wallet, cluster, net, doAnchor]
   );
+
+  // Finish or explain a receipt that was interrupted, for example if Android recreated the app behind the wallet.
+  useEffect(() => {
+    if (!settings?.onboarded) return;
+    (async () => {
+      const p = await loadPending<PendingReceipt>();
+      if (!p || anchoringRef.current) return;
+      await savePending(null);
+      if (p.signature) {
+        const ok = await confirmByPolling(connectionFor(p.cluster), p.signature, 15_000).catch(() => false);
+        await recordAnchor(p.key, p.signature, p.packHash, p.action, p.riskLevel, p.cluster);
+        Alert.alert("Receipt saved", ok ? "Your earlier receipt finished and is now in the market's list." : "Your earlier receipt was sent. It is in the market's list and may take a minute to confirm.");
+      } else {
+        Alert.alert("Receipt not finished", "A receipt was started but the wallet did not return in time. Nothing was sent. Tap Anchor watch receipt to try again.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.onboarded]);
+
+  // Example markets that failed to load (for example a blocked network) retry on their own.
+  useEffect(() => {
+    if (!pendingExamples.length) return;
+    let busyRetry = false;
+    const id = setInterval(async () => {
+      if (busyRetry) return;
+      busyRetry = true;
+      const left: string[] = [];
+      for (const k of pendingExamples) if (!(await addMarket(k, { quiet: true }))) left.push(k);
+      busyRetry = false;
+      if (left.length !== pendingExamples.length) setPendingExamples(left);
+    }, 25_000);
+    return () => clearInterval(id);
+  }, [pendingExamples, addMarket]);
 
   const onTestAlert = useCallback(async () => {
     await notify(
@@ -650,6 +729,14 @@ export default function App() {
             </View>
           </View>
 
+          {pendingExamples.length ? (
+            <PixelBox border={C.orange} bg={alpha(C.orange, 0.1)} style={{ marginTop: 14 }} inner={{ padding: 12 }}>
+              <Text style={styles.body}>
+                Still loading {pendingExamples.length} example market{pendingExamples.length > 1 ? "s" : ""}. The network is slow, so the app keeps trying.
+              </Text>
+            </PixelBox>
+          ) : null}
+
           {/* Today: the hero, on paper */}
           <PixelBox border={C.ink} bg={C.cream} lift="#8c7f66" style={{ marginTop: 14 }} inner={{ padding: 16 }}>
             <View style={styles.rowBetween}>
@@ -739,8 +826,8 @@ export default function App() {
           {FLAGS.dailyDispute ? <DailyDisputeCard refreshKey={puzzleTick} onOpen={() => setPuzzleOpen(true)} /> : null}
 
           {/* Wallet: one compact row */}
-          <PixelBox style={styles.cardGap} inner={[styles.cardPad, styles.rowBetween]}>
-            <View style={{ flex: 1 }}>
+          <PixelBox style={styles.cardGap} inner={[styles.cardPad, wallet ? { gap: 10 } : styles.rowBetween]}>
+            <View style={wallet ? undefined : { flex: 1 }}>
               <Text style={styles.cardLabel}>Wallet . Solana {net}</Text>
               {wallet ? (
                 <Pressable onPress={() => Clipboard.setStringAsync(wallet.address)} accessibilityLabel="Copy wallet address">
