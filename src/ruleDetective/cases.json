@@ -1,0 +1,371 @@
+[
+ {
+  "id": "1991885",
+  "q": "Spread: Orlando Pride (-1.5)",
+  "text": "In the upcoming NWSL game, scheduled for May 12 at 7:00 PM ET:  This market will resolve to \"Orlando Pride\" if Orlando Pride win the game by 2 or more goals.",
+  "phrases": [
+   {
+    "t": "May 12 at 7:00 PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "\"Orlando Pride\"",
+    "kind": "name"
+   },
+   {
+    "t": "2 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "3115035",
+  "q": "Games Total: O/U 2.5",
+  "text": "This market refers to the Valorant match between Cloud9 and LOUD in the VCT Americas Stage 2 Group Omega, initially scheduled for July 31 at 5:00PM ET. This market will resolve to \"Over\" if Cloud9 and LOUD play 3 or more maps in this series.",
+  "phrases": [
+   {
+    "t": "between Cloud9 and LOUD",
+    "kind": "name"
+   },
+   {
+    "t": "July 31 at 5:00PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "3 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1525101",
+  "q": "Will the price of Solana be above $60 on March 14?",
+  "text": "This market will resolve to \"Yes\" if the Binance 1 minute candle for SOL/USDT 12:00 in the ET timezone (noon) on the date specified in the title has a final \"Close\" price higher than the price specified in the title.",
+  "phrases": [
+   {
+    "t": "Binance 1 minute candle",
+    "kind": "source"
+   },
+   {
+    "t": "\"Close\"",
+    "kind": "name"
+   },
+   {
+    "t": "higher than",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1456415",
+  "q": "Will Mikes Evans play for Minnesota Vikings in 2026-27?",
+  "text": "This market will resolve to the next team Mike Evans officially joins by August 31, 2026, 11:59 PM ET. If Mike Evans does not officially join a new team by August 31, 2026, 11:59 PM ET, this market will resolve to “Other”.",
+  "phrases": [
+   {
+    "t": "officially joins",
+    "kind": "source"
+   },
+   {
+    "t": "by August 31, 2026",
+    "kind": "time"
+   },
+   {
+    "t": "“Other”",
+    "kind": "name"
+   }
+  ]
+ },
+ {
+  "id": "1523125",
+  "q": "Oliynykova vs. Kalinina: Set 1 Games O/U 9.5",
+  "text": "This market refers to the tennis match between Oleksandra Oliynykova and Anhelina Kalinina in the Antalya 2, scheduled for March 8 2026. This market will resolve to \"Over\" if the total number of games completed in the first set equals or exceeds 10.",
+  "phrases": [
+   {
+    "t": "between Oleksandra Oliynykova and Anhelina Kalinina",
+    "kind": "name"
+   },
+   {
+    "t": "total number of games completed",
+    "kind": "source"
+   },
+   {
+    "t": "equals or exceeds 10",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1190353",
+  "q": "Series: LNG Esports Tower Handicap (-10.5)",
+  "text": "This market refers to the LoL match between LNG Esports and Ultra Prime in the LPL Group Nirvana, scheduled for January 16 at 4:00AM ET. This market will resolve to \"LNG Esports\" if LNG Esports secures 11 or more towers than Ultra Prime in the match.",
+  "phrases": [
+   {
+    "t": "between LNG Esports and Ultra Prime",
+    "kind": "name"
+   },
+   {
+    "t": "January 16 at 4:00AM ET",
+    "kind": "time"
+   },
+   {
+    "t": "11 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1698361",
+  "q": "1H Spread: Knicks (-5.5)",
+  "text": "In the first half of the NBA game between Pelicans and Knicks, scheduled for March 24 at 7:30 PM ET:  This market will resolve to \"Knicks\" if the Knicks are winning by 6 or more points at halftime.",
+  "phrases": [
+   {
+    "t": "between Pelicans and Knicks",
+    "kind": "name"
+   },
+   {
+    "t": "March 24 at 7:30 PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "6 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "4349120",
+  "q": "Sharma vs. Klaus: Match O/U 21.5",
+  "text": "This market refers to the tennis match between Mayank Sharma and Luis Klaus in the M15 Hurghada, originally scheduled for September 8, 2026 at 2:00AM ET. This market will resolve to \"Over\" if the total number of games completed equals or exceeds 22.",
+  "phrases": [
+   {
+    "t": "between Mayank Sharma and Luis Klaus",
+    "kind": "name"
+   },
+   {
+    "t": "September 8, 2026 at 2:00AM ET",
+    "kind": "time"
+   },
+   {
+    "t": "total number of games completed",
+    "kind": "source"
+   },
+   {
+    "t": "equals or exceeds 22",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "3122758",
+  "q": "Map Handicap: LOUD (-1.5) vs Cloud9 (+1.5)",
+  "text": "This market refers to the Valorant match between Cloud9 and LOUD in the VCT Americas Stage 2 Group Omega, initially scheduled for July 31 at 5:00PM ET. This market will resolve to \"LOUD\" if LOUD wins 2 or more maps than Cloud9 in this match.",
+  "phrases": [
+   {
+    "t": "between Cloud9 and LOUD",
+    "kind": "name"
+   },
+   {
+    "t": "July 31 at 5:00PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "wins 2 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1138816",
+  "q": "Game Handicap: LNG (-1.5)",
+  "text": "In the upcoming match between LNG Esports and Ultra Prime in the LPL Group Nirvana, scheduled for January 16 at 4:00AM ET:  This market will resolve to \"LNG Esports\" if LNG Esports wins 2 or more games than Ultra Prime in this match.",
+  "phrases": [
+   {
+    "t": "between LNG Esports and Ultra Prime",
+    "kind": "name"
+   },
+   {
+    "t": "January 16 at 4:00AM ET",
+    "kind": "time"
+   },
+   {
+    "t": "wins 2 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1205624",
+  "q": "Spread: Alcorn State Braves (-0.5)",
+  "text": "In the upcoming CBB game, scheduled for January 17 at 4:00 PM ET:  This market will resolve to \"Alcorn State Braves\" if the Alcorn State Braves win the game by 1 or more points.",
+  "phrases": [
+   {
+    "t": "January 17 at 4:00 PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "\"Alcorn State Braves\"",
+    "kind": "name"
+   },
+   {
+    "t": "1 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "4928062",
+  "q": "Game Spread: Tristan Boyer (-0.5) vs Timo Legout (+0.5)",
+  "text": "This market will resolve to \"Tristan Boyer\" if Tristan Boyer wins 0.5 or more total games than Timo Legout in the upcoming tennis match, scheduled for September 25, 2026 at 1:00PM ET.",
+  "phrases": [
+   {
+    "t": "\"Tristan Boyer\"",
+    "kind": "name"
+   },
+   {
+    "t": "0.5 or more total games",
+    "kind": "range"
+   },
+   {
+    "t": "September 25, 2026 at 1:00PM ET",
+    "kind": "time"
+   }
+  ]
+ },
+ {
+  "id": "1029748",
+  "q": "Spread: Georgia (-6.5)",
+  "text": "In the upcoming college football game, scheduled for January 1 at 8:00 PM ET:  This market will resolve to \"Georgia\" if Georgia win the game by 7 or more points.",
+  "phrases": [
+   {
+    "t": "January 1 at 8:00 PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "\"Georgia\"",
+    "kind": "name"
+   },
+   {
+    "t": "7 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "2837449",
+  "q": "Karolina Muchova vs. Coco Gauff: Total Sets O/U 2.5",
+  "text": "This market refers to the tennis match between Karolina Muchova and Coco Gauff in the Wimbledon WTA, originally scheduled for July 9, 2026 at 8:30AM ET. This market will resolve to \"Over\" if the total number of sets completed equals or exceeds 3.",
+  "phrases": [
+   {
+    "t": "between Karolina Muchova and Coco Gauff",
+    "kind": "name"
+   },
+   {
+    "t": "July 9, 2026 at 8:30AM ET",
+    "kind": "time"
+   },
+   {
+    "t": "equals or exceeds 3",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "4621330",
+  "q": "Cam Thompson: Anytime Touchdown",
+  "text": "In the upcoming college football game between Northern Illinois and Arizona, scheduled for September 19 at 10:30 PM ET: This market will resolve to \"Yes\" if Cam Thompson score 1 or more touchdowns (rushing or receiving) in this game.",
+  "phrases": [
+   {
+    "t": "between Northern Illinois and Arizona",
+    "kind": "name"
+   },
+   {
+    "t": "September 19 at 10:30 PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "1 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1247351",
+  "q": "Series: LGD Gaming Drake Handicap (-1.5) vs Oh My God (+1.5)",
+  "text": "This market refers to the LoL match between Oh My God and LGD Gaming in the LPL Group Nirvana, scheduled for January 23 at 2:00AM ET. This market will resolve to \"LGD Gaming\" if LGD Gaming secures 2 or more drakes than Oh My God in the match.",
+  "phrases": [
+   {
+    "t": "between Oh My God and LGD Gaming",
+    "kind": "name"
+   },
+   {
+    "t": "January 23 at 2:00AM ET",
+    "kind": "time"
+   },
+   {
+    "t": "2 or more",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "1580326",
+  "q": "Will the Audemars Piguet Index hit 31,250 (HIGH) by April 30?",
+  "text": "This market will resolve to “Yes” if, for any day between March 6 and April 30, 2026, the Bloomberg x Subdial Watch Index for Audemars Piguet price is equal to or above the listed price.",
+  "phrases": [
+   {
+    "t": "between March 6",
+    "kind": "time"
+   },
+   {
+    "t": "Bloomberg x Subdial Watch Index",
+    "kind": "source"
+   },
+   {
+    "t": "equal to or above",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "2788952",
+  "q": "Hemery vs. Moeller: Set 2 Games O/U 8.5",
+  "text": "This market refers to the tennis match between Calvin Hemery and Marvin Moeller in the Troyes, originally scheduled for July 4, 2026 at 9:30AM ET. This market will resolve to \"Over\" if the total number of games completed in set 2 equals or exceeds 9.",
+  "phrases": [
+   {
+    "t": "between Calvin Hemery and Marvin Moeller",
+    "kind": "name"
+   },
+   {
+    "t": "July 4, 2026 at 9:30AM ET",
+    "kind": "time"
+   },
+   {
+    "t": "total number of games completed",
+    "kind": "source"
+   },
+   {
+    "t": "equals or exceeds 9",
+    "kind": "range"
+   }
+  ]
+ },
+ {
+  "id": "4771433",
+  "q": "Myles Price: Anytime Touchdown",
+  "text": "In the upcoming NFL football game between Vikings and Buccaneers, scheduled for September 27 at 4:05 PM ET: This market will resolve to \"Yes\" if Myles Price scores 1 or more rushing or receiving touchdowns in this game.",
+  "phrases": [
+   {
+    "t": "between Vikings and Buccaneers",
+    "kind": "name"
+   },
+   {
+    "t": "September 27 at 4:05 PM ET",
+    "kind": "time"
+   },
+   {
+    "t": "1 or more",
+    "kind": "range"
+   }
+  ]
+ }
+]

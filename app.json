@@ -2,7 +2,7 @@
   "expo": {
     "name": "Settle Watch",
     "slug": "predge-settle-watch",
-    "version": "0.2.0",
+    "version": "0.3.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -11,14 +11,15 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0b0f14"
+      "backgroundColor": "#0a0f0b"
     },
     "android": {
       "package": "io.predge.settlewatch",
-      "versionCode": 2,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0b0f14"
+        "monochromeImage": "./assets/adaptive-icon-mono.png",
+        "backgroundColor": "#0a0f0b"
       },
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
@@ -30,12 +31,30 @@
       [
         "expo-notifications",
         {
-          "color": "#f5a524"
+          "color": "#86e28a"
         }
       ],
       "./plugins/with-mwa-queries",
       "./plugins/with-release-signing",
-      "expo-asset"
-    ]
+      "./plugins/with-activity-config",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0a0f0b",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PressStart2P-Regular.ttf"
+          ]
+        }
+      ]
+    ],
+    "backgroundColor": "#0a0f0b"
   }
 }

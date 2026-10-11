@@ -34,7 +34,7 @@ export async function setupNotifications(): Promise<boolean> {
       description: "UMA disputes, clarifications and on-chain settlement of watched markets",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 150, 250],
-      lightColor: "#f5a524",
+      lightColor: "#86e28a",
     });
   }
   const current = await Notifications.getPermissionsAsync();

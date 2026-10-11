@@ -182,3 +182,19 @@ export function localDay(d = new Date()): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
+const PENDING_KEY = "settle-watch/pending-receipt/v1";
+
+export async function savePending(p: unknown | null): Promise<void> {
+  if (p === null) await AsyncStorage.removeItem(PENDING_KEY);
+  else await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(p));
+}
+
+export async function loadPending<T>(): Promise<T | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_KEY);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
