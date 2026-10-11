@@ -49,14 +49,15 @@ export async function withRetry<T>(fn: () => Promise<T>, tries = 4, base = 400):
 export interface Fresh {
   blockhash: string;
   lastValidBlockHeight: number;
+  slot: number; // context slot of the blockhash, passed to the wallet as minContextSlot
   at: number;
 }
 
 /** Latest blockhash with retries. Called while the app is in front, before the wallet opens. */
 export async function freshBlockhash(cluster: Cluster): Promise<Fresh> {
   const c = connectionFor(cluster);
-  const bh = await withRetry(() => c.getLatestBlockhash("confirmed"));
-  return { blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight, at: Date.now() };
+  const r = await withRetry(() => c.getLatestBlockhashAndContext("confirmed"));
+  return { blockhash: r.value.blockhash, lastValidBlockHeight: r.value.lastValidBlockHeight, slot: r.context.slot, at: Date.now() };
 }
 
 /** Plain-language reason for a wallet or network failure. */
@@ -159,22 +160,11 @@ export async function anchorPack(
 ): Promise<{ signature: string; wallet: StoredWallet; confirmed: boolean }> {
   const memo = memoText(p);
   const connection = connectionFor(cluster);
-  // Step 1: connect (this is where the wallet may show its Connect sheet, and the user may take a while).
-  const first = await transact(async (wallet) => {
-    const auth = await authorizeSession(wallet, stored, cluster);
-    if (!auth.accounts[0]) throw new Error("The wallet returned no account");
-    return { token: auth.auth_token, address: auth.accounts[0].address, label: auth.accounts[0].label };
-  });
-  // Step 2: with the app back in front and the network reliable, fetch a fresh blockhash (with retries).
+  // The blockhash is fetched BEFORE the wallet opens, while the app is in front, with retries.
+  // Nothing in the wallet session touches the network: Android can stall the app while a wallet is in front.
   const fresh = await freshBlockhash(cluster);
-  // Step 3: reopen the wallet and sign. No network calls happen while the wallet is in front.
-  const result = await transact(async (wallet) => {
-    let auth;
-    try {
-      auth = await wallet.reauthorize({ auth_token: first.token, identity: APP_IDENTITY });
-    } catch {
-      auth = await wallet.authorize({ chain: CLUSTERS[cluster].chain, identity: APP_IDENTITY });
-    }
+  const signed = await transact(async (wallet) => {
+    const auth = await authorizeSession(wallet, stored, cluster);
     const payer = new PublicKey(Buffer.from(auth.accounts[0].address, "base64"));
     const tx = new Transaction({ feePayer: payer, blockhash: fresh.blockhash, lastValidBlockHeight: fresh.lastValidBlockHeight }).add(
       new TransactionInstruction({
@@ -183,20 +173,32 @@ export async function anchorPack(
         data: Buffer.from(memo, "utf8"),
       })
     );
-    const [signature] = await wallet.signAndSendTransactions({ transactions: [tx] });
-    if (typeof signature !== "string" || !TX_SIGNATURE_RE.test(signature)) throw new Error("The wallet returned no valid signature");
+    const next: StoredWallet = { address: payer.toBase58(), authToken: auth.auth_token, label: auth.accounts[0].label?.slice(0, 64), cluster };
+    // Preferred: the wallet only signs and the app sends the transaction itself. Android can freeze a
+    // wallet that is no longer in front before it has broadcast, so sending ourselves is more reliable.
     try {
-      await onSigned?.(signature);
-    } catch {
-      // persistence is best effort
+      const [st] = await wallet.signTransactions({ transactions: [tx] });
+      return { kind: "signed" as const, raw: st.serialize(), wallet: next };
+    } catch (e) {
+      if (/declined|rejected|cancel/i.test((e as Error).message ?? "")) throw e;
+      const [signature] = await wallet.signAndSendTransactions({ transactions: [tx], minContextSlot: fresh.slot });
+      return { kind: "sent" as const, signature, wallet: next };
     }
-    return {
-      signature,
-      wallet: { address: payer.toBase58(), authToken: auth.auth_token, label: auth.accounts[0].label?.slice(0, 64), cluster },
-    };
   });
-  const confirmed = await confirmByPolling(connection, result.signature);
-  return { signature: result.signature, wallet: result.wallet, confirmed };
+  let signature: string;
+  if (signed.kind === "signed") {
+    signature = await withRetry(() => connection.sendRawTransaction(signed.raw, { skipPreflight: false, maxRetries: 3 }), 4, 500);
+  } else {
+    signature = signed.signature;
+  }
+  if (typeof signature !== "string" || !TX_SIGNATURE_RE.test(signature)) throw new Error("The wallet returned no valid signature");
+  try {
+    await onSigned?.(signature);
+  } catch {
+    // persistence is best effort
+  }
+  const confirmed = await confirmByPolling(connection, signature, 30_000);
+  return { signature, wallet: signed.wallet, confirmed };
 }
 
 /** Polls getSignatureStatuses over HTTP. The wallet already sent the transaction, so this is best effort. */
