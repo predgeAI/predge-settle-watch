@@ -24,7 +24,7 @@ export interface Segment {
 }
 
 // Keep the feed calm: no markets about violence, death or health.
-const SKIP = /\b(kill\w*|dead|death|die\w*|shot|shoot\w*|war|attack\w*|bomb\w*|missile\w*|strike\w*|nuclear|covid|virus|cancer|assassin\w*|terror\w*|murder\w*|massacre|genocide|suicide|injur\w*|hospital\w*|bet|odds|wager)\b/i;
+const SKIP = /\b(kill\w*|dead|death|die\w*|shot|shoot\w*|war|attack\w*|bomb\w*|missile\w*|strike\w*|nuclear|covid|virus|cancer|assassin\w*|terror\w*|murder\w*|massacre|genocide|suicide|injur\w*|hospital\w*|bet|odds|wager|elect\w*|president\w*|nominat\w*|senate|congress|trump|biden|harris|putin|zelensky|netanyahu|tariff\w*|impeach\w*|ceasefire|sanction\w*|missile\w*|invade\w*|invasion)\b/i;
 
 export function parseMarkets(body: unknown): DiscoverMarket[] {
   if (!Array.isArray(body)) return [];

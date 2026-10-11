@@ -174,6 +174,7 @@ export function statusLine(s: Snapshot | undefined): string {
   if (s.bulletin_board_count) return `${s.bulletin_board_count} clarification${s.bulletin_board_count > 1 ? "s" : ""} posted, no open dispute`;
   if (s.dispute_count && s.uma_state.toLowerCase() === "requested") return "Disputed, reset for a new proposal";
   if (s.dispute_count) return "Disputed, not settled yet";
+  if (s.risk_level === "watch" && s.uma_state.toLowerCase() === "proposed") return "Answer proposed, no dispute yet";
   return "Quiet: no dispute, no clarification";
 }
 

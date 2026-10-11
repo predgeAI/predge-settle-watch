@@ -44,7 +44,7 @@ export function LeagueCard({ onOpen }: { onOpen: () => void }) {
   return (
     <Press onPress={onOpen} label="Open the League">
       <PixelBox border={C.green} bg={C.surface} style={{ marginTop: 14 }} inner={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 14 }}>
-        <PixelIcon name="medal" px={5} color={C.green} />
+        <PixelIcon name="league" px={5} color={C.green} />
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.green, fontFamily: PX, fontSize: 9, marginBottom: 8 }}>LEAGUE</Text>
           <Text style={{ color: C.text, fontSize: T.body, lineHeight: 21 }}>

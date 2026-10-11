@@ -315,6 +315,7 @@ t("discover: market parsing drops bad ids and calm-feed words; segment parsing a
     { id: "abc", question: "bad id" },
     { id: "9", question: "Will someone be killed?" },
     { id: "10", question: "x".repeat(200) },
+    { id: "11", question: "Will Someone win the 2028 Democratic presidential nomination?" },
     null,
   ]);
   assert.equal(ms.length, 1);
@@ -342,5 +343,13 @@ t("xp listener sees every award and cannot break the game", () => {
   off2();
   applyAction(NEW_GAME, "anchor", {}, at("2026-10-20"));
   assert.deepEqual(seen, ["clock_in:12", "anchor:50"]);
+});
+// ---- status line ----
+import { statusLine, type Snapshot } from "../src/store";
+t("status line: a proposed answer in its challenge window is not called Quiet", () => {
+  const base: Snapshot = { risk_level: "watch", uma_state: "proposed", dispute_count: 0, open_dispute: false, sent_to_uma_vote: false, bulletin_board_count: 0, resolved_on_chain: false, paused: false };
+  assert.equal(statusLine(base), "Answer proposed, no dispute yet");
+  assert.equal(statusLine({ ...base, risk_level: "ok", uma_state: "requested" }), "Quiet: no dispute, no clarification");
+  assert.equal(statusLine({ ...base, open_dispute: true }), "Open UMA dispute");
 });
 console.log(`${n} checks passed`);
