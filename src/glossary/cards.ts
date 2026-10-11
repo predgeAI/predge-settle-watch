@@ -34,7 +34,7 @@ export const CARDS: Card[] = [
     text: "In 2026, about 1 in 3 disputed markets ended with a different answer than the first proposal." },
   { id: "daily", title: "Why look every day", icon: "flame", color: "#e2703a", hint: "Reach a 3-day streak",
     text: "Disputes move fast. A short daily look keeps you ahead of the news." },
-  { id: "bond", title: "What a bond is", icon: "medal", color: "#86e28a", hint: "Reach a 7-day streak",
+  { id: "bond", title: "What a bond is", icon: "tamper", color: "#86e28a", hint: "Reach a 7-day streak",
     text: "Proposers lock a deposit, called a bond. A wrong answer can lose it. That keeps answers honest." },
 ];
 

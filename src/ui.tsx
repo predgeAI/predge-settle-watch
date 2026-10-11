@@ -54,15 +54,16 @@ export function PixelBox(props: {
   lift?: string; // thicker darker bottom edge, arcade-button style
   style?: StyleProp<ViewStyle>;
   inner?: StyleProp<ViewStyle>;
+  fill?: boolean; // stretch to the parent's height
   children?: React.ReactNode;
 }) {
   const p = props.p ?? 3;
   const border = props.border ?? C.line;
   return (
-    <View style={props.style}>
+    <View style={[props.style, props.fill && { flex: 1 }]}>
       <View style={{ height: p, marginHorizontal: p, backgroundColor: border }} />
-      <View style={{ borderLeftWidth: p, borderRightWidth: p, borderColor: border, backgroundColor: props.bg ?? C.surface }}>
-        <View style={props.inner}>{props.children}</View>
+      <View style={[{ borderLeftWidth: p, borderRightWidth: p, borderColor: border, backgroundColor: props.bg ?? C.surface }, props.fill && { flex: 1 }]}>
+        <View style={[props.inner, props.fill && { flex: 1 }]}>{props.children}</View>
       </View>
       <View style={{ height: props.lift ? p * 2 : p, marginHorizontal: p, backgroundColor: props.lift ?? border }} />
     </View>
@@ -314,8 +315,10 @@ export function CelebrationOverlay({ item, onClose }: { item: Celebration | null
 
 export function XpToast({ text, tick }: { text: string; tick: number }) {
   const v = useRef(new Animated.Value(0)).current;
+  const last = useRef(tick); // a toast mounted later must not replay an old award
   useEffect(() => {
-    if (!tick) return;
+    if (tick === last.current) return;
+    last.current = tick;
     v.setValue(0);
     Animated.sequence([
       Animated.timing(v, { toValue: 1, duration: 220, useNativeDriver: true }),
@@ -323,7 +326,6 @@ export function XpToast({ text, tick }: { text: string; tick: number }) {
       Animated.timing(v, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
   }, [tick, v]);
-  if (!tick) return null;
   return (
     <Animated.View pointerEvents="none" style={[st.toast, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }] }]}>
       <PixelBox p={3} border="#2f6b38" bg={C.green} inner={{ paddingHorizontal: 14, paddingVertical: 8 }}>

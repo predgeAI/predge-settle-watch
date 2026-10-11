@@ -34,7 +34,7 @@ export function GlossaryEntry({ game, refreshKey, onOpen }: { game: GameState; r
   return (
     <Press onPress={onOpen} label="Open the card collection">
       <PixelBox style={{ marginTop: 14 }} inner={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 14 }}>
-        <PixelIcon name="medal" px={4} color={C.greenBright} />
+        <PixelIcon name="settled" px={5} color={C.greenBright} />
         <View style={{ flex: 1 }}>
           <Text style={st.entryKicker}>CARD COLLECTION</Text>
           <Text style={st.entryText}>
@@ -71,14 +71,14 @@ function CardViewer({ card, onClose }: { card: Card; onClose: () => void }) {
       <Pressable onPress={() => toggle()} accessibilityRole="button" accessibilityLabel={back ? `${card.title}. Tap to flip.` : `${card.title}. Tap to read.`}>
         <View style={{ width: 290, height: 380 }}>
           <Animated.View style={[st.face, { transform: [{ perspective: 900 }, { rotateY: rotFront }] }]}>
-            <PixelBox border={card.color} bg={C.surfaceHi} inner={st.faceInner} style={{ flex: 1 }}>
+            <PixelBox border={card.color} bg={C.surfaceHi} inner={st.faceInner} fill>
               <PixelIcon name={card.icon} px={14} color={card.color} />
               <Text style={[st.cardTitle, { color: card.color }]}>{card.title}</Text>
               <Text style={st.tap}>TAP TO READ</Text>
             </PixelBox>
           </Animated.View>
           <Animated.View style={[st.face, { transform: [{ perspective: 900 }, { rotateY: rotBack }] }]}>
-            <PixelBox border={card.color} bg={C.surfaceHi} inner={st.faceInner} style={{ flex: 1 }}>
+            <PixelBox border={card.color} bg={C.surfaceHi} inner={st.faceInner} fill>
               <PixelIcon name={card.icon} px={5} color={card.color} />
               <Text style={[st.cardTitle, { color: card.color, fontSize: 12 }]}>{card.title}</Text>
               <Text style={st.cardBody}>{card.text}</Text>
@@ -101,7 +101,9 @@ export function GlossaryModal(props: { visible: boolean; onClose: () => void; ga
       <SafeAreaView style={st.root}>
         <ScrollView contentContainerStyle={st.scroll}>
           <View style={st.head}>
-            <Button small kind="ghost" title="Back" onPress={props.onClose} />
+            <View style={{ alignSelf: "flex-start" }}>
+              <Button small kind="ghost" title="Back" onPress={props.onClose} />
+            </View>
             <Text style={st.title}>CARD COLLECTION</Text>
             <Text style={st.sub}>
               {unlocked.length} of {CARDS.length} cards. Unlock more by watching, verifying, clocking in and playing.

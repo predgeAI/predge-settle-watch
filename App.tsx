@@ -603,7 +603,7 @@ export default function App() {
   const top = discoverOpen ? "discover" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
   const overlays = (where: string) => (
     <>
-      <XpToast text={toast.text} tick={where === top ? toast.tick : 0} />
+      <XpToast text={toast.text} tick={toast.tick} />
       <CelebrationOverlay item={where === top ? (celebs[0] ?? null) : null} onClose={() => setCelebs((c) => c.slice(1))} />
     </>
   );

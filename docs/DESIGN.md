@@ -27,3 +27,12 @@ Goal: an app people want to open daily, in the visual language of the Solana Mob
 - Badges: First verify, Tamper caught, First receipt on Solana, 7-day streak, Dispute spotted early, 5 markets watched.
 - Weekly recap on Home. A daily local reminder at the digest hour asks you to clock in.
 - No server, tokens, money or leaderboard. The receipt on Solana stays the only on-chain action. Logic is in `src/game.ts` and covered by `npm test`.
+
+## 0.3.1 to 0.3.3 additions
+
+- Pixel arcade look: Press Start 2P (SIL OFL 1.1, `assets/fonts`, licence text included) for headings and numbers, stepped pixel corners (`PixelBox`), scanline overlay, pixel icons and medals drawn from character grids in `src/sprites.json`.
+- The Watcher: an original one-eyed clock creature (not a Pac-Man or any Bandai Namco character). Moods: idle, walk, sleep (quiet), alarm (caution or watch), cheer (verified, level up).
+- Onboarding is a six-screen mini game under 30 s with one short idea per screen. The long explanation lives in Settings > How it works.
+- Feature modules, each behind a flag in `src/features.ts`: `src/dailyDispute` (one real disputed market a day, HOLD or CHANGE, +15 XP right and +5 played, puzzle streak, plain-text share), `src/glossary` (12 collectible cards, flip viewer), `src/ruleDetective` (19 real rule excerpts, educational, no right or wrong claims), `src/discover` (popular open markets from the public gamma API plus Predge's free segment statistic, fetched only when a card opens, under 60 calls a minute).
+- Data for Daily Dispute and Rule Detective is built offline by `scripts/build-daily-dispute.py` and `scripts/build-rule-cases.py` from the frozen benchmark test set joined with gamma records; only facts are kept.
+- All XP awards pass through `src/game.ts` (`applyAction`, `clockIn`); `onXpAwarded` lets another module observe them.
