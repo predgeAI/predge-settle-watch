@@ -55,22 +55,30 @@ async function request<T>(method: string, path: string, body?: unknown, auth = t
     if (!s) throw new LeagueError("unauthorized", friendlyError("unauthorized", undefined), 401);
     headers.authorization = `Bearer ${s.token}`;
   }
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 12_000);
-  try {
-    const res = await fetch(`${LEAGUE_API}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl.signal });
-    const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: { code: string; message: string } } | null;
-    if (!res.ok || !json || json.ok === false) {
-      if (res.status === 401 && auth) await saveSession(null);
-      throw new LeagueError(json?.error?.code ?? "http_" + res.status, friendlyError(json?.error?.code, json?.error?.message), res.status);
+  // Android can stall the app's network for a moment right after a wallet closes, so a failed
+  // connection (no HTTP response at all) is retried with backoff before giving up.
+  let last: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 12_000);
+    try {
+      const res = await fetch(`${LEAGUE_API}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl.signal });
+      const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: { code: string; message: string } } | null;
+      if (!res.ok || !json || json.ok === false) {
+        if (res.status === 401 && auth) await saveSession(null);
+        throw new LeagueError(json?.error?.code ?? "http_" + res.status, friendlyError(json?.error?.code, json?.error?.message), res.status);
+      }
+      return json as T;
+    } catch (e) {
+      if (e instanceof LeagueError) throw e;
+      last = e;
+      await new Promise((r) => setTimeout(r, 600 * 2 ** attempt));
+    } finally {
+      clearTimeout(timer);
     }
-    return json as T;
-  } catch (e) {
-    if (e instanceof LeagueError) throw e;
-    throw new LeagueError("network", "Cannot reach the League. Check your connection.", 0);
-  } finally {
-    clearTimeout(timer);
   }
+  void last;
+  throw new LeagueError("network", "Cannot reach the League. Check your connection.", 0);
 }
 
 export const api = {
