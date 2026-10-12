@@ -7,6 +7,7 @@ import { Button, LiveMascot, PixelBox, Press, Reveal, Scanlines, useReducedMotio
 import * as haptic from "./haptic";
 import { XP } from "./game";
 import type { Mood } from "./sprites";
+import { openTour } from "./learn/tour";
 
 // One idea per screen. The longer explanation lives in Settings > How it works.
 export const steps = () => [
@@ -187,7 +188,13 @@ export default function Onboarding(props: { onDone: (addExamples: boolean, clock
             </>
           ) : null}
           {step === 4 ? <Button title={clocked ? t("common.next") : t("onb.clockInBtn")} onPress={() => (clocked ? go(5) : clockIn())} /> : null}
-          {step === LAST ? <Button title={t("onb.letsGo")} onPress={() => props.onDone(add, clocked)} /> : null}
+          {step === LAST ? (
+            <>
+              {/* Optional: a 60-second tour for people new to prediction markets. "Let's go" skips it. */}
+              <Button kind="ghost" title={t("learn.onbOffer")} onPress={openTour} style={{ marginBottom: 12 }} />
+              <Button title={t("onb.letsGo")} onPress={() => props.onDone(add, clocked)} />
+            </>
+          ) : null}
         </View>
       </SafeAreaView>
       <Scanlines />

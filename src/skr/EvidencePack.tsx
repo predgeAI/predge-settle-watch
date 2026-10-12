@@ -11,6 +11,7 @@ import type { StoredWallet, WatchItem } from "../store";
 import { friendlyWalletError } from "../wallet";
 import { t, useLang } from "../i18n";
 import * as haptic from "../haptic";
+import { Term } from "../learn/Term";
 import { checkCanPay, payForPack, resumePendingUnlock, skrChanged, SKR_CLUSTER } from "./chain";
 import { formatSkr, treasuryKey } from "./spl";
 import { loadPendingUnlock, saveUnlock, savePendingUnlock, unlockFor, type PackUnlock, type PendingUnlock } from "./store";
@@ -137,7 +138,10 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
           : t("skr.unlock");
   return (
     <PixelBox border={C.purple} style={st.gap} inner={st.pad}>
-      <Text style={st.title}>{t("skr.packTitle")}</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
+        <Text style={[st.title, { flexShrink: 1 }]}>{t("skr.packTitle")}</Text>
+        <Term id="pack" />
+      </View>
       <Text style={st.dim}>{t("skr.packBody")}</Text>
       <View style={st.row}>
         <Button small title={title} onPress={onPress} disabled={!treasury || !!busy || !!props.disabled} />

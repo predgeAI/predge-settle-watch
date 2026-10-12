@@ -3,7 +3,7 @@
 // Everything is local to the phone. No server, no tokens, no money.
 import { en, t, tn, type Key } from "./i18n";
 
-export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play" | "pack_open" | "positions_sync";
+export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play" | "pack_open" | "positions_sync" | "learn";
 
 export const XP: Record<ActionKind | "clock_in", number> = {
   clock_in: 10,
@@ -17,6 +17,7 @@ export const XP: Record<ActionKind | "clock_in", number> = {
   rule_play: 5,
   pack_open: 30,
   positions_sync: 20,
+  learn: 10,
 };
 
 /** English labels, kept for reference; screens use actionLabel() for the current language. */
@@ -32,6 +33,7 @@ export const ACTION_LABEL: Record<ActionKind | "clock_in", string> = {
   rule_play: en["xp.rule_play"],
   pack_open: en["xp.pack_open"],
   positions_sync: en["xp.positions_sync"],
+  learn: en["xp.learn"],
 };
 export const actionLabel = (k: ActionKind | "clock_in") => t(`xp.${k}` as Key);
 
