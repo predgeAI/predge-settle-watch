@@ -14,6 +14,7 @@ import { Text } from "../Text";
 import { t } from "../i18n";
 import { levelName } from "../game";
 import { TourCard } from "../learn";
+import { HallCard } from "../learn/HallOfDisputes";
 import { styles, TabHeader, TabScroll } from "./shared";
 
 export interface PlayTabProps {
@@ -47,6 +48,7 @@ export function PlayTab(p: PlayTabProps) {
       />
 
       <TourCard game={game} />
+      <HallCard />
       {FLAGS.dailyDispute ? <DailyDisputeCard refreshKey={p.puzzleTick} onOpen={p.onPuzzle} /> : null}
       {FLAGS.ruleDetective ? <RuleDetectiveCard onOpen={p.onRule} /> : null}
       {FLAGS.glossary ? <GlossaryEntry game={game} refreshKey={p.glossTick} onOpen={p.onGlossary} /> : null}

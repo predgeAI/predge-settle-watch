@@ -1196,7 +1196,7 @@ export default function App() {
       <StatusBar style="light" />
       {content}
       {!introDone ? <Intro onDone={() => setIntroDone(true)} /> : null}
-      <LearnHost onDone={() => award("learn", { ref: TOUR_REF })} onDiscover={() => setTab("discover")} />
+      <LearnHost onDone={() => award("learn", { ref: TOUR_REF })} onDiscover={() => setTab("discover")} onWatch={(id) => addMarket(id)} />
       <DialogHost />
     </View>
   );
