@@ -41,7 +41,7 @@ import {
   type WatchItem,
 } from "./src/store";
 import { digestText, notify, pollAll, registerBackgroundPolling, setupNotifications } from "./src/watcher";
-import { anchorPack, balanceSol, confirmByPolling, connectionFor, connectWallet, disconnectWallet, friendlyWalletError, memoText, requestDevnetAirdrop, type PendingReceipt } from "./src/wallet";
+import { anchorPack, balanceSol, connectWallet, resumePending, disconnectWallet, friendlyWalletError, memoText, requestDevnetAirdrop, type PendingReceipt } from "./src/wallet";
 import {
   ACTION_LABEL,
   applyAction,
@@ -529,13 +529,14 @@ export default function App() {
       try {
         // Remember the attempt, so if Android recreates the app behind the wallet we can finish or explain.
         await savePending(pending);
-        const { signature, wallet: w, confirmed } = await anchorPack(
+        const { signature, wallet: w } = await anchorPack(
           wallet,
           { action, marketId: pending.marketId, riskLevel: pending.riskLevel, packHash },
           cluster,
-          async (sig) => {
+          async (s) => {
             signed = true;
-            await savePending({ ...pending, signature: sig });
+            setBusy(`anchor-send:${item.key}`);
+            await savePending({ ...pending, ...s });
           }
         );
         setWallet(w);
@@ -548,12 +549,13 @@ export default function App() {
         setStamp(true);
         await new Promise((res) => setTimeout(res, reduced ? 300 : 1300));
         setStamp(false);
-        Alert.alert(`Receipt on Solana ${net}`, `Memo tx ${short(signature, 6)}${confirmed ? "" : "\n\nSent. The network has not confirmed it yet, so the explorer may take a minute."}`, [
+        Alert.alert(`Receipt on Solana ${net}`, `Memo tx ${short(signature, 6)}, confirmed on chain.`, [
           { text: "Open explorer", onPress: () => openExplorer(signature, cluster) },
           { text: "OK" },
         ]);
       } catch (e) {
-        if (!signed) await savePending(null);
+        // Keep a signed receipt that may still land, so it is checked again later. Drop one that cannot.
+        if (!signed || /not landed|block height|rejected/i.test((e as Error)?.message ?? "")) await savePending(null);
         Alert.alert(
           "Anchor failed",
           `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? 'On devnet the wallet needs a little SOL for the fee: tap "Devnet SOL".' : "The wallet needs a little SOL for the network fee."}`
@@ -589,12 +591,18 @@ export default function App() {
     (async () => {
       const p = await loadPending<PendingReceipt>();
       if (!p || anchoringRef.current) return;
-      await savePending(null);
       if (p.signature) {
-        const ok = await confirmByPolling(connectionFor(p.cluster), p.signature, 15_000).catch(() => false);
-        await recordAnchor(p.key, p.signature, p.packHash, p.action, p.riskLevel, p.cluster);
-        Alert.alert("Receipt saved", ok ? "Your earlier receipt finished and is now in the market's list." : "Your earlier receipt was sent. It is in the market's list and may take a minute to confirm.");
+        const result = await resumePending(p).catch(() => "unknown" as const);
+        if (result === "unknown") return; // keep it and check again next time the app opens
+        await savePending(null);
+        if (result === "confirmed") {
+          await recordAnchor(p.key, p.signature, p.packHash, p.action, p.riskLevel, p.cluster);
+          Alert.alert("Receipt saved", "Your earlier receipt is confirmed on chain and is now in the market's list.");
+        } else {
+          Alert.alert("Receipt not finished", "Your earlier receipt did not reach the network in time, so it was dropped. Nothing was charged. Tap Anchor watch receipt to try again.");
+        }
       } else {
+        await savePending(null);
         Alert.alert("Receipt not finished", "A receipt was started but the wallet did not return in time. Nothing was sent. Tap Anchor watch receipt to try again.");
       }
     })();
@@ -1121,7 +1129,7 @@ export default function App() {
                   <View style={styles.rowWrap}>
                     <Button
                       small
-                      title={busy === `anchor:${detail.key}` ? "Waiting for wallet..." : "Anchor watch receipt"}
+                      title={busy === `anchor:${detail.key}` ? "Waiting for wallet..." : busy === `anchor-send:${detail.key}` ? "Confirming on Solana..." : "Anchor watch receipt"}
                       onPress={() => onAnchor(detail, "watch")}
                       disabled={!!busy}
                     />

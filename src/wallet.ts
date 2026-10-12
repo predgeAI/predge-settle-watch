@@ -67,9 +67,13 @@ export function friendlyWalletError(e: unknown): string {
     return "The phone could not reach the Solana network. Check the connection and try again.";
   }
   if (/declined|rejected|cancel/i.test(m)) return "The wallet request was declined, so no receipt was made.";
-  if (/blockhash not found|block height exceeded|expired|simulation failed/i.test(m)) {
-    return "The approval took too long, so the network dropped the receipt. Nothing was charged. Tap Anchor again and approve within a minute.";
+  if (/not landed|blockhash not found|block height exceeded|expired|simulation failed/i.test(m)) {
+    return "The network did not take the receipt in time, so it was dropped. Nothing was charged. Tap Anchor to try again.";
   }
+  if (/not confirmed/i.test(m)) {
+    return "The receipt was sent but the network has not confirmed it yet. Nothing is shown until it is on chain. Check again in a minute.";
+  }
+  if (/in CLOSED|session.*clos|websocket/i.test(m)) return "The wallet closed the connection before it answered. Try again.";
   if (/insufficient|0x1|debit an account/i.test(m)) return "The wallet needs a little SOL for the network fee.";
   return m.slice(0, 200);
 }
@@ -144,27 +148,100 @@ export interface PendingReceipt {
   cluster: Cluster;
   startedAt: string;
   signature?: string; // set the moment the wallet returns it
+  rawTx?: string; // base64 of the signed transaction, so an interrupted receipt can be sent again
+  lastValidBlockHeight?: number; // after this block height the transaction can never land
+}
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function base58(bytes: Uint8Array): string {
+  const digits = [0];
+  for (const b of bytes) {
+    let carry = b;
+    for (let i = 0; i < digits.length; i++) {
+      carry += digits[i] << 8;
+      digits[i] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry) {
+      digits.push(carry % 58);
+      carry = (carry / 58) | 0;
+    }
+  }
+  let out = "";
+  for (const b of bytes) {
+    if (b !== 0) break;
+    out += "1";
+  }
+  for (let i = digits.length - 1; i >= 0; i--) out += B58[digits[i]];
+  return out;
+}
+
+export type LandResult = "confirmed" | "expired" | "unknown";
+
+/**
+ * Sends a signed transaction and keeps re-sending it every 2 s until the network confirms it or its
+ * blockhash expires. A single send can be dropped by a load-balanced public RPC, which used to leave
+ * receipts that never reached the chain.
+ */
+export async function landTransaction(
+  connection: Connection,
+  raw: Uint8Array,
+  signature: string,
+  lastValidBlockHeight: number,
+  maxMs = 90_000
+): Promise<LandResult> {
+  const end = Date.now() + maxMs;
+  let lastSend = 0;
+  let lastHeightCheck = 0;
+  while (Date.now() < end) {
+    if (Date.now() - lastSend > 2000) {
+      lastSend = Date.now();
+      // skipPreflight: a lagging node of the public devnet RPC can wrongly say "Blockhash not found".
+      connection.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }).catch(() => undefined);
+    }
+    try {
+      const st = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0];
+      if (st?.err) throw new Error("The network rejected the receipt transaction");
+      if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized")) return "confirmed";
+    } catch (e) {
+      if ((e as Error).message.includes("rejected")) throw e;
+    }
+    if (Date.now() - lastHeightCheck > 5000) {
+      lastHeightCheck = Date.now();
+      try {
+        const h = await connection.getBlockHeight("confirmed");
+        if (h > lastValidBlockHeight) {
+          // One last look: it may have landed in the final blocks.
+          const st = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0];
+          return st && !st.err && st.confirmationStatus ? "confirmed" : "expired";
+        }
+      } catch {
+        // keep trying
+      }
+    }
+    await sleep(1200);
+  }
+  return "unknown";
 }
 
 /**
- * Anchors the hash of a verified evidence pack in a Solana memo transaction,
- * signed and sent by the wallet through Mobile Wallet Adapter. The user ends up
- * holding a public, timestamped receipt of exactly which signed record they acted on.
+ * Anchors the hash of a verified evidence pack in a Solana memo transaction, signed by the wallet
+ * through Mobile Wallet Adapter. The user ends up holding a public, timestamped receipt of exactly
+ * which signed record they acted on.
  *
  * Android can block the app's network while a wallet is in front, so no network call is made inside
- * a wallet session: connect first, then fetch the blockhash with retries, then open the wallet to sign.
- * `onSigned` runs the moment the wallet returns a signature, so the caller can persist it.
+ * a wallet session: fetch the blockhash first, then open the wallet to sign, then send from the app.
+ * `onSigned` runs the moment the wallet returns a signed transaction, so the caller can persist it.
+ * Resolves only once the receipt is confirmed on chain; throws if it can no longer land.
  */
 export async function anchorPack(
   stored: StoredWallet,
   p: { action: "watch" | "acknowledge"; marketId: string; riskLevel: string; packHash: string },
   cluster: Cluster,
-  onSigned?: (signature: string) => Promise<void> | void
-): Promise<{ signature: string; wallet: StoredWallet; confirmed: boolean }> {
+  onSigned?: (s: { signature: string; rawTx?: string; lastValidBlockHeight: number }) => Promise<void> | void
+): Promise<{ signature: string; wallet: StoredWallet }> {
   const memo = memoText(p);
   const connection = connectionFor(cluster);
-  // The blockhash is fetched BEFORE the wallet opens, while the app is in front, with retries.
-  // Nothing in the wallet session touches the network: Android can stall the app while a wallet is in front.
   const fresh = await freshBlockhash(cluster);
   const signed = await transact(async (wallet) => {
     const auth = await authorizeSession(wallet, stored, cluster);
@@ -181,7 +258,7 @@ export async function anchorPack(
     // wallet that is no longer in front before it has broadcast, so sending ourselves is more reliable.
     try {
       const [st] = await wallet.signTransactions({ transactions: [tx] });
-      return { kind: "signed" as const, raw: st.serialize(), wallet: next };
+      return { kind: "signed" as const, raw: st.serialize(), sig: st.signature, wallet: next };
     } catch (e) {
       if (/declined|rejected|cancel/i.test((e as Error).message ?? "")) throw e;
       const [signature] = await wallet.signAndSendTransactions({ transactions: [tx], minContextSlot: fresh.slot });
@@ -189,29 +266,39 @@ export async function anchorPack(
     }
   });
   let signature: string;
+  let raw: Uint8Array | null = null;
   if (signed.kind === "signed") {
-    // skipPreflight: the public devnet RPC is load balanced and a lagging node can wrongly say "Blockhash not found".
-    signature = await withRetry(() => connection.sendRawTransaction(signed.raw, { skipPreflight: true, maxRetries: 5 }), 4, 500);
+    if (!signed.sig) throw new Error("The wallet returned no valid signature");
+    signature = base58(signed.sig);
+    raw = signed.raw;
   } else {
     signature = signed.signature;
   }
   if (typeof signature !== "string" || !TX_SIGNATURE_RE.test(signature)) throw new Error("The wallet returned no valid signature");
   try {
-    await onSigned?.(signature);
+    await onSigned?.({ signature, rawTx: raw ? Buffer.from(raw).toString("base64") : undefined, lastValidBlockHeight: fresh.lastValidBlockHeight });
   } catch {
     // persistence is best effort
   }
-  const confirmed = await confirmByPolling(connection, signature, 30_000);
-  if (!confirmed) {
-    // Not seen on chain. If the blockhash has expired the transaction can never land, so say so instead of showing a receipt.
-    try {
-      const h = await connection.getBlockHeight("confirmed");
-      if (h > fresh.lastValidBlockHeight) throw new Error("block height exceeded");
-    } catch (e) {
-      if ((e as Error).message.includes("block height exceeded")) throw e;
-    }
+  const result = raw
+    ? await landTransaction(connection, raw, signature, fresh.lastValidBlockHeight)
+    : (await confirmByPolling(connection, signature, 90_000)) ? "confirmed" : "unknown";
+  if (result === "expired") throw new Error("receipt not landed: block height exceeded");
+  if (result !== "confirmed") throw new Error("receipt not confirmed: timed out");
+  return { signature, wallet: signed.wallet };
+}
+
+/**
+ * Finishes a receipt that was interrupted after signing: sends it again if it can still land and
+ * reports what the chain says. Never reports a receipt the chain does not have.
+ */
+export async function resumePending(p: PendingReceipt): Promise<LandResult> {
+  if (!p.signature) return "expired";
+  const connection = connectionFor(p.cluster);
+  if (p.rawTx && p.lastValidBlockHeight) {
+    return landTransaction(connection, Buffer.from(p.rawTx, "base64"), p.signature, p.lastValidBlockHeight, 60_000);
   }
-  return { signature, wallet: signed.wallet, confirmed };
+  return (await confirmByPolling(connection, p.signature, 20_000)) ? "confirmed" : "unknown";
 }
 
 /** Polls getSignatureStatuses over HTTP. The wallet already sent the transaction, so this is best effort. */
