@@ -45,7 +45,7 @@ export function TabBar({ tab, onChange }: { tab: TabId; onChange: (t: TabId) => 
             accessibilityLabel={t(x.label)}
             onPress={() => {
               if (on) return;
-              haptic.tap();
+              haptic.tab();
               onChange(x.id);
             }}
           >

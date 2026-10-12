@@ -86,7 +86,7 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
         await record(u);
         await savePendingUnlock(null);
         setUnlock(u);
-        haptic.success();
+        haptic.stamp();
         showDialog(t("skr.okTitle"), t("skr.okBody", { sig: short(signature) }), [
           { text: t("anchor.openExplorer"), onPress: () => openMainnetExplorer(signature) },
           { text: t("common.ok") },

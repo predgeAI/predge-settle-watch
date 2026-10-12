@@ -804,7 +804,7 @@ export default function App() {
                 <Animated.View style={{ transform: [{ translateX: shake.x }] }}>
                   <PixelBox border={detail.verification?.verified ? C.green : C.red} style={styles.cardGap} inner={styles.cardPad}>
                     <View style={styles.verifyHead}>
-                      <Burst play={verifyPlay} kind={detail.verification?.verified ? "ok" : "bad"} size={72} />
+                      <Burst play={verifyPlay} kind={detail.verification?.verified ? "ok" : "bad"} size={72} haptic={detail.verification?.verified ? "verify" : "rejected"} steps={detail.verification?.checks.length} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.cardTitle, { color: detail.verification?.verified ? C.green : C.red, marginBottom: 6 }]}>
                           {detail.verification?.verified ? t("detail.verifiedPhone") : t("chip.notVerified")}
@@ -840,7 +840,7 @@ export default function App() {
                     </View>
                     {tamper ? (
                       <View style={[styles.rowBetween, { marginTop: 12, justifyContent: "flex-start", gap: 12 }]}>
-                        {!tamper.verified ? <Burst play={rejectPlay} kind="bad" size={52} /> : null}
+                        {!tamper.verified ? <Burst play={rejectPlay} kind="bad" size={52} haptic="rejected" /> : null}
                         <Text style={[styles.body, { flex: 1, color: tamper.verified ? C.red : C.greenBright }]}>
                           {t("detail.tamperLine")} {tamper.verified ? t("detail.tamperStill") : t("detail.tamperRejected")}
                         </Text>
@@ -918,7 +918,7 @@ export default function App() {
             ) : null}
             {stamp ? (
               <View style={styles.stamp} pointerEvents="none">
-                <Burst play={stampPlay} size={150} />
+                <Burst play={stampPlay} size={150} haptic="stamp" />
                 <Text style={styles.stampText}>{t("detail.stamp")}</Text>
               </View>
             ) : null}

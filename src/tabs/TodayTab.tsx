@@ -141,7 +141,7 @@ export function TodayTab(p: TodayTabProps) {
           ))}
         </View>
         <View style={styles.clockRow}>
-          {p.clockPlay > 0 && !canIn ? <Burst play={p.clockPlay} size={46} /> : null}
+          {p.clockPlay > 0 && !canIn ? <Burst play={p.clockPlay} size={46} haptic="clockIn" /> : null}
           <View style={{ flex: 1 }}>
             <Press onPress={p.onClockIn} disabled={!canIn} haptics={false} label={canIn ? t("home.clockInLabel") : t("home.clockedInLabel")}>
               <PixelBox border={canIn ? C.ink : alpha(C.ink, 0.25)} bg={canIn ? C.ink : alpha(C.ink, 0.1)} lift={canIn ? "#000000" : undefined} inner={{ paddingVertical: 15, alignItems: "center" }}>
