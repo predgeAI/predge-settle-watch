@@ -706,4 +706,3 @@ Promise.all(asyncChecks).then(
     process.exit(1);
   }
 );
-console.log(`${n} checks passed`);
