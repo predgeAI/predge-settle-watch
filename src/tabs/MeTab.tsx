@@ -1,6 +1,6 @@
 // ME: wallet, settings, how it works and the data line.
-import React from "react";
-import { ActivityIndicator, Pressable, Switch, View, type ScrollViewProps } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, Switch, TextInput, View, type ScrollViewProps } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import type { SettlementRisk } from "../api";
 import { CLUSTERS, PINNED_KID, type Cluster } from "../config";
@@ -10,7 +10,10 @@ import { Button, PixelBox, Press } from "../ui";
 import { SkrBalance } from "../skr";
 import { Text } from "../Text";
 import { fmtDec, fmtNum, LANGS, t, type Lang } from "../i18n";
-import { hh, short, styles, TabHeader, TabScroll } from "./shared";
+import { ago, hh, short, styles, TabHeader, TabScroll } from "./shared";
+import { normalizeAddress } from "../positions/api";
+import { positionsErrorText } from "../positions/sync";
+import type { PositionsState } from "../positions/store";
 
 export interface MeTabProps {
   active: boolean;
@@ -31,6 +34,55 @@ export interface MeTabProps {
   onCheckNow: () => void;
   onDigestNow: () => void;
   onTestAlert: () => void;
+  positions: PositionsState;
+  positionsBusy: boolean;
+  onSavePositions: (address: string) => void;
+  onSyncPositions: () => void;
+  onForgetPositions: () => void;
+}
+
+/** "MY POLYMARKET POSITIONS": a public wallet address, read-only, kept on the phone. */
+function PositionsCard(p: Pick<MeTabProps, "positions" | "positionsBusy" | "onSavePositions" | "onSyncPositions" | "onForgetPositions">) {
+  const { positions: s, positionsBusy: busy } = p;
+  const [input, setInput] = useState(s.address ?? "");
+  useEffect(() => setInput(s.address ?? ""), [s.address]);
+  const dirty = (normalizeAddress(input) ?? input.trim().toLowerCase()) !== (s.address ?? "");
+  return (
+    <PixelBox style={styles.cardGap} inner={styles.cardPad}>
+      <Text style={styles.cardTitle}>{t("pos.title")}</Text>
+      <Text style={styles.dim}>{t("pos.hint")}</Text>
+      <PixelBox p={2} border={C.line} bg={C.bg} style={{ marginVertical: 8 }} inner={{ paddingHorizontal: 12 }}>
+        <TextInput
+          value={input}
+          onChangeText={(v) => setInput(v.slice(0, 64))}
+          placeholder={t("pos.placeholder")}
+          placeholderTextColor={C.dim}
+          style={[styles.input, styles.mono]}
+          autoCapitalize="none"
+          autoCorrect={false}
+          maxLength={64}
+          onSubmitEditing={() => p.onSavePositions(input)}
+        />
+      </PixelBox>
+      <View style={styles.rowWrap}>
+        <Button small title={t("pos.save")} onPress={() => p.onSavePositions(input)} disabled={busy || !input.trim() || !dirty} />
+        <Button small kind="ghost" title={t("add.paste")} onPress={async () => setInput(((await Clipboard.getStringAsync()) ?? "").trim().slice(0, 64))} disabled={busy} />
+        {s.address ? <Button small kind="ghost" title={busy ? t("pos.syncing") : t("pos.sync")} onPress={p.onSyncPositions} disabled={busy} /> : null}
+        {s.address ? <Button small kind="ghost" title={t("pos.forget")} onPress={p.onForgetPositions} disabled={busy} /> : null}
+      </View>
+      {busy ? <ActivityIndicator color={C.green} style={{ marginTop: 8 }} /> : null}
+      {s.address ? (
+        <Text style={[styles.dim, { marginTop: 8 }]}>
+          {s.lastSyncAt ? t("pos.stats", { ago: ago(s.lastSyncAt), found: s.found ?? 0, added: s.added ?? 0 }) : t("pos.never")}
+        </Text>
+      ) : null}
+      {s.address && s.lastError && s.lastErrorAt && (!s.lastSyncAt || s.lastErrorAt > s.lastSyncAt) ? (
+        <Text style={[styles.dim, { marginTop: 4, color: C.orange }]}>{t("pos.lastError", { ago: ago(s.lastErrorAt), msg: positionsErrorText(s.lastError) })}</Text>
+      ) : null}
+      <Text style={[styles.body, { marginTop: 8, color: C.green }]}>{t("pos.privacy")}</Text>
+      <Text style={[styles.dim, { marginTop: 2 }]}>{t("pos.source")}</Text>
+    </PixelBox>
+  );
 }
 
 export function MeTab(p: MeTabProps) {
@@ -70,6 +122,14 @@ export function MeTab(p: MeTabProps) {
           </View>
         )}
       </PixelBox>
+
+      <PositionsCard
+        positions={p.positions}
+        positionsBusy={p.positionsBusy}
+        onSavePositions={p.onSavePositions}
+        onSyncPositions={p.onSyncPositions}
+        onForgetPositions={p.onForgetPositions}
+      />
 
       {/* Settings */}
       <PixelBox style={styles.cardGap} inner={styles.cardPad}>

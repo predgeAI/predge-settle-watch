@@ -38,6 +38,9 @@ export interface TodayTabProps {
   onOpenDetail: (key: string) => void;
   onPuzzle: () => void;
   add: AddMarketProps;
+  /** True while no Polymarket wallet is saved: shows a one-line hint that opens ME. */
+  positionsHint: boolean;
+  onOpenMe: () => void;
 }
 
 export function TodayTab(p: TodayTabProps) {
@@ -160,6 +163,11 @@ export function TodayTab(p: TodayTabProps) {
 
       {/* Watchlist at a glance */}
       <Text style={styles.section}>{t("list.title", { n: items.length })}</Text>
+      {p.positionsHint ? (
+        <Pressable onPress={p.onOpenMe} accessibilityRole="link" style={{ marginTop: 6 }}>
+          <Text style={[styles.dim, { color: C.teal }]} numberOfLines={2}>{`> ${t("pos.todayHint")}`}</Text>
+        </Pressable>
+      ) : null}
       {items.length ? (
         <View style={styles.glance}>
           {STATUS_ORDER.map((r) => (
