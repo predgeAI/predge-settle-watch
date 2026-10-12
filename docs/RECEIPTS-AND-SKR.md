@@ -100,6 +100,23 @@ The wallet added two ComputeBudget instructions (`SetComputeUnitLimit` 640,000 a
 
 **What the pack contains.** The pack is built from what the phone already holds: the verified record (pack hash, UMA state, disputes, clarifications, current proposal, on-chain resolution, recommendation, data basis, checked time) and the local timeline of changes. Values that check 6 does not bind are compared with the signed payload: a value that differs is tagged "differs from signed record", and source and data basis, which are not in the signed payload, are tagged "not signed". The unlock is stored on the phone.
 
+## 3. SKR holder perks (holding, not staking)
+
+Code: [src/skr/perks.ts](../src/skr/perks.ts) (tiers, limits, cache rules), [src/skr/perksStore.ts](../src/skr/perksStore.ts) (reads and cache), [src/skr/PerksCard.tsx](../src/skr/PerksCard.tsx) (ME tab card).
+
+The tier comes only from the SKR the connected wallet holds on Solana mainnet, read with the same `getParsedTokenAccountsByOwner` call as the wallet card. No transaction is built, signed or sent for a perk, and nothing is locked.
+
+| Tier | Holds at least | Watchlist slots | Daily clock-in XP |
+|---|---|---|---|
+| Holder | 10 SKR | base + 10 | x1.1 |
+| Supporter | 100 SKR | base + 25 | x1.25 |
+| Guardian | 1000 SKR | base + 50 | x1.5 |
+
+- **Badge.** "SKR Holder" unlocks once the tier is Holder or higher, and stays like every other badge.
+- **XP.** The multiplier applies to the daily clock-in only, rounded to a whole number, and only to the XP kept on the phone. The League is sent the plain clock-in exactly as without perks (same action, same idempotency key), so League points are not boosted and the server caps are untouched. `npm test` checks this.
+- **When it is read.** On wallet connect, when the app comes to the foreground and after an SKR payment. A successful read is saved with its time. If the balance cannot be read, the saved tier for the same wallet is used for up to 24 h, then no tier. The saved tier is always derived again from the saved balance.
+- **Losing a tier.** Disconnecting the wallet removes the perks at once. Markets above the new limit stay on the watchlist; adding more is refused with a message until the list is back under the limit or the perks return. The watchlist store keeps up to base + 50 markets for this reason.
+
 ## What the wallet may add
 
 Code: `checkWalletTx` in [src/txcheck.ts](../src/txcheck.ts). Wallets add instructions of their own when they sign. The app accepts only these two programs on top of its own instructions:

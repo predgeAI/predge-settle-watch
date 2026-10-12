@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SettlementRisk } from "./api";
 import type { Verification } from "./verify";
-import { DEFAULT_DIGEST_HOUR, MAX_WATCHLIST, type Cluster } from "./config";
+import { DEFAULT_DIGEST_HOUR, type Cluster } from "./config";
+import { WATCHLIST_STORE_CAP } from "./skr/perks";
 import { detectLanguage, isLang, t, tn, type Lang } from "./i18n";
 
 export interface Snapshot {
@@ -69,14 +70,14 @@ export async function loadWatchlist(): Promise<WatchItem[]> {
     return parsed
       .filter((i): i is WatchItem => !!i && typeof i === "object" && typeof (i as WatchItem).key === "string")
       .map((i) => ({ ...i, timeline: Array.isArray(i.timeline) ? i.timeline : [], anchors: Array.isArray(i.anchors) ? i.anchors : [] }))
-      .slice(0, MAX_WATCHLIST);
+      .slice(0, WATCHLIST_STORE_CAP);
   } catch {
     return [];
   }
 }
 
 export async function saveWatchlist(items: WatchItem[]): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify(items.slice(0, MAX_WATCHLIST)));
+  await AsyncStorage.setItem(KEY, JSON.stringify(items.slice(0, WATCHLIST_STORE_CAP)));
 }
 
 export interface StoredWallet {

@@ -17,7 +17,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
 import { fetchSettlementRisk, parseMarketInput, type SettlementRisk } from "./src/api";
 import { usableForReceipt, verifyRecord, type Check, type Verification } from "./src/verify";
-import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, MAX_WATCHLIST, PINNED_KID, type Cluster } from "./src/config";
+import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, PINNED_KID, type Cluster } from "./src/config";
 import {
   changesLast24h,
   DEFAULT_SETTINGS,
@@ -51,6 +51,7 @@ import {
   LEVELS,
   liveStreak,
   NEW_GAME,
+  unlockBadges,
   weeklyRecap,
   XP,
   type ActionKind,
@@ -58,6 +59,8 @@ import {
   type GameState,
 } from "./src/game";
 import { loadGame, saveGame } from "./src/gameStore";
+import { boostClockIn, canAddMarket, watchlistLimit } from "./src/skr/perks";
+import { getPerks, refreshPerks, setPerksWallet, usePerks } from "./src/skr/perksStore";
 import { scheduleClockInNudge } from "./src/nudge";
 import { updateWidget } from "./src/widget";
 import { alpha, C, PX, STATUS_ORDER, T } from "./src/theme";
@@ -269,8 +272,25 @@ export default function App() {
     },
     [commitGame]
   );
+  // SKR perks: read-only mainnet balance of the connected wallet. No wallet, no perks.
+  const perks = usePerks();
+  useEffect(() => setPerksWallet(wallet?.address ?? null), [wallet?.address]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (st) => {
+      if (st === "active") refreshPerks().catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, []);
+  useEffect(() => {
+    if (!perks.tier || gameRef.current.badges.skr_holder) return;
+    const b = unlockBadges(gameRef.current, { watching: itemsRef.current.length, skrHolder: true });
+    if (b.unlocked.length) commitGame(b.state, { gained: 0, badges: b.unlocked });
+  }, [perks.tier, commitGame]);
+
   const doClockIn = useCallback(() => {
-    const r = clockIn(gameRef.current);
+    // The multiplier is local XP only; the League still gets the plain clock-in (see clockIn).
+    const tier = getPerks().tier;
+    const r = clockIn(gameRef.current, new Date(), { boost: (x) => boostClockIn(x, tier), skrHolder: !!tier });
     if (r.already) return;
     commitGame(r.state, r);
     setClockPlay((n) => n + 1);
@@ -354,8 +374,9 @@ export default function App() {
         return false;
       }
       const current = await loadWatchlist();
-      if (current.length >= MAX_WATCHLIST) {
-        showDialog(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
+      const room = canAddMarket(current.length, getPerks().tier);
+      if (!room.ok) {
+        showDialog(room.title, room.body);
         return false;
       }
       if (current.some((i) => i.key === key || i.marketId === key)) {
@@ -421,7 +442,7 @@ export default function App() {
       setPosBusy(true);
       try {
         const open = await fetchPositions(address);
-        const plan = planSync(open, await loadWatchlist(), MAX_WATCHLIST, 50);
+        const plan = planSync(open, await loadWatchlist(), watchlistLimit(getPerks().tier), 50);
         let failed = 0;
         for (const pos of plan.toAdd) if (!(await addMarket(pos.conditionId, { quiet: true, source: "positions" }))) failed++;
         // A foreground poll merges its results over the list when it ends, so wait for it before marking.

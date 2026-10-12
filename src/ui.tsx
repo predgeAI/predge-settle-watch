@@ -197,6 +197,7 @@ const BADGE_COLOR: Record<BadgeId, string> = {
   watch_5: C.greenBright,
   puzzles: C.purpleSoft,
   pack_opener: C.purple,
+  skr_holder: C.teal,
 };
 const BADGE_GLYPH: Record<BadgeId, string> = {
   first_verify: "check",
@@ -207,6 +208,7 @@ const BADGE_GLYPH: Record<BadgeId, string> = {
   watch_5: "eye",
   puzzles: "question",
   pack_opener: "medal",
+  skr_holder: "skr",
 };
 
 export function BadgeIcon({ id, size = 56, locked = false }: { id: BadgeId; size?: number; locked?: boolean }) {

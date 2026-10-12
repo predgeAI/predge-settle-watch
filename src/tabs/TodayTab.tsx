@@ -10,6 +10,8 @@ import { FLAGS } from "../features";
 import { DailyDisputeCard } from "../dailyDispute/DailyDispute";
 import { Text } from "../Text";
 import { t, tn } from "../i18n";
+import { boostClockIn } from "../skr/perks";
+import { usePerks } from "../skr/perksStore";
 import { EmptyWatchlist, HeaderHelp, StatusHelp } from "../learn";
 import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, styles, TabScroll, type AddMarketProps } from "./shared";
 
@@ -46,6 +48,7 @@ export interface TodayTabProps {
 
 export function TodayTab(p: TodayTabProps) {
   const { level, game, settings, items, today, counts, filter, streak, canIn } = p;
+  const perkTier = usePerks().tier;
   return (
     <TabScroll active={p.active} refreshControl={p.refreshControl}>
       <View style={styles.header}>
@@ -150,7 +153,7 @@ export function TodayTab(p: TodayTabProps) {
           <View style={{ flex: 1 }}>
             <Press onPress={p.onClockIn} disabled={!canIn} haptics={false} label={canIn ? t("home.clockInLabel") : t("home.clockedInLabel")}>
               <PixelBox border={canIn ? C.ink : alpha(C.ink, 0.25)} bg={canIn ? C.ink : alpha(C.ink, 0.1)} lift={canIn ? "#000000" : undefined} inner={{ paddingVertical: 15, alignItems: "center" }}>
-                <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? t("home.clockIn", { xp: XP.clock_in + Math.min(streak + 1, 7) * 2 }) : t("home.clockedIn")}</Text>
+                <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? t("home.clockIn", { xp: boostClockIn(XP.clock_in + Math.min(streak + 1, 7) * 2, perkTier) }) : t("home.clockedIn")}</Text>
               </PixelBox>
             </Press>
           </View>
