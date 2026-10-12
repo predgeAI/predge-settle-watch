@@ -63,6 +63,7 @@ import {
 } from "./src/game";
 import { loadGame, saveGame } from "./src/gameStore";
 import { scheduleClockInNudge } from "./src/nudge";
+import { updateWidget } from "./src/widget";
 import { alpha, C, MONO, PX, STATUS, STATUS_ORDER, T } from "./src/theme";
 import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, Flame, LevelBadge, LiveMascot, PixelBar, PixelBox, Press, Reveal, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
@@ -709,6 +710,12 @@ export default function App() {
   useEffect(() => {
     if (settings?.onboarded) setupChannel().catch(() => undefined);
   }, [settings?.onboarded, settings?.language]);
+  // Home-screen widget follows the watchlist, streak and language (debounced to skip the load-time flicker).
+  useEffect(() => {
+    if (!settings) return;
+    const id = setTimeout(() => updateWidget(items, game), 400);
+    return () => clearTimeout(id);
+  }, [items, game, settings?.language]);
 
   const lastCheck = items.map((i) => i.lastPolledAt ?? "").sort().pop();
 

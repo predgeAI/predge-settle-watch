@@ -17,6 +17,7 @@ import {
   snapshotOf,
   type WatchItem,
 } from "./store";
+import { updateWidget } from "./widget";
 
 export const ALERT_CHANNEL = "settlement-alerts";
 
@@ -119,6 +120,7 @@ export async function pollAll(): Promise<{ items: WatchItem[]; changed: number }
     return p ? { ...p, anchors: i.anchors.length >= p.anchors.length ? i.anchors : p.anchors } : i;
   });
   await saveWatchlist(merged);
+  await updateWidget(merged);
   await maybeSendDigest(merged);
   return { items: merged, changed };
 }

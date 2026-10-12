@@ -352,4 +352,52 @@ t("status line: a proposed answer in its challenge window is not called Quiet", 
   assert.equal(statusLine({ ...base, risk_level: "ok", uma_state: "requested" }), "Quiet: no dispute, no clarification");
   assert.equal(statusLine({ ...base, open_dispute: true }), "Open UMA dispute");
 });
+import { buildWidgetSummary, topMarket } from "../src/widgetSummary";
+import { setLanguage } from "../src/i18n";
+import type { WatchItem } from "../src/store";
+{
+  const item = (key: string, level: string | undefined, extra: Partial<WatchItem> = {}): WatchItem =>
+    ({ key, addedAt: "2026-10-01T00:00:00Z", timeline: [], anchors: [], ...(level ? { last: { risk_level: level } } : {}), ...extra }) as WatchItem;
+  const items = [
+    item("a", "ok", { lastPolledAt: "2026-10-12T10:00:00Z" }),
+    item("b", "watch", { question: "Will B happen?", lastChangeAt: "2026-10-12T09:00:00Z" }),
+    item("c", "caution", { question: "Will C happen?", lastChangeAt: "2026-10-10T09:00:00Z", lastPolledAt: "2026-10-12T10:05:00Z" }),
+    item("d", "resolved"),
+    item("e", "watch", { question: "Will E happen?", lastChangeAt: "2026-10-12T11:00:00Z" }),
+    item("f", undefined),
+  ];
+  t("widget: counts per level, labels in order", () => {
+    const w = buildWidgetSummary(items, NEW_GAME, new Date("2026-10-12T12:00:00Z"));
+    assert.deepEqual(w.tiles.map((x) => [x.label, x.count]), [["CAUTION", 1], ["WATCH", 2], ["QUIET", 1], ["SETTLED", 1]]);
+    assert.equal(w.checkedAt, Date.parse("2026-10-12T10:05:00Z"));
+    assert.equal(w.streak, 0);
+  });
+  t("widget: caution beats a newer watch", () => {
+    const w = buildWidgetSummary(items, NEW_GAME);
+    assert.equal(w.topWord, "CAUTION");
+    assert.equal(w.topTitle, "Will C happen?");
+  });
+  t("widget: newest watch when no caution", () => assert.equal(topMarket(items.filter((i) => i.key !== "c"))?.key, "e"));
+  t("widget: quiet and empty lines", () => {
+    const quiet = buildWidgetSummary([items[0]], NEW_GAME);
+    assert.equal(quiet.topWord, "");
+    assert.equal(quiet.topLine, "Nothing needs attention.");
+    assert.equal(buildWidgetSummary([], NEW_GAME).checkedAt, 0);
+    assert.equal(buildWidgetSummary([], NEW_GAME).topLine, "Tap to add a market to watch.");
+  });
+  t("widget: long titles are cut", () => {
+    const w = buildWidgetSummary([item("x", "caution", { question: "Q".repeat(200) })], NEW_GAME);
+    assert.equal(w.topTitle.length, 80);
+  });
+  t("widget: labels follow the app language", () => {
+    setLanguage("es");
+    try {
+      const w = buildWidgetSummary(items, NEW_GAME);
+      assert.equal(w.tiles[0].label, "CUIDADO");
+      assert.equal(w.streakLabel, "DÍAS DE RACHA");
+    } finally {
+      setLanguage("en");
+    }
+  });
+}
 console.log(`${n} checks passed`);
