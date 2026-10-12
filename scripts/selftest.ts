@@ -955,6 +955,26 @@ t("league: pack_open stays local XP and is never reported", () => {
   for (const k of ["clock_in", "verify", "tamper", "anchor", "add_market"]) assert.equal(reportsToLeague(k), true);
 });
 
+// ---- evidence pack: which fields are signed ----
+import { packFieldOrigins } from "../src/skr/packFields";
+t("evidence pack: unsigned envelope fields are tagged, signed ones compared", () => {
+  const o = packFieldOrigins(REC);
+  assert.equal(o.checked, "signed");
+  assert.equal(o.history, "signed");
+  assert.equal(o.proposal, "signed");
+  assert.equal(o.resolution, "signed");
+  assert.equal(o.clarLatest, "signed");
+  assert.equal(o.source, "unsigned");
+  assert.equal(o.basis, "unsigned");
+  const forged = { ...REC, checked_at: "2026-10-12T23:59:59Z", disputes: [], current_proposal: { price: "1" } };
+  const f = packFieldOrigins(forged);
+  assert.equal(f.checked, "mismatch");
+  assert.equal(f.history, "mismatch");
+  assert.equal(f.proposal, "mismatch");
+  const unsigned = packFieldOrigins({ ...REC, attestation: null });
+  assert.ok(Object.values(unsigned).every((x) => x === "unsigned"));
+});
+
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),
   (e) => {

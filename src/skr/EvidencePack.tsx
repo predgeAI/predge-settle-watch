@@ -13,6 +13,8 @@ import { t, useLang } from "../i18n";
 import * as haptic from "../haptic";
 import { checkCanPay, payForPack, resumePendingUnlock, skrChanged, SKR_CLUSTER } from "./chain";
 import { formatSkr, treasuryKey } from "./spl";
+import { packFieldOrigins, type FieldOrigin } from "./packFields";
+import { usableForReceipt } from "../verify";
 import { loadPendingUnlock, saveUnlock, savePendingUnlock, unlockFor, type PackUnlock, type PendingUnlock } from "./store";
 
 // One payment at a time across the whole app.
@@ -71,7 +73,7 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
     async (createTreasuryAta: boolean) => {
       const v = item.verification;
       const last = item.last;
-      if (!wallet || !v?.verified || !v.packHash || !last || paying) return;
+      if (!wallet || !v || !usableForReceipt(v) || !v.packHash || !last || paying) return;
       paying = true;
       setBusy("wallet");
       let signed = false;
@@ -106,7 +108,7 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
   const onPress = useCallback(async () => {
     if (!treasury || paying) return;
     if (!wallet) return showDialog(t("skr.packTitle"), t("skr.connectFirst"));
-    if (!item.verification?.verified || !item.verification.packHash || !item.last) return showDialog(t("skr.packTitle"), t("skr.verifyFirst"));
+    if (!usableForReceipt(item.verification) || !item.last) return showDialog(t("skr.packTitle"), t("skr.verifyFirst"));
     setBusy("check");
     let check: Awaited<ReturnType<typeof checkCanPay>>;
     try {
@@ -146,11 +148,18 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+/** Small dim tag for a value outside the signature, or one that differs from the signed payload. */
+function OriginTag({ origin }: { origin?: FieldOrigin }) {
+  if (!origin || origin === "signed") return null;
+  return <Text style={origin === "mismatch" ? st.tagBad : st.tag}> [{origin === "mismatch" ? t("skr.tag.mismatch") : t("skr.tag.unsigned")}]</Text>;
+}
+
+function Field({ label, value, origin }: { label: string; value: string; origin?: FieldOrigin }) {
   return (
     <Text style={st.body}>
       <Text style={st.dim}>{label}: </Text>
       {value}
+      <OriginTag origin={origin} />
     </Text>
   );
 }
@@ -170,6 +179,19 @@ function UnlockedPack({ item, unlock }: { item: WatchItem; unlock: PackUnlock })
   const basis = typeof extra.data_basis === "string" ? extra.data_basis : null;
   const latest = r?.bulletin_board?.latest ?? null;
   const source = r?.context && typeof r.context.source === "string" ? r.context.source : null;
+  const origin = r ? packFieldOrigins(r) : null;
+  const shown: (FieldOrigin | undefined)[] = origin
+    ? [
+        latest ? origin.clarLatest : undefined,
+        r?.current_proposal != null ? origin.proposal : undefined,
+        r?.onchain_resolution != null ? origin.resolution : undefined,
+        source ? origin.source : undefined,
+        basis ? origin.basis : undefined,
+        origin.checked,
+        r?.disputes?.length ? origin.history : undefined,
+      ]
+    : [];
+  const anyUnsigned = shown.some((o) => o !== undefined && o !== "signed");
   return (
     <PixelBox border={C.purple} style={st.gap} inner={st.pad}>
       <Text style={st.title}>{t("skr.unlockedTitle")}</Text>
@@ -190,17 +212,20 @@ function UnlockedPack({ item, unlock }: { item: WatchItem; unlock: PackUnlock })
           <Field label={t("skr.f.openDispute")} value={yn(!!r.open_dispute)} />
           <Field label={t("skr.f.vote")} value={yn(!!r.sent_to_uma_vote)} />
           <Field label={t("skr.f.clar")} value={String(r.bulletin_board?.count ?? 0)} />
-          {latest ? <Field label={t("skr.f.clarLatest")} value={[latest.posted_at, latest.kind, latest.poster].filter((x) => typeof x === "string" && x).join(" . ")} /> : null}
-          {r.current_proposal != null ? <Field label={t("skr.f.proposal")} value={json(r.current_proposal)} /> : null}
-          {r.onchain_resolution != null ? <Field label={t("skr.f.resolution")} value={json(r.onchain_resolution)} /> : null}
+          {latest ? <Field label={t("skr.f.clarLatest")} value={[latest.posted_at, latest.kind, latest.poster].filter((x) => typeof x === "string" && x).join(" . ")} origin={origin?.clarLatest} /> : null}
+          {r.current_proposal != null ? <Field label={t("skr.f.proposal")} value={json(r.current_proposal)} origin={origin?.proposal} /> : null}
+          {r.onchain_resolution != null ? <Field label={t("skr.f.resolution")} value={json(r.onchain_resolution)} origin={origin?.resolution} /> : null}
           <Field label={t("skr.f.recommendation")} value={r.recommendation} />
-          {source ? <Field label={t("skr.f.source")} value={source} /> : null}
-          {basis ? <Field label={t("skr.f.basis")} value={basis} /> : null}
-          <Field label={t("skr.f.checked")} value={r.checked_at} />
+          {source ? <Field label={t("skr.f.source")} value={source} origin={origin?.source} /> : null}
+          {basis ? <Field label={t("skr.f.basis")} value={basis} origin={origin?.basis} /> : null}
+          <Field label={t("skr.f.checked")} value={r.checked_at} origin={origin?.checked} />
 
           {r.disputes?.length ? (
             <>
-              <Text style={st.label}>{t("skr.history")}</Text>
+              <Text style={st.label}>
+                {t("skr.history")}
+                <OriginTag origin={origin?.history} />
+              </Text>
               {r.disputes.map((d, i) => (
                 <Text key={i} style={[st.mono, st.small]}>
                   {[d.disputed_at, typeof d.disputed_proposal === "string" ? d.disputed_proposal : null, d.tx].filter((x) => typeof x === "string" && x).join(" . ")}
@@ -208,6 +233,7 @@ function UnlockedPack({ item, unlock }: { item: WatchItem; unlock: PackUnlock })
               ))}
             </>
           ) : null}
+          {anyUnsigned ? <Text style={[st.small, { marginTop: 8 }]}>{t("skr.unsignedNote")}</Text> : null}
         </>
       ) : null}
 
@@ -235,5 +261,7 @@ const st = StyleSheet.create({
   dim: { color: C.dim, fontSize: T.small, lineHeight: 18 },
   mono: { color: C.text, fontFamily: MONO, fontSize: T.small },
   small: { fontSize: 11, color: C.dim },
+  tag: { fontSize: 10, color: C.dim, fontFamily: MONO },
+  tagBad: { fontSize: 10, color: C.red, fontFamily: MONO },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8, alignItems: "center" },
 });
