@@ -26,7 +26,7 @@ Goal: an app people want to open daily, in the visual language of the Solana Mob
 - Levels: Watcher 0, Verifier 100, Settler 300, Oracle 700 XP.
 - Badges: First verify, Tamper caught, First receipt on Solana, 7-day streak, Dispute spotted early, 5 markets watched.
 - Weekly recap on Home. A daily local reminder at the digest hour asks you to clock in.
-- No server, tokens, money or leaderboard. The receipt on Solana stays the only on-chain action. Logic is in `src/game.ts` and covered by `npm test`.
+- In 0.3.0 the loop had no server, tokens or leaderboard. Later builds added the opt-in League (0.3.4 to 0.3.5) and the 1 SKR evidence pack (0.3.8); see [ARCHITECTURE.md](ARCHITECTURE.md). Local XP logic is in `src/game.ts` and covered by `npm test`.
 
 ## 0.3.1 to 0.3.3 additions
 

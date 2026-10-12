@@ -1,5 +1,7 @@
 # Settle Watch: demo video shot list (build 0.2.0) (target 2:50, hard cap 3:00)
 
+Archived: this is the shot list for the 0.2.0 video. The current demo video is linked from the README.
+
 Export 1920x1080, 16:9, 30 fps, H.264. Phone recording centered in a phone frame on navy #0B1220, captions on the left. The founder reads the voiceover (about 330 words). Use the same take order as the table; trim pauses.
 
 Before recording: uninstall Settle Watch (or clear its data) so onboarding shows; wallet on devnet with about 0.1 devnet SOL; Do Not Disturb on; "Show touches" on.
