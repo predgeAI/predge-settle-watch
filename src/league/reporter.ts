@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { onXpAwarded } from "../game";
 import { api, loadSession, LeagueError, type XpResult } from "./api";
 import { PENDING_INVITE_KEY } from "./config";
-import { xpKey } from "./logic";
+import { reportsToLeague, xpKey } from "./logic";
 
 type Listener = (r: XpResult) => void;
 const listeners: Listener[] = [];
@@ -37,6 +37,8 @@ export function startReporting(): void {
   if (started) return;
   started = true;
   onXpAwarded((e) => {
+    // Actions missing from the server's table (pack_open) stay local XP; sending them would only fail.
+    if (!reportsToLeague(e.kind)) return;
     void send(e.kind, xpKey(e));
   });
 }

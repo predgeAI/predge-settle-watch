@@ -125,7 +125,7 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
             {me && stage === "main" ? (
               <Text style={{ color: C.dim, fontSize: T.small, marginTop: 8 }}>
                 {t("lg.meLine", { nick: me.nickname ?? "", xp: me.weeklyXp })}
-                {me.rank ? t("lg.rankSuffix", { n: me.rank }) : ""}
+                {me.rank ? t("lg.globalRankSuffix", { n: me.rank }) : ""}
               </Text>
             ) : null}
           </View>

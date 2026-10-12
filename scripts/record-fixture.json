@@ -1,0 +1,187 @@
+{
+ "market": {
+  "market_id": "5186278",
+  "condition_id": "0x4d792705135b637af6c4f9d78160d9229061e1445b75208eb59fad897a310128",
+  "slug": "unl-ire-aut-2026-10-01-goals-plus-assists-adam-idah-90078332-gte1",
+  "question": "Adam Idah: 1+ goals + assists",
+  "uma_question_id": "0xd87c9a4f423fa1ed85a2c69ea6845e60f575f1496dc729dafb5f11e5256c93f5",
+  "adapter": "0x65070be91477460d8a7aeeb94ef92fe056c2f2a7",
+  "neg_risk": false,
+  "closed": false,
+  "end_date": "2026-10-01T18:45:00Z"
+ },
+ "adapter": "0x65070be91477460d8a7aeeb94ef92fe056c2f2a7",
+ "adapter_label": "UmaCtfAdapter (Managed OOV2)",
+ "oracle": "0x2c0367a9db231ddebd88a94b4f6461a6e47c58b1",
+ "uma_state": "requested",
+ "resolved_on_chain": false,
+ "paused": false,
+ "dispute_count": 1,
+ "open_dispute": false,
+ "sent_to_uma_vote": false,
+ "current_proposal": null,
+ "disputes": [
+  {
+   "disputed_at": "2026-10-02T12:52:09Z",
+   "tx": "0xc5b44af14091da34f85f2d36c8327d3c148f5b1bfd87e6e10570086453cabca5",
+   "disputed_proposal": "Yes"
+  }
+ ],
+ "bulletin_board": {
+  "count": 0,
+  "latest": null
+ },
+ "onchain_resolution": null,
+ "checked_at": "2026-10-12T13:15:14Z",
+ "risk_level": "caution",
+ "recommendation": "caution: disputed once and reset for a new proposal; median 3.3 h from a first dispute to on-chain resolution, and 33.5% of settled disputed markets settled differently from the disputed proposal (2026-01-01 to 2026-10-02).",
+ "settlement_estimate": {
+  "model": "settlement-estimate-v1",
+  "stage": "first_dispute",
+  "basis": "model",
+  "settles_differently_probability": "0.1600",
+  "inputs": {
+   "disputed_proposal": "Yes",
+   "disputed_at": "2026-10-02T12:52:09Z",
+   "price_of_outcome_0_before_dispute": "0.9050",
+   "price_of_outcome_0_3h_before_dispute": "0.9050",
+   "price_source": "https://clob.polymarket.com prices-history (10-minute fidelity), outcome token 87998314864428356864729471943021305699398888037342175806933169899780248400101",
+   "category": "sports"
+  },
+  "trained_on": "disputes first raised 2026-01-01 to 2026-06-30, isotonic calibration on 2026-07",
+  "evaluation": {
+   "window": "disputes first raised 2026-08-01 to 2026-09-30",
+   "n": "754",
+   "auc": "0.674",
+   "auc_ci95": [
+    "0.637",
+    "0.709"
+   ],
+   "pr_auc": "0.568",
+   "base_rate": "0.406",
+   "precision_at_100": "0.67"
+  },
+  "reference": null,
+  "note": "Statistical estimate from 2026 Polymarket disputes, not advice and not a statement about this market's merits. It uses the market price before the dispute, the adapter, the market type and duration; nothing after the first dispute."
+ },
+ "segment_dispute_rate": {
+  "table": "segment-dispute-rate-2026-v1",
+  "segment": "sports/soccer_player_goals_plus_assists",
+  "category": "sports",
+  "sports_market_type": "soccer_player_goals_plus_assists",
+  "markets": "6060",
+  "disputed": "2",
+  "rate": "0.000330",
+  "ci95": [
+   "0.000091",
+   "0.001203"
+  ],
+  "window": "Polymarket v1 UMA CTF adapter markets with scheduled end date 2026-01-01 to 2026-09-30, closed and resolved by 2026-10-02",
+  "note": "Share of 2026 markets in this segment whose UMA resolution was disputed at least once. A segment statistic with a 95% Wilson interval, not a prediction for this market."
+ },
+ "context": {
+  "period": "2026-01-01 to 2026-10-02",
+  "source": "UMA Optimistic Oracle and Polymarket UMA CTF adapter logs on Polygon, scanned by Predge",
+  "disputes": 3005,
+  "disputed_markets": 2666,
+  "disputed_twice_or_more": 323,
+  "settled_disputed_markets": 2543,
+  "settled_differently_from_disputed_proposal": 853,
+  "settled_differently_share": "33.5%",
+  "median_hours_first_dispute_to_onchain_resolution": "3.3",
+  "median_hours_second_dispute_to_onchain_resolution": "88.5",
+  "note": "A dispute blocks a proposal; it does not by itself change the outcome. A second dispute sends the outcome to a UMA token-holder vote."
+ },
+ "data_basis": "Live read of UMA's Optimistic Oracle and Polymarket's UMA CTF adapter on Polygon (eth_call and eth_getLogs on public RPC) at checked_at. uma_question_id, dispute times and txs, bulletin-board updates and the on-chain resolution are chain facts, re-checkable on any Polygon RPC. The market lookup (condition id, market id, slug to UMA question id) uses Polymarket's public gamma API and is re-checked on chain: keccak256(ancillaryData) equals uma_question_id. Only the question creator's and the venue operator accounts' bulletin-board posts are counted. risk_level and recommendation are Predge's reading of those facts, not advice. settlement_estimate and segment_dispute_rate are statistics computed from 2026 Polymarket disputes (docs/settlement-estimate.md): the estimate uses the market price before the first dispute from Polymarket's public CLOB price history and the market's type; the segment rate is how often markets of this kind were disputed in 2026. Neither is advice. The signature proves Predge published this record.",
+ "attestation": {
+  "version": "predge-attest-v1",
+  "issuer": "predge.io",
+  "algorithm": "ed25519",
+  "kind": "settlement-risk",
+  "data_basis": "Live read of UMA's Optimistic Oracle and Polymarket's UMA CTF adapter on Polygon (eth_call and eth_getLogs on public RPC) at checked_at. uma_question_id, dispute times and txs, bulletin-board updates and the on-chain resolution are chain facts, re-checkable on any Polygon RPC. The market lookup (condition id, market id, slug to UMA question id) uses Polymarket's public gamma API and is re-checked on chain: keccak256(ancillaryData) equals uma_question_id. Only the question creator's and the venue operator accounts' bulletin-board posts are counted. risk_level and recommendation are Predge's reading of those facts, not advice. settlement_estimate and segment_dispute_rate are statistics computed from 2026 Polymarket disputes (docs/settlement-estimate.md): the estimate uses the market price before the first dispute from Polymarket's public CLOB price history and the market's type; the segment rate is how often markets of this kind were disputed in 2026. Neither is advice. The signature proves Predge published this record.",
+  "public_key": "13fa3d18a369e6c71bf941563ba47822b30182273d5106a0e8fb61c5016352d9",
+  "canonical": "{\"adapter\":\"0x65070be91477460d8a7aeeb94ef92fe056c2f2a7\",\"bulletin_board_count\":\"0\",\"chain\":\"polygon\",\"checked_at\":\"2026-10-12T13:15:14Z\",\"condition_id\":\"0x4d792705135b637af6c4f9d78160d9229061e1445b75208eb59fad897a310128\",\"current_proposal\":null,\"dispute_count\":\"1\",\"disputes\":[{\"disputed_at\":\"2026-10-02T12:52:09Z\",\"disputed_proposal\":\"Yes\",\"tx\":\"0xc5b44af14091da34f85f2d36c8327d3c148f5b1bfd87e6e10570086453cabca5\"}],\"issued_at\":\"2026-10-12T13:15:17.617Z\",\"issuer\":\"predge.io\",\"kind\":\"settlement-risk\",\"latest_bulletin_board_update\":null,\"market_id\":\"5186278\",\"onchain_resolution\":null,\"open_dispute\":false,\"oracle\":\"0x2c0367a9db231ddebd88a94b4f6461a6e47c58b1\",\"paused\":false,\"platform\":\"polymarket\",\"recommendation\":\"caution: disputed once and reset for a new proposal; median 3.3 h from a first dispute to on-chain resolution, and 33.5% of settled disputed markets settled differently from the disputed proposal (2026-01-01 to 2026-10-02).\",\"resolved_on_chain\":false,\"risk_level\":\"caution\",\"segment_dispute_rate\":{\"category\":\"sports\",\"ci95\":[\"0.000091\",\"0.001203\"],\"disputed\":\"2\",\"markets\":\"6060\",\"note\":\"Share of 2026 markets in this segment whose UMA resolution was disputed at least once. A segment statistic with a 95% Wilson interval, not a prediction for this market.\",\"rate\":\"0.000330\",\"segment\":\"sports/soccer_player_goals_plus_assists\",\"sports_market_type\":\"soccer_player_goals_plus_assists\",\"table\":\"segment-dispute-rate-2026-v1\",\"window\":\"Polymarket v1 UMA CTF adapter markets with scheduled end date 2026-01-01 to 2026-09-30, closed and resolved by 2026-10-02\"},\"sent_to_uma_vote\":false,\"settlement_estimate\":{\"basis\":\"model\",\"evaluation\":{\"auc\":\"0.674\",\"auc_ci95\":[\"0.637\",\"0.709\"],\"base_rate\":\"0.406\",\"n\":\"754\",\"pr_auc\":\"0.568\",\"precision_at_100\":\"0.67\",\"window\":\"disputes first raised 2026-08-01 to 2026-09-30\"},\"inputs\":{\"category\":\"sports\",\"disputed_at\":\"2026-10-02T12:52:09Z\",\"disputed_proposal\":\"Yes\",\"price_of_outcome_0_3h_before_dispute\":\"0.9050\",\"price_of_outcome_0_before_dispute\":\"0.9050\",\"price_source\":\"https://clob.polymarket.com prices-history (10-minute fidelity), outcome token 87998314864428356864729471943021305699398888037342175806933169899780248400101\"},\"model\":\"settlement-estimate-v1\",\"note\":\"Statistical estimate from 2026 Polymarket disputes, not advice and not a statement about this market's merits. It uses the market price before the dispute, the adapter, the market type and duration; nothing after the first dispute.\",\"reference\":null,\"settles_differently_probability\":\"0.1600\",\"stage\":\"first_dispute\",\"trained_on\":\"disputes first raised 2026-01-01 to 2026-06-30, isotonic calibration on 2026-07\"},\"uma_question_id\":\"0xd87c9a4f423fa1ed85a2c69ea6845e60f575f1496dc729dafb5f11e5256c93f5\",\"uma_state\":\"requested\",\"version\":\"predge-attest-v1\"}",
+  "signature": "9601457050c5db3e53e01362bf8bb5374373bb0fef67593b65e2a0cecb1441d39148023397f0c5b3cb957a2f462f158eabf8a02999e4cdf7b2b1e19aaba01a02",
+  "payload": {
+   "version": "predge-attest-v1",
+   "issuer": "predge.io",
+   "kind": "settlement-risk",
+   "platform": "polymarket",
+   "chain": "polygon",
+   "market_id": "5186278",
+   "condition_id": "0x4d792705135b637af6c4f9d78160d9229061e1445b75208eb59fad897a310128",
+   "uma_question_id": "0xd87c9a4f423fa1ed85a2c69ea6845e60f575f1496dc729dafb5f11e5256c93f5",
+   "adapter": "0x65070be91477460d8a7aeeb94ef92fe056c2f2a7",
+   "oracle": "0x2c0367a9db231ddebd88a94b4f6461a6e47c58b1",
+   "uma_state": "requested",
+   "resolved_on_chain": false,
+   "paused": false,
+   "dispute_count": "1",
+   "open_dispute": false,
+   "sent_to_uma_vote": false,
+   "current_proposal": null,
+   "disputes": [
+    {
+     "disputed_at": "2026-10-02T12:52:09Z",
+     "tx": "0xc5b44af14091da34f85f2d36c8327d3c148f5b1bfd87e6e10570086453cabca5",
+     "disputed_proposal": "Yes"
+    }
+   ],
+   "bulletin_board_count": "0",
+   "latest_bulletin_board_update": null,
+   "onchain_resolution": null,
+   "risk_level": "caution",
+   "recommendation": "caution: disputed once and reset for a new proposal; median 3.3 h from a first dispute to on-chain resolution, and 33.5% of settled disputed markets settled differently from the disputed proposal (2026-01-01 to 2026-10-02).",
+   "settlement_estimate": {
+    "model": "settlement-estimate-v1",
+    "stage": "first_dispute",
+    "basis": "model",
+    "settles_differently_probability": "0.1600",
+    "inputs": {
+     "disputed_proposal": "Yes",
+     "disputed_at": "2026-10-02T12:52:09Z",
+     "price_of_outcome_0_before_dispute": "0.9050",
+     "price_of_outcome_0_3h_before_dispute": "0.9050",
+     "price_source": "https://clob.polymarket.com prices-history (10-minute fidelity), outcome token 87998314864428356864729471943021305699398888037342175806933169899780248400101",
+     "category": "sports"
+    },
+    "trained_on": "disputes first raised 2026-01-01 to 2026-06-30, isotonic calibration on 2026-07",
+    "evaluation": {
+     "window": "disputes first raised 2026-08-01 to 2026-09-30",
+     "n": "754",
+     "auc": "0.674",
+     "auc_ci95": [
+      "0.637",
+      "0.709"
+     ],
+     "pr_auc": "0.568",
+     "base_rate": "0.406",
+     "precision_at_100": "0.67"
+    },
+    "reference": null,
+    "note": "Statistical estimate from 2026 Polymarket disputes, not advice and not a statement about this market's merits. It uses the market price before the dispute, the adapter, the market type and duration; nothing after the first dispute."
+   },
+   "segment_dispute_rate": {
+    "table": "segment-dispute-rate-2026-v1",
+    "segment": "sports/soccer_player_goals_plus_assists",
+    "category": "sports",
+    "sports_market_type": "soccer_player_goals_plus_assists",
+    "markets": "6060",
+    "disputed": "2",
+    "rate": "0.000330",
+    "ci95": [
+     "0.000091",
+     "0.001203"
+    ],
+    "window": "Polymarket v1 UMA CTF adapter markets with scheduled end date 2026-01-01 to 2026-09-30, closed and resolved by 2026-10-02",
+    "note": "Share of 2026 markets in this segment whose UMA resolution was disputed at least once. A segment statistic with a 95% Wilson interval, not a prediction for this market."
+   },
+   "checked_at": "2026-10-12T13:15:14Z",
+   "issued_at": "2026-10-12T13:15:17.617Z"
+  },
+  "verify": "ed25519: verify `signature` (hex, 64 bytes) over the UTF-8 bytes of `canonical` using `public_key` (hex, raw 32-byte ed25519 point). `canonical` is the exact byte string that was signed — JSON with keys sorted lexicographically at every level and no insignificant whitespace (a subset of RFC 8785 / JCS). `payload` is the same object parsed; re-canonicalise it and you MUST reproduce `canonical`. If `payload.payment` is present it names the x402 payment that bought this response. On `payment.network`, find the `AuthorizationUsed(payer, nonce)` log emitted by `payment.asset`; in that same transaction receipt (not just the same block) require status 1 and a `Transfer(payer, payTo, amount)` log from `payment.asset`. Those arguments are the fields of `payment` with the same names. envelope_signature: remove the `envelope_signature` field from the envelope, canonicalise what is left with the same rule as `canonical` (keys sorted at every level, no whitespace), and verify `envelope_signature` (hex, 64 bytes) over its UTF-8 bytes with `public_key`.",
+  "kid": "13fa3d18a369e6c7",
+  "content_hash": "038ac240738b61515fe0b37251ca982fecaf0150654b89d21e429130025b1331",
+  "envelope_signature": "f29d6a3428905cf9805b9dc49190e57a1cfdedf6f45844c0303e923925b6c84830cde57914e11f9472d49efa7e9b70ab6dc13fe99a1e886cbbda71d4cfc91905"
+ }
+}

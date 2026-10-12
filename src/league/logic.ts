@@ -114,3 +114,79 @@ const FRIENDLY = new Set(["rate_limited", "unauthorized", "nickname_taken", "nic
 export function friendlyError(code: string | undefined, message: string | undefined): string {
   return (code && FRIENDLY.has(code) ? t(`lg.err.${code}` as Key) : "") || message || t("common.wrongRetry");
 }
+
+/**
+ * Ranks leaderboard rows by weekly XP, highest first. Equal XP shares a rank (1, 1, 3).
+ * The board list and the "This week" line both use this, so they always show the same rank.
+ */
+export function rankRows<R extends { weeklyXp: number; rank: number }>(rows: R[]): R[] {
+  const sorted = [...rows].sort((a, b) => b.weeklyXp - a.weeklyXp);
+  const out: R[] = [];
+  sorted.forEach((r, i) => {
+    const rank = i > 0 && sorted[i - 1].weeklyXp === r.weeklyXp ? out[i - 1].rank : i + 1;
+    out.push({ ...r, rank });
+  });
+  return out;
+}
+
+/** Your rank on a board: from your own row when the board lists you, else the rank the server sent. */
+export function boardRank(rows: { weeklyXp: number; rank: number; you: boolean }[], fallback: number | null | undefined): number | null {
+  const mine = rankRows(rows).find((r) => r.you);
+  return mine ? mine.rank : (fallback ?? null);
+}
+
+// ---------------------------------------------------------------- sign-in message check
+
+/** How far the message's Issued At may be from the phone clock, either way. */
+export const SIGN_IN_MAX_SKEW_MS = 10 * 60_000;
+
+/** Host of a League URL such as https://settle-watch-league.vercel.app, lowercased. */
+export function leagueHost(url: string): string {
+  return (/^https:\/\/([^/?#:]+)/i.exec(url)?.[1] ?? "").toLowerCase();
+}
+
+/**
+ * Checks the sign-in message the League server asks the wallet to sign, before the wallet opens. The
+ * message is SIWS style: the first line names the domain, the second the wallet address, then fields
+ * such as URI, Chain ID, Nonce, Issued At and Expiration Time. Returns null when it is acceptable, else a
+ * short reason. The app never edits the message; it only refuses to sign one that is not for this League,
+ * this wallet and now.
+ */
+export function checkSignInMessage(message: string, p: { domain: string; address: string; now: number }): string | null {
+  if (typeof message !== "string" || !message || message.length > 1000) return "length";
+  if (/\r/.test(message)) return "line endings";
+  const lines = message.split("\n");
+  const head = /^(\S+) wants you to sign in with your Solana account:$/.exec(lines[0] ?? "");
+  if (!head) return "header";
+  if (head[1].toLowerCase() !== p.domain.toLowerCase()) return "domain";
+  if (lines[1] !== p.address) return "address";
+  const fields = new Map<string, string>();
+  for (const l of lines.slice(2)) {
+    const m = /^(URI|Version|Chain ID|Nonce|Issued At|Expiration Time|Not Before|Request ID|Resources): (.*)$/.exec(l);
+    if (!m) continue;
+    if (fields.has(m[1])) return "duplicate field";
+    fields.set(m[1], m[2]);
+  }
+  const uri = fields.get("URI");
+  if (uri !== undefined && leagueHost(uri) !== p.domain.toLowerCase()) return "uri";
+  if (!fields.get("Chain ID")) return "chain";
+  if (!/^[A-Za-z0-9]{8,128}$/.test(fields.get("Nonce") ?? "")) return "nonce";
+  const issued = Date.parse(fields.get("Issued At") ?? "");
+  if (!Number.isFinite(issued)) return "issued at";
+  if (Math.abs(p.now - issued) > SIGN_IN_MAX_SKEW_MS) return "issued at";
+  const exp = fields.get("Expiration Time");
+  if (exp !== undefined) {
+    const e = Date.parse(exp);
+    if (!Number.isFinite(e) || e <= p.now || e <= issued) return "expiration";
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- XP reporting
+
+/**
+ * Game actions the League server does not know. Its action table has no pack_open, so a report would be
+ * rejected with unknown_action. These stay local XP and are never sent.
+ */
+export const LOCAL_ONLY_XP: readonly string[] = ["pack_open"];
+export const reportsToLeague = (kind: string) => !LOCAL_ONLY_XP.includes(kind);

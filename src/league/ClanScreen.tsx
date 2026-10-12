@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Alert, Share, View } from "react-native";
+import { Share, View } from "react-native";
+import { showDialog } from "../dialog";
 import { Text } from "../Text";
 import { t } from "../i18n";
 import { C } from "../theme";
@@ -80,11 +81,11 @@ export function ClanScreen({ onChanged }: { onChanged: () => void }) {
                 <Text style={st.dim}>{m.weeklyXp} XP{m.weeklyXp > m.counted ? t("lg.counted", { n: m.counted }) : ""}</Text>
               </View>
               {c.youAreFounder && !m.you ? (
-                <Button small kind="ghost" title={t("common.remove")} onPress={() => Alert.alert(t("lg.removeMember"), t("lg.removeBody", { name: m.nickname }), [{ text: t("common.cancel"), style: "cancel" }, { text: t("common.remove"), style: "destructive", onPress: () => void act(() => api.kick(m.nickname)) }])} />
+                <Button small kind="ghost" title={t("common.remove")} onPress={() => showDialog(t("lg.removeMember"), t("lg.removeBody", { name: m.nickname }), [{ text: t("common.cancel"), style: "cancel" }, { text: t("common.remove"), style: "destructive", onPress: () => void act(() => api.kick(m.nickname)) }])} />
               ) : null}
             </PixelBox>
           ))}
-          <Button kind="ghost" title={t("lg.leaveClan")} style={{ marginTop: 16 }} onPress={() => Alert.alert(t("lg.leaveClan"), t("lg.leaveBody"), [{ text: t("common.cancel"), style: "cancel" }, { text: t("common.leave"), style: "destructive", onPress: () => void act(() => api.leaveClan()) }])} />
+          <Button kind="ghost" title={t("lg.leaveClan")} style={{ marginTop: 16 }} onPress={() => showDialog(t("lg.leaveClan"), t("lg.leaveBody"), [{ text: t("common.cancel"), style: "cancel" }, { text: t("common.leave"), style: "destructive", onPress: () => void act(() => api.leaveClan()) }])} />
         </View>
       ) : clan.loading ? (
         <Loading error={clan.error} onRetry={clan.reload} />

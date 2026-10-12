@@ -5,7 +5,7 @@ import { t, type Key } from "../i18n";
 import { C, PX, T } from "../theme";
 import { Button, PixelBox, Reveal } from "../ui";
 import { api } from "./api";
-import { shortCountdown } from "./logic";
+import { boardRank, rankRows, shortCountdown } from "./logic";
 import { Avatar } from "./pixels";
 import { BoardRowView, Disclaimer, Loading, SectionTitle, Tabs, st, useAsync } from "./parts";
 
@@ -15,6 +15,8 @@ export function LeagueScreen({ onInvite }: { onInvite: () => void }) {
   const recap = useAsync(() => api.recap(), []);
   const b = board.data;
   const r = recap.data;
+  const rows = b ? rankRows(b.rows) : [];
+  const myRank = b ? boardRank(b.rows, b.you?.rank) : null;
   return (
     <View>
       {r && (r.weeklyXp > 0 || r.friendsCount > 0) ? (
@@ -40,11 +42,11 @@ export function LeagueScreen({ onInvite }: { onInvite: () => void }) {
           <Text style={[st.dim, { marginTop: 12 }]}>{t("lg.resets", { t: shortCountdown(Date.parse(b.resetsAt) - Date.now()) })}</Text>
           {b.you ? (
             <PixelBox border={C.green} bg={C.surface} style={{ marginTop: 10 }} inner={{ padding: 12 }}>
-              <Text style={st.body}>{t("lg.thisWeek", { xp: b.you.weeklyXp, rank: b.you.rank ? t("lg.rankSuffix", { n: b.you.rank }) : "" })}</Text>
+              <Text style={st.body}>{t("lg.thisWeek", { xp: b.you.weeklyXp, rank: myRank ? t("lg.rankSuffix", { n: myRank }) : "" })}</Text>
             </PixelBox>
           ) : null}
           <SectionTitle>{tab === "friends" ? t("lg.youAndFriends") : t("lg.globalTop")}</SectionTitle>
-          {b.rows.map((row) => (
+          {rows.map((row) => (
             <BoardRowView key={`${row.nickname}`} row={row} />
           ))}
           {tab === "friends" && b.rows.length <= 1 ? (

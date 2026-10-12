@@ -46,7 +46,7 @@ export interface CardInput {
   /** Translated labels. */
   text: {
     headline: string;
-    checks: string; // already filled, e.g. "7/7 checks on my phone"
+    checks: string; // already filled, e.g. "8/8 checks on my phone"
     pack: string;
     receipt: string;
     date: string;
@@ -69,8 +69,8 @@ export function shortId(s: string, n = 6): string {
 export const plainPunctuation = (s: string) =>
   s.replace(/[\u2018\u2019\u201a\u2032]/g, "'").replace(/[\u201c\u201d\u201e\u2033]/g, '"').replace(/[\u2010-\u2015\u2212]/g, "-").replace(/\u2026/g, "...");
 
-/** Characters the bundled pixel font can draw (ASCII and Latin-1). */
-export const pixelSafe = (s: string) => /^[ -~ -ÿ]*$/.test(s);
+/** Characters the bundled pixel font can draw (ASCII, Latin-1 and the Russian alphabet). */
+export const pixelSafe = (s: string) => /^[ -~\u00a0-\u00ff\u0401\u0410-\u044f\u0451]*$/.test(s);
 
 /**
  * Greedy word wrap by character count. The pixel font is monospaced (1 em per glyph), and CJK

@@ -1,5 +1,7 @@
 # Settle Watch: demo video shot list (build 0.2.0) (target 2:50, hard cap 3:00)
 
+Archived: this is the shot list for the 0.2.0 video. The current demo video is linked from the README.
+
 Export 1920x1080, 16:9, 30 fps, H.264. Phone recording centered in a phone frame on navy #0B1220, captions on the left. The founder reads the voiceover (about 330 words). Use the same take order as the table; trim pauses.
 
 Before recording: uninstall Settle Watch (or clear its data) so onboarding shows; wallet on devnet with about 0.1 devnet SOL; Do Not Disturb on; "Show touches" on.
@@ -12,7 +14,7 @@ Before recording: uninstall Settle Watch (or clear its data) so onboarding shows
 | 4 | 0:26-0:44 | Phone | Open Settle Watch: onboarding screen 1, Next, screen 2, Next, screen 3, tap **Add 3 example markets**, allow notifications | "Settle Watch is a new Android app. Three screens explain it, and one tap gives me three real markets to watch." |
 | 5 | 0:44-1:02 | Phone | Home: hold on the **Today** card, then the four counters, tap **Caution** to filter, tap again. Scroll the rows with status lines | "The home screen answers one question: what changed today. Below, my watchlist at a glance: caution, watch, quiet, settled, each with a status in plain words." |
 | 6 | 1:02-1:12 | Phone | Scroll up, tap **Connect wallet**, approve in the wallet sheet, address and devnet balance appear | "I connect my wallet with Mobile Wallet Adapter. On Seeker, that is Seed Vault." |
-| 7 | 1:12-1:30 | Phone | Open the Caution market (Adam Idah). Hold on "Disputed, reset for a new proposal" and the green **Verified on this phone, 7 of 7 checks passed** | "This market was disputed and is waiting for a new proposal. And it is verified on this phone: the record is signed by Predge, and the phone checked the signature itself." |
+| 7 | 1:12-1:30 | Phone | Open the Caution market (Adam Idah). Hold on "Disputed, reset for a new proposal" and the green **Verified on this phone, 8 of 8 checks passed** | "This market was disputed and is waiting for a new proposal. And it is verified on this phone: the record is signed by Predge, and the phone checked the signature itself." |
 | 8 | 1:30-1:50 | Phone | Tap **Show the checks**, scroll slowly, tap **Tamper test**, hold on "Rejected, as it should be" for 2 s | "Seven checks: the pinned key, the key published at predge dot io, the canonical bytes, the signature, and that every value on screen is the signed one. If I change one character, verification fails." |
 | 9 | 1:50-2:18 | Phone | Tap **Anchor watch receipt**, wallet asks to sign, approve, alert "Receipt on Solana Devnet", tap **Open explorer**: devnet transaction with the memo. Zoom (in editor) on `pack=sha256:` | "Then I anchor a receipt on Solana: a memo transaction with the hash of the exact record I saw, signed through Mobile Wallet Adapter. I now hold a public, timestamped proof of what I was shown." |
 | 10 | 2:18-2:36 | Phone | Back to the app, scroll to Settings: digest toggle and hour, tap **Digest now**, pull down the shade showing the digest | "Every day, at the hour I choose, I get one digest: what changed and what still needs attention. The watchlist is checked every minute while open and in the background, and a dispute, clarification or settlement sends an alert." |
