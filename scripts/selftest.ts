@@ -470,4 +470,95 @@ t("card: curly punctuation becomes ASCII so the pixel font can draw it", () => {
 t("card: English share strings have no em dashes", () => {
   for (const [k, v] of Object.entries(enDict)) if (k.startsWith("share.")) assert.ok(!v.includes("\u2014"), k);
 });
+// ---- SKR evidence pack payment ----
+import { PublicKey as SkrKey, SystemProgram as SkrSystem } from "@solana/web3.js";
+import { ATA_PROGRAM_ID, MEMO_PROGRAM_ID as SKR_MEMO, SKR_MINT, SKR_TREASURY, TOKEN_PROGRAM_ID } from "../src/config";
+import {
+  associatedTokenAddress,
+  buildUnlockTx,
+  coversPrice,
+  formatSkr,
+  PACK_PRICE_BASE,
+  packMemoText,
+  transferCheckedData,
+  treasuryKey,
+  u64le,
+} from "../src/skr/spl";
+t("SKR TransferChecked data is [12, amount u64 LE, decimals]", () => {
+  assert.equal(transferCheckedData(1_000_000, 6).toString("hex"), "0c" + "40420f0000000000" + "06");
+  assert.equal(u64le(2 ** 40 + 5).toString("hex"), "0500000000010000");
+  assert.throws(() => u64le(-1));
+  assert.throws(() => u64le(2 ** 60));
+  assert.equal(PACK_PRICE_BASE, 1_000_000);
+});
+t("SKR associated token account derivation", () => {
+  // Known SKR account on mainnet (seen in a live transfer): owner 3sLy... holds SKR at 3QrU...
+  assert.equal(associatedTokenAddress(new SkrKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC")).toBase58(), "3QrUjNJ6yXpfh6kFeC2DJjcQXEQM5pcQvx7MWX9MHXXe");
+  // Same seeds computed directly with web3.js.
+  const owner = new SkrKey("8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S");
+  const [want] = SkrKey.findProgramAddressSync(
+    [owner.toBuffer(), new SkrKey(TOKEN_PROGRAM_ID).toBuffer(), new SkrKey(SKR_MINT).toBuffer()],
+    new SkrKey(ATA_PROGRAM_ID)
+  );
+  assert.equal(associatedTokenAddress(owner).toBase58(), want.toBase58());
+  assert.equal(want.toBase58(), "4Y67b3ejiBZkzAPjnsp8JF9DAnMruNd1jEDQNHrEHBLF");
+});
+t("SKR treasury is validated", () => {
+  assert.equal(treasuryKey(""), null);
+  assert.equal(treasuryKey("not-an-address"), null);
+  if (SKR_TREASURY) assert.equal(treasuryKey()?.toBase58(), SKR_TREASURY);
+});
+t("SKR unlock transaction: programs, key order, amounts, memo", () => {
+  const payer = new SkrKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC");
+  const treasury = new SkrKey("8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S");
+  const hash = "ab".repeat(32);
+  const base = { payer, treasury, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 1, marketId: "5186278", packHash: hash };
+  const tx = buildUnlockTx({ ...base, createTreasuryAta: true });
+  assert.equal(tx.instructions.length, 3);
+  const [create, transfer, memo] = tx.instructions;
+  const payerAta = associatedTokenAddress(payer).toBase58();
+  const treasuryAta = associatedTokenAddress(treasury).toBase58();
+  assert.equal(create.programId.toBase58(), ATA_PROGRAM_ID);
+  assert.deepEqual([...create.data], [1]);
+  assert.deepEqual(create.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]), [
+    [payer.toBase58(), true, true],
+    [treasuryAta, false, true],
+    [treasury.toBase58(), false, false],
+    [SKR_MINT, false, false],
+    [SkrSystem.programId.toBase58(), false, false],
+    [TOKEN_PROGRAM_ID, false, false],
+  ]);
+  assert.equal(transfer.programId.toBase58(), TOKEN_PROGRAM_ID);
+  assert.equal(transfer.data.toString("hex"), "0c40420f000000000006");
+  assert.deepEqual(transfer.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]), [
+    [payerAta, false, true],
+    [SKR_MINT, false, false],
+    [treasuryAta, false, true],
+    [payer.toBase58(), true, false],
+  ]);
+  assert.equal(memo.programId.toBase58(), SKR_MEMO);
+  assert.equal(memo.data.toString("utf8"), `predge-settle-watch v1 pack market=5186278 pack=sha256:${hash}`);
+  assert.equal(buildUnlockTx({ ...base, createTreasuryAta: false }).instructions.length, 2);
+  assert.throws(() => packMemoText("1;x", hash));
+  assert.throws(() => packMemoText("5186278", "AB".repeat(32)));
+});
+t("SKR amounts format and compare in base units", () => {
+  assert.equal(formatSkr("12500000"), "12.5");
+  assert.equal(formatSkr("1000000"), "1");
+  assert.equal(formatSkr("1"), "0");
+  assert.equal(formatSkr("123456789"), "123.4567");
+  assert.equal(coversPrice("1000000"), true);
+  assert.equal(coversPrice("999999"), false);
+  assert.equal(coversPrice("00999999"), false);
+  assert.equal(coversPrice("25000000000"), true);
+  assert.equal(coversPrice("x"), false);
+});
+t("SKR pack unlock awards XP once per market and the Pack opener badge", () => {
+  const a = applyAction(NEW_GAME, "pack_open", { ref: "5186278" }, at("2026-10-12"));
+  assert.equal(a.gained, XP.pack_open);
+  assert.deepEqual(a.badges, ["pack_opener"]);
+  const b = applyAction(a.state, "pack_open", { ref: "5186278" }, at("2026-10-12"));
+  assert.equal(b.gained, 0);
+  assert.deepEqual(b.badges, []);
+});
 console.log(`${n} checks passed`);
