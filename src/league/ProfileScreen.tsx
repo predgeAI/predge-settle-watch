@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
+import { showDialog } from "../dialog";
 import { Text } from "../Text";
 import { t } from "../i18n";
 import { C } from "../theme";
@@ -68,7 +69,7 @@ export function ProfileScreen({ me, onSaved, onSignedOut, setup }: { me: Me; onS
             title={t("lg.deleteBtn")}
             style={{ marginTop: 10 }}
             onPress={() =>
-              Alert.alert(t("lg.deleteTitle"), t("lg.deleteBody"), [
+              showDialog(t("lg.deleteTitle"), t("lg.deleteBody"), [
                 { text: t("common.cancel"), style: "cancel" },
                 { text: t("common.delete"), style: "destructive", onPress: async () => { try { await api.deleteMe(); } catch { /* already gone */ } await signOut(); onSignedOut(); } },
               ])

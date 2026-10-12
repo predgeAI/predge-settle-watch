@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   AppState,
   Linking,
@@ -76,6 +75,7 @@ import { DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
 import { EvidencePackCard } from "./src/skr";
 import { Text } from "./src/Text";
+import { DialogHost, showDialog } from "./src/dialog";
 import { detectLanguage, en, setLanguage, t, useLang, type Key } from "./src/i18n";
 import { ago, EXAMPLES, short, statusColor, statusLabel, statusWord, styles } from "./src/tabs/shared";
 import { TodayTab } from "./src/tabs/TodayTab";
@@ -91,7 +91,7 @@ function openExplorer(sig: string, cluster: Cluster) {
   try {
     Linking.openURL(EXPLORER_TX(sig, cluster));
   } catch {
-    Alert.alert(t("explorer.title"), t("explorer.noSig"));
+    showDialog(t("explorer.title"), t("explorer.noSig"));
   }
 }
 
@@ -254,7 +254,7 @@ export default function App() {
     commitGame(r.state, r);
     setClockPlay((n) => n + 1);
     haptic.success();
-    if (r.usedFreeMiss) Alert.alert(t("streak.savedTitle"), t("streak.savedBody"));
+    if (r.usedFreeMiss) showDialog(t("streak.savedTitle"), t("streak.savedBody"));
   }, [commitGame]);
 
   const openDetail = useCallback(
@@ -329,23 +329,23 @@ export default function App() {
     async (raw: string, opts: { quiet?: boolean } = {}): Promise<boolean> => {
       const key = parseMarketInput(raw);
       if (!key) {
-        if (!opts.quiet) Alert.alert(t("add.notMarketTitle"), t("add.notMarketBody"));
+        if (!opts.quiet) showDialog(t("add.notMarketTitle"), t("add.notMarketBody"));
         return false;
       }
       const current = await loadWatchlist();
       if (current.length >= MAX_WATCHLIST) {
-        Alert.alert(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
+        showDialog(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
         return false;
       }
       if (current.some((i) => i.key === key || i.marketId === key)) {
-        if (!opts.quiet) Alert.alert(t("add.already"), key);
+        if (!opts.quiet) showDialog(t("add.already"), key);
         return true;
       }
       setBusy("add");
       try {
         const r = await fetchSettlementRisk(key);
         if (current.some((i) => i.marketId === r.market.market_id)) {
-          if (!opts.quiet) Alert.alert(t("add.already"), r.market.question);
+          if (!opts.quiet) showDialog(t("add.already"), r.market.question);
           return true;
         }
         const v = await verifyRecord(r);
@@ -373,7 +373,7 @@ export default function App() {
         return true;
       } catch (e) {
         // Quiet adds (the example markets) retry on their own, so no alert for a network problem.
-        if (!opts.quiet) Alert.alert(t("add.failed"), friendlyAddError(e));
+        if (!opts.quiet) showDialog(t("add.failed"), friendlyAddError(e));
         return false;
       } finally {
         setBusy(null);
@@ -414,7 +414,7 @@ export default function App() {
       await saveWallet(w);
       refreshBalance(w, cluster);
     } catch (e) {
-      Alert.alert(t("wallet.title"), t("wallet.connectFail", { msg: (e as Error).message, net }));
+      showDialog(t("wallet.title"), t("wallet.connectFail", { msg: (e as Error).message, net }));
     } finally {
       setBusy(null);
     }
@@ -445,7 +445,7 @@ export default function App() {
       await refreshBalance(wallet, cluster);
     } catch (e) {
       await Clipboard.setStringAsync(wallet.address);
-      Alert.alert(t("faucet.title"), t("faucet.body"));
+      showDialog(t("faucet.title"), t("faucet.body"));
     } finally {
       setBusy(null);
     }
@@ -513,7 +513,7 @@ export default function App() {
         setStamp(true);
         await new Promise((res) => setTimeout(res, reduced ? 300 : 1300));
         setStamp(false);
-        Alert.alert(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
+        showDialog(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
           { text: t("anchor.openExplorer"), onPress: () => openExplorer(signature, cluster) },
           { text: t("share.card"), onPress: () => shareReceipt(item, { signature, packHash, riskLevel: last.risk_level, at: new Date().toISOString(), cluster }) },
           { text: t("common.ok") },
@@ -521,7 +521,7 @@ export default function App() {
       } catch (e) {
         // Keep a signed receipt that may still land, so it is checked again later. Drop one that cannot.
         if (!signed || /not landed|block height|rejected/i.test((e as Error)?.message ?? "")) await savePending(null);
-        Alert.alert(t("anchor.failed"), `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? t("anchor.feeDevnet") : t("anchor.feeMain")}`);
+        showDialog(t("anchor.failed"), `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? t("anchor.feeDevnet") : t("anchor.feeMain")}`);
       } finally {
         anchoringRef.current = false;
         setBusy(null);
@@ -532,12 +532,12 @@ export default function App() {
 
   const onAnchor = useCallback(
     (item: WatchItem, action: "watch" | "acknowledge") => {
-      if (!wallet) return Alert.alert(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
+      if (!wallet) return showDialog(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
       if (!item.verification?.verified || !item.verification.packHash || !item.last) {
-        return Alert.alert(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
+        return showDialog(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
       }
       if (cluster === "mainnet-beta") {
-        return Alert.alert(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
+        return showDialog(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
           { text: t("common.cancel"), style: "cancel" },
           { text: t("anchor.anchor"), onPress: () => doAnchor(item, action) },
         ]);
@@ -559,13 +559,13 @@ export default function App() {
         await savePending(null);
         if (result === "confirmed") {
           await recordAnchor(p.key, p.signature, p.packHash, p.action, p.riskLevel, p.cluster);
-          Alert.alert(t("anchor.savedTitle"), t("anchor.savedConfirmed"));
+          showDialog(t("anchor.savedTitle"), t("anchor.savedConfirmed"));
         } else {
-          Alert.alert(t("anchor.notFinishedTitle"), t("anchor.droppedBody"));
+          showDialog(t("anchor.notFinishedTitle"), t("anchor.droppedBody"));
         }
       } else {
         await savePending(null);
-        Alert.alert(t("anchor.notFinishedTitle"), t("anchor.notFinishedBody"));
+        showDialog(t("anchor.notFinishedTitle"), t("anchor.notFinishedBody"));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,7 +591,7 @@ export default function App() {
   }, []);
 
   const onDigestNow = useCallback(async () => {
-    if (!items.length) return Alert.alert(t("digest.title"), t("digest.addFirst"));
+    if (!items.length) return showDialog(t("digest.title"), t("digest.addFirst"));
     const { title, body } = digestText(items);
     await notify(title, body, { digest: true });
   }, [items]);
@@ -776,7 +776,7 @@ export default function App() {
                       kind="ghost"
                       title={t("common.remove")}
                       onPress={() =>
-                        Alert.alert(t("detail.removeTitle"), detail.question ?? detail.key, [
+                        showDialog(t("detail.removeTitle"), detail.question ?? detail.key, [
                           { text: t("common.cancel"), style: "cancel" },
                           { text: t("common.remove"), style: "destructive", onPress: () => removeMarket(detail.key) },
                         ])
@@ -1018,6 +1018,7 @@ export default function App() {
       <StatusBar style="light" />
       {content}
       {!introDone ? <Intro onDone={() => setIntroDone(true)} /> : null}
+      <DialogHost />
     </View>
   );
 }
