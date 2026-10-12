@@ -352,4 +352,213 @@ t("status line: a proposed answer in its challenge window is not called Quiet", 
   assert.equal(statusLine({ ...base, risk_level: "ok", uma_state: "requested" }), "Quiet: no dispute, no clarification");
   assert.equal(statusLine({ ...base, open_dispute: true }), "Open UMA dispute");
 });
+import { buildWidgetSummary, topMarket } from "../src/widgetSummary";
+import { setLanguage } from "../src/i18n";
+import type { WatchItem } from "../src/store";
+{
+  const item = (key: string, level: string | undefined, extra: Partial<WatchItem> = {}): WatchItem =>
+    ({ key, addedAt: "2026-10-01T00:00:00Z", timeline: [], anchors: [], ...(level ? { last: { risk_level: level } } : {}), ...extra }) as WatchItem;
+  const items = [
+    item("a", "ok", { lastPolledAt: "2026-10-12T10:00:00Z" }),
+    item("b", "watch", { question: "Will B happen?", lastChangeAt: "2026-10-12T09:00:00Z" }),
+    item("c", "caution", { question: "Will C happen?", lastChangeAt: "2026-10-10T09:00:00Z", lastPolledAt: "2026-10-12T10:05:00Z" }),
+    item("d", "resolved"),
+    item("e", "watch", { question: "Will E happen?", lastChangeAt: "2026-10-12T11:00:00Z" }),
+    item("f", undefined),
+  ];
+  t("widget: counts per level, labels in order", () => {
+    const w = buildWidgetSummary(items, NEW_GAME, new Date("2026-10-12T12:00:00Z"));
+    assert.deepEqual(w.tiles.map((x) => [x.label, x.count]), [["CAUTION", 1], ["WATCH", 2], ["QUIET", 1], ["SETTLED", 1]]);
+    assert.equal(w.checkedAt, Date.parse("2026-10-12T10:05:00Z"));
+    assert.equal(w.streak, 0);
+  });
+  t("widget: caution beats a newer watch", () => {
+    const w = buildWidgetSummary(items, NEW_GAME);
+    assert.equal(w.topWord, "CAUTION");
+    assert.equal(w.topTitle, "Will C happen?");
+  });
+  t("widget: newest watch when no caution", () => assert.equal(topMarket(items.filter((i) => i.key !== "c"))?.key, "e"));
+  t("widget: quiet and empty lines", () => {
+    const quiet = buildWidgetSummary([items[0]], NEW_GAME);
+    assert.equal(quiet.topWord, "");
+    assert.equal(quiet.topLine, "Nothing needs attention.");
+    assert.equal(buildWidgetSummary([], NEW_GAME).checkedAt, 0);
+    assert.equal(buildWidgetSummary([], NEW_GAME).topLine, "Tap to add a market to watch.");
+  });
+  t("widget: long titles are cut", () => {
+    const w = buildWidgetSummary([item("x", "caution", { question: "Q".repeat(200) })], NEW_GAME);
+    assert.equal(w.topTitle.length, 80);
+  });
+  t("widget: labels follow the app language", () => {
+    setLanguage("es");
+    try {
+      const w = buildWidgetSummary(items, NEW_GAME);
+      assert.equal(w.tiles[0].label, "CUIDADO");
+      assert.equal(w.streakLabel, "DÍAS DE RACHA");
+    } finally {
+      setLanguage("en");
+    }
+  });
+}
+// ---- share card: QR encoder ----
+import { encodeQr, formatBits, qrByteCapacity, rsRemainder, versionBits } from "../src/share/qr";
+// Reference matrices from python-qrcode 8.2 (byte mode, level M, mask forced), see scripts/qr-vectors.json.
+import qrVectors from "./qr-vectors.json";
+import { cardShapes, cardSvg, CARD_H, CARD_W, emWidth, plainPunctuation, pixelSafe, shortId, wrapText } from "../src/share/card";
+import { receiptCardInput, receiptFromAnchor, shareMessage } from "../src/share/receipt";
+import { en as enDict, setLanguage as setLang } from "../src/i18n";
+t("qr: Reed-Solomon matches the ISO 18004 worked example (01234567, 1-M)", () =>
+  assert.deepEqual(
+    rsRemainder([0x10, 0x20, 0x0c, 0x56, 0x61, 0x80, 0xec, 0x11, 0xec, 0x11, 0xec, 0x11, 0xec, 0x11, 0xec, 0x11], 10),
+    [0xa5, 0x24, 0xd4, 0xc1, 0xed, 0x36, 0xc7, 0x87, 0x2c, 0x55]
+  ));
+t("qr: format bits for level M", () => {
+  assert.equal(formatBits(0), 0b101010000010010);
+  assert.equal(formatBits(5), 0b100000011001110);
+  assert.equal(formatBits(7), 0b100101010100000);
+});
+t("qr: version 7 information bits", () => assert.equal(versionBits(7), 0b000111110010010100));
+t("qr: byte capacities at level M", () => assert.deepEqual([1, 2, 6, 7, 8, 10].map(qrByteCapacity), [14, 26, 106, 122, 152, 213]));
+for (const v of qrVectors as { text: string; version: number; mask: number; rows: string[] }[]) {
+  t(`qr: version ${v.version} mask ${v.mask} matches the reference matrix (${v.text.length} bytes)`, () => {
+    const q = encodeQr(v.text, { mask: v.mask });
+    assert.equal(q.version, v.version);
+    assert.deepEqual(q.modules.map((r) => r.map((d) => (d ? "1" : "0")).join("")), v.rows);
+  });
+}
+t("qr: picks a mask by penalty and refuses text that is too long", () => {
+  const q = encodeQr("https://explorer.solana.com/tx/" + "5".repeat(88) + "?cluster=devnet");
+  assert.equal(q.version, 8);
+  assert.ok(q.mask >= 0 && q.mask < 8);
+  assert.throws(() => encodeQr("x".repeat(214)));
+});
+// ---- share card: layout and text ----
+const SIG = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRBrFmSx6fPkMqR4hP2a";
+t("card: wraps by words, splits long words, ellipsis past the last line", () => {
+  assert.deepEqual(wrapText("Will the Fed cut rates in December?", 12, 4), ["Will the Fed", "cut rates in", "December?"]);
+  assert.deepEqual(wrapText("abcdefghij", 4, 4), ["abcd", "efgh", "ij"]);
+  assert.deepEqual(wrapText("one two three four five six", 9, 2), ["one two", "three..."]);
+});
+t("card: short ids keep head and tail", () => {
+  assert.equal(shortId(SIG, 6), "5VERv8...R4hP2a");
+  assert.equal(shortId("0x" + "ab".repeat(32), 6), "0xababab...ababab");
+});
+t("card: receipt card carries the exact numbers and the explorer link", () => {
+  setLang("en");
+  const r = receiptFromAnchor(
+    { key: "5186278", question: "Will it happen?", addedAt: "", timeline: [], anchors: [] },
+    { signature: SIG, packHash: "f".repeat(64), riskLevel: "caution", at: "2026-10-12T09:30:00.000Z", cluster: "devnet" }
+  );
+  const input = receiptCardInput(r, "#e2703a");
+  assert.equal(input.text.checks, "7/7 checks on my phone");
+  assert.equal(input.statusWord, "CAUTION");
+  assert.equal(input.networkLabel, "Devnet");
+  assert.equal(input.explorerUrl, `https://explorer.solana.com/tx/${SIG}?cluster=devnet`);
+  assert.equal(shareMessage(r), `I verified this Polymarket market on my phone with Settle Watch. Receipt on Solana: https://explorer.solana.com/tx/${SIG}?cluster=devnet`);
+  const svg = cardSvg(input);
+  for (const s of ["I VERIFIED THIS MARKET", "Will it happen?", "CAUTION", "2026-10-12", "Devnet", "5VERv8...R4hP2a", "Settle Watch · verified on my phone · Solana Mobile"])
+    assert.ok(svg.includes(s), s);
+  for (const sh of cardShapes(input)) if (sh.kind === "rect") assert.ok(sh.x >= 0 && sh.y >= 0 && sh.x + sh.w <= CARD_W && sh.y + sh.h <= CARD_H);
+});
+t("card: curly punctuation becomes ASCII so the pixel font can draw it", () => {
+  const q = plainPunctuation("Will Trump\u2019s \u201cdeal\u201d pass \u2014 by 2027\u2026");
+  assert.equal(q, 'Will Trump\'s "deal" pass - by 2027...');
+  assert.ok(pixelSafe(q));
+  assert.ok(!pixelSafe("\u4e2d\u6587"));
+  assert.equal(emWidth("\u4e2d\u6587", "sans"), 2);
+});
+t("card: English share strings have no em dashes", () => {
+  for (const [k, v] of Object.entries(enDict)) if (k.startsWith("share.")) assert.ok(!v.includes("\u2014"), k);
+});
+// ---- SKR evidence pack payment ----
+import { PublicKey as SkrKey, SystemProgram as SkrSystem } from "@solana/web3.js";
+import { ATA_PROGRAM_ID, MEMO_PROGRAM_ID as SKR_MEMO, SKR_MINT, SKR_TREASURY, TOKEN_PROGRAM_ID } from "../src/config";
+import {
+  associatedTokenAddress,
+  buildUnlockTx,
+  coversPrice,
+  formatSkr,
+  PACK_PRICE_BASE,
+  packMemoText,
+  transferCheckedData,
+  treasuryKey,
+  u64le,
+} from "../src/skr/spl";
+t("SKR TransferChecked data is [12, amount u64 LE, decimals]", () => {
+  assert.equal(transferCheckedData(1_000_000, 6).toString("hex"), "0c" + "40420f0000000000" + "06");
+  assert.equal(u64le(2 ** 40 + 5).toString("hex"), "0500000000010000");
+  assert.throws(() => u64le(-1));
+  assert.throws(() => u64le(2 ** 60));
+  assert.equal(PACK_PRICE_BASE, 1_000_000);
+});
+t("SKR associated token account derivation", () => {
+  // Known SKR account on mainnet (seen in a live transfer): owner 3sLy... holds SKR at 3QrU...
+  assert.equal(associatedTokenAddress(new SkrKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC")).toBase58(), "3QrUjNJ6yXpfh6kFeC2DJjcQXEQM5pcQvx7MWX9MHXXe");
+  // Same seeds computed directly with web3.js.
+  const owner = new SkrKey("8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S");
+  const [want] = SkrKey.findProgramAddressSync(
+    [owner.toBuffer(), new SkrKey(TOKEN_PROGRAM_ID).toBuffer(), new SkrKey(SKR_MINT).toBuffer()],
+    new SkrKey(ATA_PROGRAM_ID)
+  );
+  assert.equal(associatedTokenAddress(owner).toBase58(), want.toBase58());
+  assert.equal(want.toBase58(), "4Y67b3ejiBZkzAPjnsp8JF9DAnMruNd1jEDQNHrEHBLF");
+});
+t("SKR treasury is validated", () => {
+  assert.equal(treasuryKey(""), null);
+  assert.equal(treasuryKey("not-an-address"), null);
+  if (SKR_TREASURY) assert.equal(treasuryKey()?.toBase58(), SKR_TREASURY);
+});
+t("SKR unlock transaction: programs, key order, amounts, memo", () => {
+  const payer = new SkrKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC");
+  const treasury = new SkrKey("8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S");
+  const hash = "ab".repeat(32);
+  const base = { payer, treasury, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 1, marketId: "5186278", packHash: hash };
+  const tx = buildUnlockTx({ ...base, createTreasuryAta: true });
+  assert.equal(tx.instructions.length, 3);
+  const [create, transfer, memo] = tx.instructions;
+  const payerAta = associatedTokenAddress(payer).toBase58();
+  const treasuryAta = associatedTokenAddress(treasury).toBase58();
+  assert.equal(create.programId.toBase58(), ATA_PROGRAM_ID);
+  assert.deepEqual([...create.data], [1]);
+  assert.deepEqual(create.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]), [
+    [payer.toBase58(), true, true],
+    [treasuryAta, false, true],
+    [treasury.toBase58(), false, false],
+    [SKR_MINT, false, false],
+    [SkrSystem.programId.toBase58(), false, false],
+    [TOKEN_PROGRAM_ID, false, false],
+  ]);
+  assert.equal(transfer.programId.toBase58(), TOKEN_PROGRAM_ID);
+  assert.equal(transfer.data.toString("hex"), "0c40420f000000000006");
+  assert.deepEqual(transfer.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]), [
+    [payerAta, false, true],
+    [SKR_MINT, false, false],
+    [treasuryAta, false, true],
+    [payer.toBase58(), true, false],
+  ]);
+  assert.equal(memo.programId.toBase58(), SKR_MEMO);
+  assert.equal(memo.data.toString("utf8"), `predge-settle-watch v1 pack market=5186278 pack=sha256:${hash}`);
+  assert.equal(buildUnlockTx({ ...base, createTreasuryAta: false }).instructions.length, 2);
+  assert.throws(() => packMemoText("1;x", hash));
+  assert.throws(() => packMemoText("5186278", "AB".repeat(32)));
+});
+t("SKR amounts format and compare in base units", () => {
+  assert.equal(formatSkr("12500000"), "12.5");
+  assert.equal(formatSkr("1000000"), "1");
+  assert.equal(formatSkr("1"), "0");
+  assert.equal(formatSkr("123456789"), "123.4567");
+  assert.equal(coversPrice("1000000"), true);
+  assert.equal(coversPrice("999999"), false);
+  assert.equal(coversPrice("00999999"), false);
+  assert.equal(coversPrice("25000000000"), true);
+  assert.equal(coversPrice("x"), false);
+});
+t("SKR pack unlock awards XP once per market and the Pack opener badge", () => {
+  const a = applyAction(NEW_GAME, "pack_open", { ref: "5186278" }, at("2026-10-12"));
+  assert.equal(a.gained, XP.pack_open);
+  assert.deepEqual(a.badges, ["pack_opener"]);
+  const b = applyAction(a.state, "pack_open", { ref: "5186278" }, at("2026-10-12"));
+  assert.equal(b.gained, 0);
+  assert.deepEqual(b.badges, []);
+});
 console.log(`${n} checks passed`);

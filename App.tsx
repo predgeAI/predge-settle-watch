@@ -63,6 +63,7 @@ import {
 } from "./src/game";
 import { loadGame, saveGame } from "./src/gameStore";
 import { scheduleClockInNudge } from "./src/nudge";
+import { updateWidget } from "./src/widget";
 import { alpha, C, MONO, PX, STATUS, STATUS_ORDER, T } from "./src/theme";
 import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, Flame, LevelBadge, LiveMascot, PixelBar, PixelBox, Press, Reveal, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
@@ -72,10 +73,12 @@ import { FLAGS } from "./src/features";
 import { DiscoverCard, DiscoverModal } from "./src/discover/Discover";
 import { RuleDetectiveCard, RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
 import { GlossaryEntry, GlossaryModal } from "./src/glossary/Glossary";
+import { shareReceipt, ShareCardHost } from "./src/share/ShareCard";
 import { LEAGUE_ENABLED } from "./src/league/config";
 import { LeagueCard, LeagueModal } from "./src/league/LeagueEntry";
 import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
+import { EvidencePackCard, SkrBalance } from "./src/skr";
 import { Text } from "./src/Text";
 import { detectLanguage, en, fmtDec, fmtNum, LANGS, setLanguage, t, tn, useLang, type Key } from "./src/i18n";
 
@@ -583,6 +586,7 @@ export default function App() {
         setStamp(false);
         Alert.alert(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
           { text: t("anchor.openExplorer"), onPress: () => openExplorer(signature, cluster) },
+          { text: t("share.card"), onPress: () => shareReceipt(item, { signature, packHash, riskLevel: last.risk_level, at: new Date().toISOString(), cluster }) },
           { text: t("common.ok") },
         ]);
       } catch (e) {
@@ -709,6 +713,12 @@ export default function App() {
   useEffect(() => {
     if (settings?.onboarded) setupChannel().catch(() => undefined);
   }, [settings?.onboarded, settings?.language]);
+  // Home-screen widget follows the watchlist, streak and language (debounced to skip the load-time flicker).
+  useEffect(() => {
+    if (!settings) return;
+    const id = setTimeout(() => updateWidget(items, game), 400);
+    return () => clearTimeout(id);
+  }, [items, game, settings?.language]);
 
   const lastCheck = items.map((i) => i.lastPolledAt ?? "").sort().pop();
 
@@ -870,6 +880,7 @@ export default function App() {
                   <Text style={styles.mono}>
                     {short(wallet.address, 6)}
                     <Text style={styles.dim}>  {balance === null ? "" : `${balance.toFixed(4)} SOL`}</Text>
+                    <SkrBalance address={wallet.address} style={styles.dim} />
                   </Text>
                 </Pressable>
               ) : (
@@ -1177,9 +1188,11 @@ export default function App() {
                       <Text style={[styles.mono, { color: C.purpleSoft, marginTop: 6 }]}>
                         {t(`action.${a.action}`)} . {CLUSTERS[a.cluster ?? "devnet"].label} . {short(a.signature, 8)} . {ago(a.at)}
                       </Text>
+                      <Text style={[styles.mono, { color: C.green, paddingVertical: 4 }]} onPress={() => shareReceipt(detail, a)}>{`> ${t("share.card")}`}</Text>
                     </Pressable>
                   ))}
                 </PixelBox>
+                <EvidencePackCard item={detail} wallet={wallet} disabled={!!busy} onUnlocked={(ref) => award("pack_open", { ref })} />
 
                 <PixelBox style={styles.cardGap} inner={styles.cardPad}>
                   <Text style={styles.cardTitle}>{t("detail.timeline")}</Text>
@@ -1283,6 +1296,7 @@ export default function App() {
         {FLAGS.ruleDetective ? (
           <RuleDetectiveModal visible={ruleOpen} onClose={() => setRuleOpen(false)} award={(kind, ref) => award(kind, { ref })} overlay={overlays("rule")} />
         ) : null}
+        <ShareCardHost />
         {FLAGS.glossary ? (
           <GlossaryModal
             visible={glossOpen}

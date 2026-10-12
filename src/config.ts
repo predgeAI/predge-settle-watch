@@ -16,6 +16,14 @@ export const CLUSTERS: Record<Cluster, { chain: "solana:devnet" | "solana:mainne
 export const DEFAULT_CLUSTER: Cluster = "devnet";
 export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
+// SKR, the Solana Mobile token (classic SPL Token program, 6 decimals). Always read and paid on mainnet.
+export const SKR_MINT = "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3";
+export const SKR_DECIMALS = 6;
+export const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+export const ATA_PROGRAM_ID = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+// Predge wallet that receives SKR for evidence packs. Empty turns the unlock into "Coming soon".
+export const SKR_TREASURY = "8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S";
+
 /** Base58 transaction signature (64 bytes encodes to 86-88 chars). */
 export const TX_SIGNATURE_RE = /^[1-9A-HJ-NP-Za-km-z]{80,90}$/;
 
