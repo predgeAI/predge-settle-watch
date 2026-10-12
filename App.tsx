@@ -958,7 +958,7 @@ export default function App() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.statusHead}>
                         <StatusIcon level={detail.last?.risk_level} color={statusColor(detail.last?.risk_level)} px={4} />
-                        <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20, lineHeight: 28, flexShrink: 1 }]}>{statusWord(detail.last?.risk_level)}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20, lineHeight: 28, flexShrink: 1 }]}>{statusWord(detail.last?.risk_level)}</Text>
                         <Term id="status" />
                       </View>
                     </View>

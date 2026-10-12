@@ -14,7 +14,7 @@ import { boostClockIn } from "../skr/perks";
 import { usePerks } from "../skr/perksStore";
 import { EmptyWatchlist, HeaderHelp, StatusHelp } from "../learn";
 import { ExampleLink, ExampleModal } from "../learn/Example";
-import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, styles, TabScroll, type AddMarketProps } from "./shared";
+import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, statusWord, styles, TabScroll, type AddMarketProps } from "./shared";
 
 export interface TodayTabProps {
   active: boolean;
@@ -190,7 +190,7 @@ export function TodayTab(p: TodayTabProps) {
                 <StatusIcon level={r} color={STATUS[r].color} px={2} />
                 <Text style={[styles.glanceNum, { color: STATUS[r].color }]}>{counts[r]}</Text>
                 <Text style={[styles.glanceLabel, { color: STATUS[r].color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                  {statusLabel(r)}
+                  {statusWord(r)}
                 </Text>
               </PixelBox>
             </Press>
