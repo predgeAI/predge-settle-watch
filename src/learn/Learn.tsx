@@ -11,6 +11,7 @@ import * as haptic from "../haptic";
 import { XP, type GameState } from "../game";
 import { closeTour, goDiscover, openTour, setDiscoverHandler, tourDone, useTourOpen } from "./tour";
 import { explain, QBadge, Term } from "./Term";
+import { setHallWatchHandler } from "./HallOfDisputes";
 
 // ---------------------------------------------------------------------------
 // Pixel illustrations, built from plain Views
@@ -90,6 +91,9 @@ function BallotIllo() {
   );
 }
 
+/** Slide 4 only: one verified case from the Hall of Disputes (src/learn/hall.ts). */
+const SLIDE_NOTE: Partial<Record<number, Key>> = { 4: "learn.s4.case" };
+
 /** A closed treasure chest: settled for good. */
 function ChestIllo() {
   return (
@@ -164,6 +168,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
               <Text style={st.step}>{t("learn.step", { n: i + 1, total: SLIDES.length })}</Text>
               <Text style={st.title}>{t(`learn.s${s.n}.title` as Key)}</Text>
               <Text style={st.body}>{t(`learn.s${s.n}.body` as Key)}</Text>
+              {SLIDE_NOTE[s.n] ? <Text style={st.note}>{t(SLIDE_NOTE[s.n] as Key)}</Text> : null}
             </ScrollView>
           ))}
         </ScrollView>
@@ -191,13 +196,20 @@ function Tour({ onFinish }: { onFinish: () => void }) {
  * Mount once, before DialogHost. Shows the tour whenever openTour() is called.
  * `onDone` runs on "Got it" (the app credits the one-time XP); `onDiscover` switches to the DISCOVER tab.
  */
-export function LearnHost({ onDone, onDiscover }: { onDone: () => void; onDiscover: () => void }) {
+export function LearnHost({ onDone, onDiscover, onWatch }: { onDone: () => void; onDiscover: () => void; onWatch?: (marketId: string) => Promise<boolean> }) {
   const open = useTourOpen();
   const discover = useRef(onDiscover);
   discover.current = onDiscover;
+  const watchRef = useRef(onWatch);
+  watchRef.current = onWatch;
   useEffect(() => {
     setDiscoverHandler(() => discover.current());
-    return () => setDiscoverHandler(null);
+    // The Hall of Disputes adds its markets through the app's add path.
+    setHallWatchHandler((id) => (watchRef.current ? watchRef.current(id) : false));
+    return () => {
+      setDiscoverHandler(null);
+      setHallWatchHandler(null);
+    };
   }, []);
   const finish = () => {
     haptic.success();
@@ -292,6 +304,7 @@ const st = StyleSheet.create({
   step: { color: C.greenDeep, fontFamily: PX, fontSize: 8, marginBottom: 10 },
   title: { color: C.text, fontFamily: PX, fontSize: 14, lineHeight: 24, marginBottom: 12 },
   body: { color: C.text, fontSize: 17, lineHeight: 26 },
+  note: { color: C.dim, fontSize: T.body, lineHeight: 21, marginTop: 14 },
   foot: { paddingHorizontal: 24, paddingBottom: 20 },
   dots: { flexDirection: "row", gap: 6, justifyContent: "center", marginBottom: 14 },
   pip: { width: 10, height: 10, backgroundColor: C.line },

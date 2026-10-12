@@ -717,6 +717,37 @@ t("tour and term strings stay plain: no em dashes, no payout or flipped wording"
   for (const k of keys) assert.ok(!/(\u2014|payout|flipped|settle[sd]? wrong|\bbet\b|wager)/i.test(enDict[k as keyof typeof enDict]), k);
   for (const n of [1, 2, 3, 4, 5]) assert.ok(`learn.s${n}.title` in enDict && `learn.s${n}.body` in enDict, `slide ${n}`);
 });
+// ---- Hall of Disputes ----
+import { HALL, TOUR_CASE_ID } from "../src/learn/hallCases";
+t("hall: every case has a market id, a source, a settled outcome and a translated lesson", () => {
+  assert.ok(HALL.length >= 2 && HALL.length <= 5);
+  assert.equal(new Set(HALL.map((c) => c.id)).size, HALL.length);
+  for (const c of HALL) {
+    assert.match(c.marketId, /^\d+$/, c.id);
+    assert.ok(c.sources.length >= 1 && c.sources.every((u) => u.startsWith("https://")), c.id);
+    assert.ok(c.sources.some((u) => u === `https://api.predge.io/v1/settlement-risk/${c.marketId}`), c.id);
+    assert.ok(c.settled === "Yes" || c.settled === "No", c.id);
+    assert.ok(c.proposedThen === "Yes" || c.proposedThen === "No", c.id);
+    assert.ok(c.disputes.length >= 1 && c.disputes.every((d) => /^0x[0-9a-f]{64}$/.test(d.tx)), c.id);
+    assert.equal(c.disputes[0].at, c.dates.firstDispute, c.id);
+    assert.equal(c.disputes[0].against, c.proposedThen, c.id);
+    assert.equal(c.umaVote, c.disputes.length >= 2, c.id);
+    assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(c.verifiedAt), c.id);
+    assert.equal(enDict[`hall.lesson.${c.id}` as keyof typeof enDict], c.lesson, c.id);
+  }
+  assert.ok(HALL.some((c) => c.id === TOUR_CASE_ID));
+});
+t("hall: tour numbers unchanged and hall copy stays plain", () => {
+  assert.equal(enDict["learn.s4.stat"], "853 of 2,543");
+  assert.equal(enDict["learn.s4.pct"], "33.5%");
+  assert.match(enDict["learn.s4.body"], /853 of 2,543 .* 33\.5%/);
+  const tourCase = HALL.find((c) => c.id === TOUR_CASE_ID)!;
+  assert.ok(enDict["learn.s4.case"].includes(tourCase.question));
+  const keys = Object.keys(enDict).filter((k) => k.startsWith("hall.") || k === "learn.s4.case");
+  assert.ok(keys.length >= 20);
+  for (const k of keys)
+    assert.ok(!/(\u2014|payout|flipped|settle[sd]? wrong|markets settle wrong|edited rules|manipulat|\bbet\b|wager)/i.test(enDict[k as keyof typeof enDict]), k);
+});
 t("tour XP: +10 once via the game award system", () => {
   const a = applyAction(NEW_GAME, "learn", { ref: TOUR_REF }, at("2026-10-12"));
   assert.equal(a.gained, 10);
