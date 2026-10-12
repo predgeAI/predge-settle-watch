@@ -1,6 +1,7 @@
 // Discover: read-only list of popular open markets from Polymarket's public gamma API,
 // plus Predge's free segment statistic for a market, fetched only when a card is opened.
 import { fetchSettlementRisk } from "../api";
+import { t } from "../i18n";
 
 const GAMMA = "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=40";
 const UA = "SettleWatch/0.3 (Android; read-only)";
@@ -90,7 +91,7 @@ export function tierOf(rate: number): Tier {
 export async function fetchSegment(marketId: string): Promise<Segment | null> {
   const hit = cache.get(marketId);
   if (hit && Date.now() - hit.at < 10 * 60_000) return hit.seg;
-  if (!canCall()) throw new Error("Slow down a moment, then try again.");
+  if (!canCall()) throw new Error(t("dc.slow"));
   calls.push(Date.now());
   const r = await fetchSettlementRisk(marketId);
   const seg = parseSegment((r as unknown as { segment_dispute_rate?: unknown }).segment_dispute_rate);

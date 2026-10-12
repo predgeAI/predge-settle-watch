@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Text } from "./Text";
+import { t } from "./i18n";
 import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 import { alpha, C, PX, T } from "./theme";
 import * as haptic from "./haptic";
@@ -146,7 +148,7 @@ export function Button(props: { title: string; onPress: () => void; kind?: "prim
         lift={primary ? "#2f6b38" : "#0d1710"}
         inner={{ paddingVertical: props.small ? 8 : 12, paddingHorizontal: props.small ? 8 : 12, alignItems: "center" }}
       >
-        <Text style={[st.btnText, !primary && { color: C.text }, props.small && { fontSize: 9 }]}>{props.title}</Text>
+        <Text style={[st.btnText, !primary && { color: C.text }, props.small && { fontSize: 9, lineHeight: 14 }]}>{props.title}</Text>
       </PixelBox>
     </Press>
   );
@@ -282,7 +284,7 @@ export interface Celebration {
 export function CelebrationOverlay({ item, onClose }: { item: Celebration | null; onClose: () => void }) {
   const s = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
-  const t = useTicker(350, !!item && !reduced);
+  const tick = useTicker(350, !!item && !reduced);
   useEffect(() => {
     if (!item) return;
     haptic.success();
@@ -293,20 +295,20 @@ export function CelebrationOverlay({ item, onClose }: { item: Celebration | null
   const scale = reduced ? 1 : s.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
   return (
     <Animated.View style={[st.celeb, { opacity: s }]} accessibilityViewIsModal>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={t("common.close")} />
       <Animated.View style={{ transform: [{ scale }], width: "100%", maxWidth: 340 }} pointerEvents="box-none">
         <PixelBox border={C.green} bg={C.surfaceHi} inner={{ padding: 22, alignItems: "center" }}>
-          <Text style={st.celebKicker}>{item.kind === "badge" ? "BADGE UNLOCKED" : "LEVEL UP!"}</Text>
+          <Text style={st.celebKicker}>{item.kind === "badge" ? t("celeb.badge") : t("celeb.level")}</Text>
           {item.kind === "badge" && item.badge ? (
             <BadgeIcon id={item.badge} size={96} />
           ) : (
-            <View style={{ transform: [{ translateY: t % 2 ? -6 : 0 }] }}>
+            <View style={{ transform: [{ translateY: tick % 2 ? -6 : 0 }] }}>
               <Mascot mood="cheer" px={8} />
             </View>
           )}
           <Text style={st.celebTitle}>{item.title}</Text>
           <Text style={st.celebSub}>{item.sub}</Text>
-          <Button title="NICE" onPress={onClose} style={{ alignSelf: "stretch", marginTop: 16 }} />
+          <Button title={t("common.nice")} onPress={onClose} style={{ alignSelf: "stretch", marginTop: 16 }} />
         </PixelBox>
       </Animated.View>
     </Animated.View>
@@ -358,7 +360,7 @@ export function LiveMascot({ mood = "idle", px = 4, walking = false }: { mood?: 
 export { Sprite };
 
 const st = StyleSheet.create({
-  btnText: { color: "#07120a", fontFamily: PX, fontSize: 11, textTransform: "uppercase" },
+  btnText: { color: "#07120a", fontFamily: PX, fontSize: 11, lineHeight: 16, textTransform: "uppercase", textAlign: "center" },
   chipText: { fontSize: 8, fontFamily: PX },
   celeb: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000000cc", alignItems: "center", justifyContent: "center", padding: 28, zIndex: 50 },
   celebKicker: { color: C.green, fontFamily: PX, fontSize: T.small - 1, marginBottom: 16 },

@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
   TextInput,
   View,
 } from "react-native";
@@ -40,15 +39,18 @@ import {
   type StoredWallet,
   type WatchItem,
 } from "./src/store";
-import { digestText, notify, pollAll, registerBackgroundPolling, setupNotifications } from "./src/watcher";
+import { digestText, notify, pollAll, registerBackgroundPolling, setupChannel, setupNotifications } from "./src/watcher";
 import { anchorPack, balanceSol, connectWallet, resumePending, disconnectWallet, friendlyWalletError, memoText, requestDevnetAirdrop, type PendingReceipt } from "./src/wallet";
 import {
-  ACTION_LABEL,
+  actionLabel,
   applyAction,
+  badgeHint,
+  badgeName,
   BADGES,
   canClockIn,
   clockIn,
   lastSeven,
+  levelName,
   levelOf,
   LEVELS,
   liveStreak,
@@ -74,11 +76,16 @@ import { LEAGUE_ENABLED } from "./src/league/config";
 import { LeagueCard, LeagueModal } from "./src/league/LeagueEntry";
 import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
+import { Text } from "./src/Text";
+import { detectLanguage, en, fmtDec, fmtNum, LANGS, setLanguage, t, tn, useLang, type Key } from "./src/i18n";
 
-const EXAMPLES = [
-  { label: "Disputed, not settled", key: "5186278" },
-  { label: "Disputed twice, settled", key: "4585694" },
-  { label: "Quiet market", key: "601819" },
+// Use the phone's language for the intro until the saved choice loads.
+setLanguage(detectLanguage());
+
+const EXAMPLES: { label: Key; key: string }[] = [
+  { label: "ex.disputed", key: "5186278" },
+  { label: "ex.twice", key: "4585694" },
+  { label: "ex.quiet", key: "601819" },
 ];
 
 function short(s: string, n = 4) {
@@ -86,19 +93,16 @@ function short(s: string, n = 4) {
 }
 
 function ago(iso?: string) {
-  if (!iso) return "never";
+  if (!iso) return t("time.never");
   const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
-  return `${Math.round(s / 86400)}d ago`;
+  if (s < 60) return t("time.s", { n: s });
+  if (s < 3600) return t("time.m", { n: Math.round(s / 60) });
+  if (s < 86400) return t("time.h", { n: Math.round(s / 3600) });
+  return t("time.d", { n: Math.round(s / 86400) });
 }
 
-/** 3005 -> "3,005" without relying on Intl support in the JS engine. */
-function num(v: unknown) {
-  const s = String(v ?? "");
-  return /^\d+$/.test(s) ? s.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : s;
-}
+/** 3005 -> "3,005" (or "3.005") without relying on Intl support in the JS engine. */
+const num = fmtNum;
 
 function hh(h: number) {
   return `${String(h).padStart(2, "0")}:00`;
@@ -108,28 +112,55 @@ function openExplorer(sig: string, cluster: Cluster) {
   try {
     Linking.openURL(EXPLORER_TX(sig, cluster));
   } catch {
-    Alert.alert("Explorer", "This receipt has no valid transaction signature.");
+    Alert.alert(t("explorer.title"), t("explorer.noSig"));
   }
 }
 
 const statusColor = (level?: string) => STATUS[level ?? ""]?.color ?? C.dim;
+const statusLabel = (level?: string) => (level && STATUS[level] ? t(`status.${level}.label` as Key) : "...");
+const statusWord = (level?: string) => (level && STATUS[level] ? t(`status.${level}.word` as Key) : t("status.checking"));
+
+// Check labels and details come from src/verify.ts in English; only their display is translated.
+const CHECK_KEYS = new Map<string, Key>(
+  (Object.keys(en) as Key[]).filter((k) => k.startsWith("check.") && !k.startsWith("check.d.")).map((k) => [en[k], k])
+);
+const checkLabel = (label: string) => {
+  const k = CHECK_KEYS.get(label);
+  return k ? t(k) : label;
+};
+function checkDetail(d: string): string {
+  const fixed: Record<string, Key> = {
+    [en["check.d.unsigned"]]: "check.d.unsigned",
+    [en["check.d.unreachable"]]: "check.d.unreachable",
+    [en["check.d.listed"]]: "check.d.listed",
+    [en["check.d.notListed"]]: "check.d.notListed",
+  };
+  if (fixed[d]) return t(fixed[d]);
+  let m = /^mismatch: (.+)$/.exec(d);
+  if (m) return t("check.d.mismatch", { list: m[1] });
+  m = /^(\d+) fields$/.exec(d);
+  if (m) return t("check.d.fields", { n: m[1] });
+  m = /^(\d+) bytes$/.exec(d);
+  if (m) return t("check.d.bytes", { n: m[1] });
+  return d;
+}
 
 function RiskBadge({ level }: { level?: string }) {
-  return <Chip text={(STATUS[level ?? ""]?.label ?? "...").toUpperCase()} color={statusColor(level)} />;
+  return <Chip text={statusLabel(level).toUpperCase()} color={statusColor(level)} />;
 }
 
 function VerifiedBadge({ v }: { v?: Verification }) {
   if (!v) return null;
-  return <Chip text={v.verified ? "VERIFIED ON DEVICE" : "NOT VERIFIED"} color={v.verified ? C.green : C.red} />;
+  return <Chip text={v.verified ? t("chip.verifiedOnDevice") : t("chip.notVerified")} color={v.verified ? C.green : C.red} />;
 }
 
 /** Plain wording for a failed add. */
 function friendlyAddError(e: unknown): string {
   const m = (e as Error)?.message ?? "";
   if (/network request failed|timed out|failed to fetch|HTTP 5\d\d|aborted/i.test(m)) {
-    return "Could not reach the market data right now. Check your connection and try again in a moment.";
+    return t("add.errNetwork");
   }
-  return m.slice(0, 200) || "Something went wrong. Try again.";
+  return m.slice(0, 200) || t("common.wrongRetry");
 }
 
 /** Bold, color-coded market card with a pixel icon. Pulses when its status changes. */
@@ -155,11 +186,11 @@ function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; o
           <View style={styles.rowBetween}>
             <View style={styles.statusHead}>
               <StatusIcon level={level} color={color} px={3} />
-              <Text style={[styles.statusWord, { color }]}>{STATUS[level]?.word ?? "CHECKING"}</Text>
+              <Text style={[styles.statusWord, { color }]}>{statusWord(level)}</Text>
             </View>
             <Text style={[styles.dim, { flexShrink: 1, textAlign: "right" }]}>
-              checked {ago(item.lastPolledAt)}
-              {item.lastError ? ` . error: ${item.lastError.slice(0, 80)}` : ""}
+              {t("card.checked", { ago: ago(item.lastPolledAt) })}
+              {item.lastError ? t("card.error", { msg: item.lastError.slice(0, 80) }) : ""}
             </Text>
           </View>
           <Text style={styles.question} numberOfLines={2}>
@@ -167,9 +198,9 @@ function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; o
           </Text>
           <Text style={[styles.body, { color }]}>{statusLine(item.snapshot)}</Text>
           <View style={styles.rowWrap}>
-            {item.verification ? <Chip text={item.verification.verified ? "VERIFIED" : "NOT VERIFIED"} color={item.verification.verified ? C.green : C.red} /> : null}
-            {changedToday ? <Chip text="CHANGED TODAY" color={C.orange} /> : null}
-            {item.anchors.length ? <Chip text={`RECEIPT x${item.anchors.length}`} color={C.purpleSoft} /> : null}
+            {item.verification ? <Chip text={item.verification.verified ? t("chip.verified") : t("chip.notVerified")} color={item.verification.verified ? C.green : C.red} /> : null}
+            {changedToday ? <Chip text={t("chip.changedToday")} color={C.orange} /> : null}
+            {item.anchors.length ? <Chip text={t("chip.receipts", { n: item.anchors.length })} color={C.purpleSoft} /> : null}
           </View>
         </PixelBox>
       </Press>
@@ -217,6 +248,7 @@ export default function App() {
   const [clockPlay, setClockPlay] = useState(0);
   const reduced = useReducedMotion();
   const shake = useShake();
+  const lang = useLang();
   const celebId = useRef(0);
   itemsRef.current = items;
   const detail = items.find((i) => i.key === detailKey) ?? null;
@@ -229,7 +261,9 @@ export default function App() {
   }, []);
 
   const updateSettings = useCallback(async (patch: Partial<Settings>) => {
-    setSettings(await saveSettings(patch));
+    const next = await saveSettings(patch);
+    setLanguage(next.language);
+    setSettings(next);
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -264,11 +298,11 @@ export default function App() {
       const add: Celebration[] = [];
       for (const id of info.badges) {
         const b = BADGES.find((x) => x.id === id);
-        if (b) add.push({ id: ++celebId.current, kind: "badge", title: b.name, sub: b.hint, badge: id });
+        if (b) add.push({ id: ++celebId.current, kind: "badge", title: badgeName(id), sub: badgeHint(id), badge: id });
       }
       if (info.levelUp) {
         const idx = LEVELS.findIndex((l) => l.name === info.levelUp);
-        add.push({ id: ++celebId.current, kind: "level", title: `Level ${idx + 1}: ${info.levelUp}`, sub: "Your checks on this phone are adding up.", level: idx });
+        add.push({ id: ++celebId.current, kind: "level", title: t("celeb.levelTitle", { n: idx + 1, name: levelName(idx) }), sub: t("celeb.levelSub"), level: idx });
       }
       // Short delay so the action's own animation (burst, shake) is seen before the unlock card.
       if (add.length) setTimeout(() => setCelebs((c) => [...c, ...add]), 1100);
@@ -288,7 +322,7 @@ export default function App() {
     commitGame(r.state, r);
     setClockPlay((n) => n + 1);
     haptic.success();
-    if (r.usedFreeMiss) Alert.alert("Streak saved", "You missed a day, so this week's free miss kept your streak alive.");
+    if (r.usedFreeMiss) Alert.alert(t("streak.savedTitle"), t("streak.savedBody"));
   }, [commitGame]);
 
   const openDetail = useCallback(
@@ -313,6 +347,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const s = await loadSettings();
+      setLanguage(s.language);
       setSettings(s);
       setItems(await loadWatchlist());
       const g = await loadGame();
@@ -362,23 +397,23 @@ export default function App() {
     async (raw: string, opts: { quiet?: boolean } = {}): Promise<boolean> => {
       const key = parseMarketInput(raw);
       if (!key) {
-        if (!opts.quiet) Alert.alert("Not a market", "Paste a polymarket.com link, a market slug, a numeric market id or a 0x condition id.");
+        if (!opts.quiet) Alert.alert(t("add.notMarketTitle"), t("add.notMarketBody"));
         return false;
       }
       const current = await loadWatchlist();
       if (current.length >= MAX_WATCHLIST) {
-        Alert.alert("Watchlist full", `Up to ${MAX_WATCHLIST} markets. Remove one first.`);
+        Alert.alert(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
         return false;
       }
       if (current.some((i) => i.key === key || i.marketId === key)) {
-        if (!opts.quiet) Alert.alert("Already watching", key);
+        if (!opts.quiet) Alert.alert(t("add.already"), key);
         return true;
       }
       setBusy("add");
       try {
         const r = await fetchSettlementRisk(key);
         if (current.some((i) => i.marketId === r.market.market_id)) {
-          if (!opts.quiet) Alert.alert("Already watching", r.market.question);
+          if (!opts.quiet) Alert.alert(t("add.already"), r.market.question);
           return true;
         }
         const v = await verifyRecord(r);
@@ -393,7 +428,7 @@ export default function App() {
           last: r,
           verification: v,
           lastPolledAt: now,
-          timeline: [{ at: now, text: `Watching. ${r.recommendation}`, verified: v.verified, kind: "info" }],
+          timeline: [{ at: now, text: t("timeline.watching", { rec: r.recommendation }), verified: v.verified, kind: "info" }],
           anchors: [],
         };
         if (r.context) setContext(r.context);
@@ -406,7 +441,7 @@ export default function App() {
         return true;
       } catch (e) {
         // Quiet adds (the example markets) retry on their own, so no alert for a network problem.
-        if (!opts.quiet) Alert.alert("Could not add market", friendlyAddError(e));
+        if (!opts.quiet) Alert.alert(t("add.failed"), friendlyAddError(e));
         return false;
       } finally {
         setBusy(null);
@@ -447,10 +482,7 @@ export default function App() {
       await saveWallet(w);
       refreshBalance(w, cluster);
     } catch (e) {
-      Alert.alert(
-        "Wallet",
-        `Could not connect: ${(e as Error).message}\n\nInstall a Mobile Wallet Adapter wallet (Seed Vault on Seeker, Phantom or Solflare) and set it to ${net}.`
-      );
+      Alert.alert(t("wallet.title"), t("wallet.connectFail", { msg: (e as Error).message, net }));
     } finally {
       setBusy(null);
     }
@@ -481,7 +513,7 @@ export default function App() {
       await refreshBalance(wallet, cluster);
     } catch (e) {
       await Clipboard.setStringAsync(wallet.address);
-      Alert.alert("Devnet faucet", `The devnet faucet is busy right now. Your address is copied: paste it at faucet.solana.com to get devnet SOL.`);
+      Alert.alert(t("faucet.title"), t("faucet.body"));
     } finally {
       setBusy(null);
     }
@@ -497,7 +529,7 @@ export default function App() {
           ? {
               ...i,
               anchors: [{ signature, packHash, action, riskLevel, at: now, cluster: c }, ...i.anchors],
-              timeline: [{ at: now, text: `Receipt anchored on Solana ${CLUSTERS[c].label} (${action})`, verified: true, kind: "receipt" as const }, ...i.timeline],
+              timeline: [{ at: now, text: t("timeline.receipt", { net: CLUSTERS[c].label, action: t(`action.${action}`) }), verified: true, kind: "receipt" as const }, ...i.timeline],
             }
           : i
       );
@@ -549,17 +581,14 @@ export default function App() {
         setStamp(true);
         await new Promise((res) => setTimeout(res, reduced ? 300 : 1300));
         setStamp(false);
-        Alert.alert(`Receipt on Solana ${net}`, `Memo tx ${short(signature, 6)}, confirmed on chain.`, [
-          { text: "Open explorer", onPress: () => openExplorer(signature, cluster) },
-          { text: "OK" },
+        Alert.alert(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
+          { text: t("anchor.openExplorer"), onPress: () => openExplorer(signature, cluster) },
+          { text: t("common.ok") },
         ]);
       } catch (e) {
         // Keep a signed receipt that may still land, so it is checked again later. Drop one that cannot.
         if (!signed || /not landed|block height|rejected/i.test((e as Error)?.message ?? "")) await savePending(null);
-        Alert.alert(
-          "Anchor failed",
-          `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? 'On devnet the wallet needs a little SOL for the fee: tap "Devnet SOL".' : "The wallet needs a little SOL for the network fee."}`
-        );
+        Alert.alert(t("anchor.failed"), `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? t("anchor.feeDevnet") : t("anchor.feeMain")}`);
       } finally {
         anchoringRef.current = false;
         setBusy(null);
@@ -570,14 +599,14 @@ export default function App() {
 
   const onAnchor = useCallback(
     (item: WatchItem, action: "watch" | "acknowledge") => {
-      if (!wallet) return Alert.alert("Connect a wallet first", `A receipt is a Solana ${net} memo signed by your wallet.`);
+      if (!wallet) return Alert.alert(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
       if (!item.verification?.verified || !item.verification.packHash || !item.last) {
-        return Alert.alert("Not verified", "Only a record that verified on this phone can be anchored.");
+        return Alert.alert(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
       }
       if (cluster === "mainnet-beta") {
-        return Alert.alert("Anchor on mainnet?", "This sends a real Solana transaction. The only cost is the network fee, about 0.000005 SOL.", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Anchor", onPress: () => doAnchor(item, action) },
+        return Alert.alert(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("anchor.anchor"), onPress: () => doAnchor(item, action) },
         ]);
       }
       doAnchor(item, action);
@@ -597,13 +626,13 @@ export default function App() {
         await savePending(null);
         if (result === "confirmed") {
           await recordAnchor(p.key, p.signature, p.packHash, p.action, p.riskLevel, p.cluster);
-          Alert.alert("Receipt saved", "Your earlier receipt is confirmed on chain and is now in the market's list.");
+          Alert.alert(t("anchor.savedTitle"), t("anchor.savedConfirmed"));
         } else {
-          Alert.alert("Receipt not finished", "Your earlier receipt did not reach the network in time, so it was dropped. Nothing was charged. Tap Anchor watch receipt to try again.");
+          Alert.alert(t("anchor.notFinishedTitle"), t("anchor.droppedBody"));
         }
       } else {
         await savePending(null);
-        Alert.alert("Receipt not finished", "A receipt was started but the wallet did not return in time. Nothing was sent. Tap Anchor watch receipt to try again.");
+        Alert.alert(t("anchor.notFinishedTitle"), t("anchor.notFinishedBody"));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -625,15 +654,11 @@ export default function App() {
   }, [pendingExamples, addMarket]);
 
   const onTestAlert = useCallback(async () => {
-    await notify(
-      "[TEST] Settle Watch",
-      "Test notification only, not a real dispute. Real alerts fire when a watched market gets a UMA dispute, a clarification or settles on chain.",
-      { test: true }
-    );
+    await notify(t("test.title"), t("test.body"), { test: true });
   }, []);
 
   const onDigestNow = useCallback(async () => {
-    if (!items.length) return Alert.alert("Digest", "Add a market first.");
+    if (!items.length) return Alert.alert(t("digest.title"), t("digest.addFirst"));
     const { title, body } = digestText(items);
     await notify(title, body, { digest: true });
   }, [items]);
@@ -679,7 +704,11 @@ export default function App() {
   }, [items, filter]);
   useEffect(() => {
     if (settings?.onboarded) scheduleClockInNudge(settings.digestHour, settings.digest);
-  }, [settings?.onboarded, settings?.digest, settings?.digestHour]);
+  }, [settings?.onboarded, settings?.digest, settings?.digestHour, settings?.language]);
+  // Rename the Android notification channel after a language change.
+  useEffect(() => {
+    if (settings?.onboarded) setupChannel().catch(() => undefined);
+  }, [settings?.onboarded, settings?.language]);
 
   const lastCheck = items.map((i) => i.lastPolledAt ?? "").sort().pop();
 
@@ -721,18 +750,18 @@ export default function App() {
           <View style={styles.header}>
             <View style={styles.rowBetween}>
               <Text style={styles.brand}>SETTLE WATCH</Text>
-              <Press onPress={() => setBadgesOpen(true)} label={`Level ${level.index + 1} ${level.name}, open badges`}>
+              <Press onPress={() => setBadgesOpen(true)} label={t("home.levelLabel", { n: level.index + 1, name: levelName(level.index) })}>
                 <LevelBadge index={level.index} progress={level.progress} />
               </Press>
             </View>
-            <Text style={styles.display}>{level.name.toUpperCase()}</Text>
+            <Text style={styles.display}>{levelName(level.index).toUpperCase()}</Text>
             <View style={{ marginTop: 10 }}>
               <PixelBar value={level.progress} />
             </View>
             <Text style={[styles.subtitle, { marginTop: 8 }]}>
-              {game.xp} XP{level.next ? ` . ${level.toNext} to ${level.next}` : " . top level"}
+              {level.next ? t("home.xpNext", { xp: game.xp, toNext: level.toNext, next: levelName(level.index + 1) }) : t("home.xpTop", { xp: game.xp })}
             </Text>
-            <Text style={[styles.subtitle, { marginTop: 8 }]}>Settlement alerts for Polymarket, verified on your phone</Text>
+            <Text style={[styles.subtitle, { marginTop: 8 }]}>{t("home.subtitle")}</Text>
             <View style={styles.stepRow}>
               {Array.from({ length: 24 }).map((_, i) => (
                 <View key={i} style={[styles.stepBit, { backgroundColor: i % 3 === 0 ? alpha(C.purple, 0.55) : alpha(C.green, 0.35) }]} />
@@ -742,29 +771,25 @@ export default function App() {
 
           {pendingExamples.length ? (
             <PixelBox border={C.orange} bg={alpha(C.orange, 0.1)} style={{ marginTop: 14 }} inner={{ padding: 12 }}>
-              <Text style={styles.body}>
-                Still loading {pendingExamples.length} example market{pendingExamples.length > 1 ? "s" : ""}. The network is slow, so the app keeps trying.
-              </Text>
+              <Text style={styles.body}>{tn("home.stillLoading", pendingExamples.length)}</Text>
             </PixelBox>
           ) : null}
 
           {/* Today: the hero, on paper */}
           <PixelBox border={C.ink} bg={C.cream} lift="#8c7f66" style={{ marginTop: 14 }} inner={{ padding: 16 }}>
             <View style={styles.rowBetween}>
-              <Text style={styles.heroKicker}>TODAY</Text>
+              <Text style={styles.heroKicker}>{t("home.today")}</Text>
               <View style={{ marginTop: -4 }}>
                 <LiveMascot mood={homeMood} px={4} />
               </View>
             </View>
-            <Text style={styles.heroDim}>last 24 h . checked {ago(lastCheck)}</Text>
+            <Text style={styles.heroDim}>{t("home.last24", { ago: ago(lastCheck) })}</Text>
             {items.length === 0 ? (
-              <Text style={styles.heroBody}>Add a market below and its status changes will show up here.</Text>
+              <Text style={styles.heroBody}>{t("home.empty")}</Text>
             ) : today.length === 0 ? (
               <Text style={styles.heroBody}>
-                No status changes across your {items.length} market{items.length > 1 ? "s" : ""}.{" "}
-                {counts.caution + counts.watch
-                  ? `${counts.caution + counts.watch} still need${counts.caution + counts.watch > 1 ? "" : "s"} attention.`
-                  : "Nothing needs attention."}
+                {tn("home.noChanges", items.length)}{" "}
+                {counts.caution + counts.watch ? tn("home.attention", counts.caution + counts.watch) : t("home.noAttention")}
               </Text>
             ) : (
               today.map(({ item, changes }) => (
@@ -784,7 +809,7 @@ export default function App() {
                     </Text>
                     <Text style={styles.heroDim}>
                       {changes[0].text} . {ago(changes[0].at)}
-                      {changes.length > 1 ? ` . +${changes.length - 1} more` : ""}
+                      {changes.length > 1 ? t("home.more", { n: changes.length - 1 }) : ""}
                     </Text>
                   </View>
                 </Pressable>
@@ -796,14 +821,14 @@ export default function App() {
               <Flame size={5} lit={streak > 0} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.streakNum}>
-                  {streak} <Text style={styles.streakUnit}>DAY STREAK</Text>
+                  {streak} <Text style={styles.streakUnit}>{t("home.dayStreak")}</Text>
                 </Text>
-                <Text style={styles.heroDim}>One free miss per week keeps it alive. Best: {game.best}.</Text>
+                <Text style={styles.heroDim}>{t("home.freeMiss", { best: game.best })}</Text>
               </View>
             </View>
             <View style={styles.weekRow}>
               {week.map((d) => (
-                <View key={d.day} style={styles.weekCell} accessibilityLabel={`${d.day} ${d.done ? "clocked in" : d.saved ? "saved by free miss" : "not clocked in"}`}>
+                <View key={d.day} style={styles.weekCell} accessibilityLabel={t(d.done ? "home.dayDone" : d.saved ? "home.daySaved" : "home.dayMissed", { day: d.day })}>
                   <View
                     style={[
                       styles.weekDot,
@@ -821,16 +846,16 @@ export default function App() {
             <View style={styles.clockRow}>
               {clockPlay > 0 && !canIn ? <Burst play={clockPlay} size={46} /> : null}
               <View style={{ flex: 1 }}>
-                <Press onPress={doClockIn} disabled={!canIn} haptics={false} label={canIn ? "Clock in" : "Clocked in today"}>
+                <Press onPress={doClockIn} disabled={!canIn} haptics={false} label={canIn ? t("home.clockInLabel") : t("home.clockedInLabel")}>
                   <PixelBox border={canIn ? C.ink : alpha(C.ink, 0.25)} bg={canIn ? C.ink : alpha(C.ink, 0.1)} lift={canIn ? "#000000" : undefined} inner={{ paddingVertical: 15, alignItems: "center" }}>
-                    <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? `CLOCK IN +${XP.clock_in + Math.min(streak + 1, 7) * 2} XP` : "CLOCKED IN TODAY"}</Text>
+                    <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? t("home.clockIn", { xp: XP.clock_in + Math.min(streak + 1, 7) * 2 }) : t("home.clockedIn")}</Text>
                   </PixelBox>
                 </Press>
               </View>
             </View>
             <Text style={[styles.heroDim, { marginTop: 10 }]}>
-              {settings.digest ? `Daily digest at ${hh(settings.digestHour)}.` : "Daily digest is off."}{" "}
-              {bgOk === false ? "Background checks are off on this phone." : "Live checks while open, about every 15 min in the background."}
+              {settings.digest ? t("home.digestAt", { time: hh(settings.digestHour) }) : t("home.digestOff")}{" "}
+              {bgOk === false ? t("home.bgOff") : t("home.bgOn")}
             </Text>
           </PixelBox>
 
@@ -839,36 +864,38 @@ export default function App() {
           {/* Wallet: one compact row */}
           <PixelBox style={styles.cardGap} inner={[styles.cardPad, wallet ? { gap: 10 } : styles.rowBetween]}>
             <View style={wallet ? undefined : { flex: 1 }}>
-              <Text style={styles.cardLabel}>Wallet . Solana {net}</Text>
+              <Text style={styles.cardLabel}>{t("wallet.label", { net })}</Text>
               {wallet ? (
-                <Pressable onPress={() => Clipboard.setStringAsync(wallet.address)} accessibilityLabel="Copy wallet address">
+                <Pressable onPress={() => Clipboard.setStringAsync(wallet.address)} accessibilityLabel={t("wallet.copy")}>
                   <Text style={styles.mono}>
                     {short(wallet.address, 6)}
                     <Text style={styles.dim}>  {balance === null ? "" : `${balance.toFixed(4)} SOL`}</Text>
                   </Text>
                 </Pressable>
               ) : (
-                <Text style={styles.dim}>Connect to anchor receipts on Solana</Text>
+                <Text style={styles.dim}>{t("wallet.hint")}</Text>
               )}
             </View>
             {busy === "wallet" || busy === "airdrop" ? (
               <ActivityIndicator color={C.green} />
             ) : wallet ? (
               <View style={styles.row}>
-                {cluster === "devnet" ? <Button small kind="ghost" title="Devnet SOL" onPress={onAirdrop} disabled={!!busy} /> : null}
-                <Button small kind="ghost" title="Disconnect" onPress={onDisconnect} />
+                {cluster === "devnet" ? <Button small kind="ghost" title={t("wallet.devnetSol")} onPress={onAirdrop} disabled={!!busy} /> : null}
+                <Button small kind="ghost" title={t("wallet.disconnect")} onPress={onDisconnect} />
               </View>
             ) : (
-              <Button small title="Connect wallet" onPress={onConnect} disabled={!!busy} />
+              <View style={{ flexShrink: 1 }}>
+                <Button small title={t("wallet.connect")} onPress={onConnect} disabled={!!busy} />
+              </View>
             )}
           </PixelBox>
 
           {/* Watchlist at a glance */}
-          <Text style={styles.section}>WATCHLIST ({items.length})</Text>
+          <Text style={styles.section}>{t("list.title", { n: items.length })}</Text>
           {items.length ? (
             <View style={styles.glance}>
               {STATUS_ORDER.map((r) => (
-                <Press key={r} onPress={() => setFilter(filter === r ? null : r)} label={`Show ${STATUS[r].label} markets`} fill>
+                <Press key={r} onPress={() => setFilter(filter === r ? null : r)} label={t("list.show", { label: statusLabel(r) })} fill>
                   <PixelBox
                     p={3}
                     border={alpha(STATUS[r].color, filter === r ? 1 : 0.5)}
@@ -877,25 +904,27 @@ export default function App() {
                   >
                     <StatusIcon level={r} color={STATUS[r].color} px={2} />
                     <Text style={[styles.glanceNum, { color: STATUS[r].color }]}>{counts[r]}</Text>
-                    <Text style={[styles.glanceLabel, { color: STATUS[r].color }]}>{STATUS[r].label}</Text>
+                    <Text style={[styles.glanceLabel, { color: STATUS[r].color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                      {statusLabel(r)}
+                    </Text>
                   </PixelBox>
                 </Press>
               ))}
             </View>
           ) : null}
-          {filter ? <Text style={[styles.dim, { marginTop: 6 }]}>Showing {STATUS[filter].label} only. Tap again to show all.</Text> : null}
+          {filter ? <Text style={[styles.dim, { marginTop: 6 }]}>{t("list.filtered", { label: statusLabel(filter) })}</Text> : null}
           {shown.map((it, i) => (
             <MarketCard key={it.key} item={it} index={i} onOpen={() => openDetail(it.key)} />
           ))}
 
           {/* Add a market */}
           <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-            <Text style={styles.cardTitle}>WATCH A MARKET</Text>
+            <Text style={styles.cardTitle}>{t("add.title")}</Text>
             <PixelBox p={2} border={C.line} bg={C.bg} style={{ marginVertical: 8 }} inner={{ paddingHorizontal: 12 }}>
               <TextInput
                 value={input}
                 onChangeText={setInput}
-                placeholder="polymarket.com link, slug or market id"
+                placeholder={t("add.placeholder")}
                 placeholderTextColor={C.dim}
                 style={styles.input}
                 autoCapitalize="none"
@@ -906,19 +935,19 @@ export default function App() {
             </PixelBox>
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Button title={busy === "add" ? "Checking..." : "Add to watchlist"} onPress={() => addMarket(input)} disabled={!!busy} />
+                <Button title={busy === "add" ? t("add.checking") : t("add.button")} onPress={() => addMarket(input)} disabled={!!busy} />
               </View>
               <Button
                 kind="ghost"
-                title="Paste"
+                title={t("add.paste")}
                 onPress={async () => setInput((await Clipboard.getStringAsync()).slice(0, MAX_INPUT_LENGTH))}
                 disabled={!!busy}
               />
             </View>
-            <Text style={[styles.dim, { marginTop: 10 }]}>Examples (real markets)</Text>
+            <Text style={[styles.dim, { marginTop: 10 }]}>{t("add.examples")}</Text>
             <View style={styles.rowWrap}>
               {EXAMPLES.map((e) => (
-                <Button key={e.key} small kind="ghost" title={e.label} onPress={() => addMarket(e.key)} disabled={!!busy} />
+                <Button key={e.key} small kind="ghost" title={t(e.label)} onPress={() => addMarket(e.key)} disabled={!!busy} />
               ))}
             </View>
           </PixelBox>
@@ -930,32 +959,40 @@ export default function App() {
 
           {/* Weekly recap */}
           <PixelBox border={C.purple} bg="#1b1233" style={styles.cardGap} inner={styles.cardPad}>
-            <Text style={styles.cardLabel}>Weekly recap</Text>
+            <Text style={styles.cardLabel}>{t("recap.title")}</Text>
             <Text style={styles.recapText}>{recap.text}</Text>
-            <Text style={styles.dim}>{recap.xp} XP earned since Monday.</Text>
+            <Text style={styles.dim}>{t("recap.xp", { n: recap.xp })}</Text>
           </PixelBox>
 
           {/* Badges */}
           <PixelBox style={styles.cardGap} inner={styles.cardPad}>
             <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>BADGES</Text>
-              <Text style={styles.dim}>
-                {unlocked} of {BADGES.length} unlocked
-              </Text>
+              <Text style={styles.cardTitle}>{t("badges.title")}</Text>
+              <Text style={styles.dim}>{t("badges.count", { n: unlocked, total: BADGES.length })}</Text>
             </View>
             <View style={[styles.rowBetween, { marginVertical: 10 }]}>
               {BADGES.map((b) => (
                 <BadgeIcon key={b.id} id={b.id} size={40} locked={!game.badges[b.id]} />
               ))}
             </View>
-            <Button small kind="ghost" title="All badges" onPress={() => setBadgesOpen(true)} />
+            <Button small kind="ghost" title={t("badges.all")} onPress={() => setBadgesOpen(true)} />
           </PixelBox>
 
           {/* Settings */}
           <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-            <Text style={styles.cardTitle}>SETTINGS</Text>
+            <Text style={styles.cardTitle}>{t("settings.title")}</Text>
+            <Text style={styles.body}>{t("settings.language")}</Text>
+            <View style={[styles.rowWrap, { marginTop: 4, marginBottom: 12 }]}>
+              {LANGS.map((l) => (
+                <Press key={l.id} onPress={() => updateSettings({ language: l.id })} label={l.name}>
+                  <PixelBox p={2} border={lang === l.id ? "#2f6b38" : C.line} bg={lang === l.id ? C.green : C.surfaceHi} inner={{ paddingHorizontal: 10, paddingVertical: 7 }}>
+                    <Text style={[styles.langText, { color: lang === l.id ? "#07120a" : C.text }]}>{l.name}</Text>
+                  </PixelBox>
+                </Press>
+              ))}
+            </View>
             <View style={styles.rowBetween}>
-              <Text style={styles.body}>Daily digest notification</Text>
+              <Text style={[styles.body, { flex: 1 }]}>{t("settings.digest")}</Text>
               <Switch
                 value={settings.digest}
                 onValueChange={(v) => updateSettings({ digest: v })}
@@ -965,7 +1002,7 @@ export default function App() {
             </View>
             {settings.digest ? (
               <View style={styles.rowBetween}>
-                <Text style={[styles.dim, { flex: 1 }]}>Sent once a day after {hh(settings.digestHour)}, with a reminder to clock in</Text>
+                <Text style={[styles.dim, { flex: 1 }]}>{t("settings.digestHint", { time: hh(settings.digestHour) })}</Text>
                 <View style={styles.row}>
                   <Button small kind="ghost" title="-" onPress={() => updateSettings({ digestHour: (settings.digestHour + 23) % 24 })} />
                   <Button small kind="ghost" title="+" onPress={() => updateSettings({ digestHour: (settings.digestHour + 1) % 24 })} />
@@ -973,7 +1010,7 @@ export default function App() {
               </View>
             ) : null}
             <View style={[styles.rowBetween, { marginTop: 12 }]}>
-              <Text style={styles.body}>Receipt network</Text>
+              <Text style={[styles.body, { flexShrink: 1 }]}>{t("settings.network")}</Text>
               <View style={styles.row}>
                 {(["devnet", "mainnet-beta"] as Cluster[]).map((c) => (
                   <Press key={c} onPress={() => onSwitchCluster(c)} label={CLUSTERS[c].label}>
@@ -985,34 +1022,34 @@ export default function App() {
               </View>
             </View>
             <View style={[styles.rowWrap, { marginTop: 12 }]}>
-              <Button small kind="ghost" title="Check now" onPress={refreshAll} />
-              <Button small kind="ghost" title="Digest now" onPress={onDigestNow} />
-              <Button small kind="ghost" title="Send test alert" onPress={onTestAlert} />
-              <Button small kind="ghost" title="Show intro" onPress={() => updateSettings({ onboarded: false })} />
+              <Button small kind="ghost" title={t("settings.checkNow")} onPress={refreshAll} />
+              <Button small kind="ghost" title={t("settings.digestNow")} onPress={onDigestNow} />
+              <Button small kind="ghost" title={t("settings.testAlert")} onPress={onTestAlert} />
+              <Button small kind="ghost" title={t("settings.showIntro")} onPress={() => updateSettings({ onboarded: false })} />
             </View>
             <View style={styles.howRule} />
-            <Text style={styles.cardTitle}>HOW IT WORKS</Text>
-            <Text style={styles.body}>
-              On Polymarket a proposed outcome can be disputed in a UMA vote. Add markets to your watchlist. When one gets a dispute, a clarification, a UMA vote or settles on chain, your phone alerts you.
-            </Text>
-            <Text style={styles.body}>
-              Every record is signed by Predge with ed25519, and this phone verifies the signature before it shows you anything. Anchor a receipt to save a Solana memo of exactly what you saw, signed by your wallet.
-            </Text>
+            <Text style={styles.cardTitle}>{t("how.title")}</Text>
+            <Text style={styles.body}>{t("how.p1")}</Text>
+            <Text style={styles.body}>{t("how.p2")}</Text>
             {context ? (
               <>
                 <Text style={[styles.body, { marginTop: 6 }]}>
-                  {String(context.period)}: {num(context.disputes)} UMA disputes on {num(context.disputed_markets)} Polymarket
-                  markets. Of {num(context.settled_disputed_markets)} disputed markets that settled,{" "}
-                  {num(context.settled_differently_from_disputed_proposal)} ({String(context.settled_differently_share)}) settled
-                  differently from the disputed proposal.
+                  {t("how.context", {
+                    period: String(context.period),
+                    disputes: num(context.disputes),
+                    markets: num(context.disputed_markets),
+                    settled: num(context.settled_disputed_markets),
+                    diff: num(context.settled_differently_from_disputed_proposal),
+                    share: fmtDec(String(context.settled_differently_share)),
+                  })}
                 </Text>
-                <Text style={[styles.dim, { marginTop: 6 }]}>Source: {String(context.source)}</Text>
+                <Text style={[styles.dim, { marginTop: 6 }]}>{t("how.source", { source: String(context.source) })}</Text>
               </>
             ) : null}
           </PixelBox>
 
           <Text style={[styles.dim, { marginTop: 16, textAlign: "center" }]}>
-            Data: Predge API (api.predge.io), ed25519 signed, key {PINNED_KID}. Not advice.
+            {t("footer", { kid: PINNED_KID })}
           </Text>
         </ScrollView>
         {overlays("main")}
@@ -1024,15 +1061,15 @@ export default function App() {
               <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>
                 <View style={[styles.detailHead, { backgroundColor: alpha(statusColor(detail.last?.risk_level), 0.16), borderBottomColor: statusColor(detail.last?.risk_level) }]}>
                   <View style={styles.rowBetween}>
-                    <Button small kind="ghost" title="Back" onPress={() => setDetailKey(null)} />
+                    <Button small kind="ghost" title={t("common.back")} onPress={() => setDetailKey(null)} />
                     <Button
                       small
                       kind="ghost"
-                      title="Remove"
+                      title={t("common.remove")}
                       onPress={() =>
-                        Alert.alert("Stop watching?", detail.question ?? detail.key, [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Remove", style: "destructive", onPress: () => removeMarket(detail.key) },
+                        Alert.alert(t("detail.removeTitle"), detail.question ?? detail.key, [
+                          { text: t("common.cancel"), style: "cancel" },
+                          { text: t("common.remove"), style: "destructive", onPress: () => removeMarket(detail.key) },
                         ])
                       }
                     />
@@ -1041,7 +1078,7 @@ export default function App() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.statusHead}>
                         <StatusIcon level={detail.last?.risk_level} color={statusColor(detail.last?.risk_level)} px={4} />
-                        <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20 }]}>{STATUS[detail.last?.risk_level ?? ""]?.word ?? "CHECKING"}</Text>
+                        <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20, lineHeight: 28, flexShrink: 1 }]}>{statusWord(detail.last?.risk_level)}</Text>
                       </View>
                     </View>
                     <LiveMascot mood={detailMood} px={4} />
@@ -1061,7 +1098,7 @@ export default function App() {
                       <Burst play={verifyPlay} kind={detail.verification?.verified ? "ok" : "bad"} size={72} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.cardTitle, { color: detail.verification?.verified ? C.green : C.red, marginBottom: 6 }]}>
-                          {detail.verification?.verified ? "VERIFIED ON THIS PHONE" : "NOT VERIFIED"}
+                          {detail.verification?.verified ? t("detail.verifiedPhone") : t("chip.notVerified")}
                         </Text>
                         <Text style={styles.bigCount}>
                           {detail.verification?.checks.filter((c) => c.ok).length ?? 0}
@@ -1070,30 +1107,33 @@ export default function App() {
                       </View>
                     </View>
                     <Text style={styles.dim}>
-                      {detail.verification?.checks.filter((c) => c.ok).length ?? 0} of {detail.verification?.checks.length ?? 0} checks passed .
-                      ed25519 signature by Predge key {PINNED_KID} . {ago(detail.verification?.verifiedAt)}
+                      {t("detail.checksPassed", {
+                        ok: detail.verification?.checks.filter((c) => c.ok).length ?? 0,
+                        n: detail.verification?.checks.length ?? 0,
+                        kid: PINNED_KID,
+                        ago: ago(detail.verification?.verifiedAt),
+                      })}
                     </Text>
                     {showChecks
                       ? detail.verification?.checks.map((c) => (
                           <View key={c.label} style={styles.checkRow}>
                             <Text style={{ color: c.ok ? C.green : C.red, width: 36, fontFamily: PX, fontSize: 10 }}>{c.ok ? "OK" : "X"}</Text>
                             <View style={{ flex: 1 }}>
-                              <Text style={styles.body}>{c.label}</Text>
-                              {c.detail ? <Text style={[styles.mono, { fontSize: 11, color: C.dim }]}>{c.detail}</Text> : null}
+                              <Text style={styles.body}>{checkLabel(c.label)}</Text>
+                              {c.detail ? <Text style={[styles.mono, { fontSize: 11, color: C.dim }]}>{checkDetail(c.detail)}</Text> : null}
                             </View>
                           </View>
                         ))
                       : null}
                     <View style={styles.row}>
-                      <Button small kind="ghost" title={showChecks ? "Hide checks" : "Show the checks"} onPress={() => setShowChecks(!showChecks)} />
-                      <Button small kind="ghost" title="Tamper test" onPress={() => onTamperTest(detail)} />
+                      <Button small kind="ghost" title={showChecks ? t("detail.hideChecks") : t("detail.showChecks")} onPress={() => setShowChecks(!showChecks)} />
+                      <Button small kind="ghost" title={t("detail.tamperTest")} onPress={() => onTamperTest(detail)} />
                     </View>
                     {tamper ? (
                       <View style={[styles.rowBetween, { marginTop: 12, justifyContent: "flex-start", gap: 12 }]}>
                         {!tamper.verified ? <Burst play={rejectPlay} kind="bad" size={52} /> : null}
                         <Text style={[styles.body, { flex: 1, color: tamper.verified ? C.red : C.greenBright }]}>
-                          Tamper test: one character of the signed bytes changed.{" "}
-                          {tamper.verified ? "Still verified (unexpected)." : "Rejected, as it should be."}
+                          {t("detail.tamperLine")} {tamper.verified ? t("detail.tamperStill") : t("detail.tamperRejected")}
                         </Text>
                       </View>
                     ) : null}
@@ -1105,11 +1145,8 @@ export default function App() {
                 </Animated.View>
 
                 <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-                  <Text style={styles.cardTitle}>RECEIPT ON SOLANA {net.toUpperCase()}</Text>
-                  <Text style={styles.dim}>
-                    Writes the hash of this verified record into a memo transaction, signed by your wallet through Mobile Wallet Adapter. You keep
-                    a public, timestamped proof of exactly what you were shown.
-                  </Text>
+                  <Text style={styles.cardTitle}>{t("detail.receiptTitle", { net: net.toUpperCase() })}</Text>
+                  <Text style={styles.dim}>{t("detail.receiptBody")}</Text>
                   {detail.verification?.packHash && detail.last ? (
                     <Text style={[styles.mono, { fontSize: 11, marginVertical: 8, color: C.greenDeep }]}>
                       {(() => {
@@ -1129,23 +1166,23 @@ export default function App() {
                   <View style={styles.rowWrap}>
                     <Button
                       small
-                      title={busy === `anchor:${detail.key}` ? "Waiting for wallet..." : busy === `anchor-send:${detail.key}` ? "Confirming on Solana..." : "Anchor watch receipt"}
+                      title={busy === `anchor:${detail.key}` ? t("common.waitingWallet") : busy === `anchor-send:${detail.key}` ? t("common.confirmingSolana") : t("detail.anchorWatch")}
                       onPress={() => onAnchor(detail, "watch")}
                       disabled={!!busy}
                     />
-                    <Button small kind="ghost" title="Acknowledge alert" onPress={() => onAnchor(detail, "acknowledge")} disabled={!!busy} />
+                    <Button small kind="ghost" title={t("detail.ack")} onPress={() => onAnchor(detail, "acknowledge")} disabled={!!busy} />
                   </View>
                   {detail.anchors.map((a) => (
                     <Pressable key={a.signature} onPress={() => openExplorer(a.signature, a.cluster ?? "devnet")}>
                       <Text style={[styles.mono, { color: C.purpleSoft, marginTop: 6 }]}>
-                        {a.action} . {CLUSTERS[a.cluster ?? "devnet"].label} . {short(a.signature, 8)} . {ago(a.at)}
+                        {t(`action.${a.action}`)} . {CLUSTERS[a.cluster ?? "devnet"].label} . {short(a.signature, 8)} . {ago(a.at)}
                       </Text>
                     </Pressable>
                   ))}
                 </PixelBox>
 
                 <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-                  <Text style={styles.cardTitle}>TIMELINE</Text>
+                  <Text style={styles.cardTitle}>{t("detail.timeline")}</Text>
                   {detail.timeline.map((t, i) => (
                     <Text key={`${t.at}-${i}`} style={styles.body}>
                       <Text style={styles.dim}>{t.at.replace("T", " ").slice(0, 16)} </Text>
@@ -1154,7 +1191,7 @@ export default function App() {
                   ))}
                   {detail.last?.disputes?.length ? (
                     <>
-                      <Text style={[styles.cardTitle, { marginTop: 12 }]}>DISPUTES ON CHAIN</Text>
+                      <Text style={[styles.cardTitle, { marginTop: 12 }]}>{t("detail.disputes")}</Text>
                       {detail.last.disputes.map((d, i) => (
                         <Text key={i} style={[styles.mono, { fontSize: 11, color: C.dim }]}>
                           {JSON.stringify(d).slice(0, 240)}
@@ -1164,14 +1201,14 @@ export default function App() {
                   ) : null}
                 </PixelBox>
                 <Text style={[styles.dim, { marginTop: 12 }]}>
-                  market {detail.last?.market.market_id} . condition {short(detail.last?.market.condition_id ?? "", 8)}
+                  {t("detail.ids", { id: detail.last?.market.market_id ?? "", cond: short(detail.last?.market.condition_id ?? "", 8) })}
                 </Text>
               </ScrollView>
             ) : null}
             {stamp ? (
               <View style={styles.stamp} pointerEvents="none">
                 <Burst play={stampPlay} size={150} />
-                <Text style={styles.stampText}>RECEIPT ON SOLANA</Text>
+                <Text style={styles.stampText}>{t("detail.stamp")}</Text>
               </View>
             ) : null}
             {overlays("detail")}
@@ -1185,50 +1222,47 @@ export default function App() {
             <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>
               <View style={styles.header}>
                 <View style={styles.rowBetween}>
-                  <Button small kind="ghost" title="Back" onPress={() => setBadgesOpen(false)} />
+                  <Button small kind="ghost" title={t("common.back")} onPress={() => setBadgesOpen(false)} />
                   <LevelBadge index={level.index} progress={level.progress} />
                 </View>
                 <View style={[styles.rowBetween, { marginTop: 14 }]}>
-                  <Text style={[styles.display, { marginTop: 0 }]}>{level.name.toUpperCase()}</Text>
+                  <Text style={[styles.display, { marginTop: 0, flexShrink: 1 }]}>{levelName(level.index).toUpperCase()}</Text>
                   <LiveMascot mood="cheer" px={4} />
                 </View>
                 <View style={{ marginTop: 10 }}>
                   <PixelBar value={level.progress} />
                 </View>
                 <Text style={[styles.subtitle, { marginTop: 8 }]}>
-                  Level {level.index + 1} . {game.xp} XP{level.next ? ` . ${level.toNext} to ${level.next}` : ""}
+                  {t("badges.level", { n: level.index + 1, xp: game.xp })}
+                  {level.next ? t("badges.toNext", { toNext: level.toNext, next: levelName(level.index + 1) }) : ""}
                 </Text>
-                <Text style={[styles.subtitle, { marginTop: 4 }]}>
-                  Streak {streak} . best {game.best} . kept on this phone only
-                </Text>
+                <Text style={[styles.subtitle, { marginTop: 4 }]}>{t("badges.streak", { streak, best: game.best })}</Text>
               </View>
-              <Text style={styles.section}>
-                BADGES ({unlocked} of {BADGES.length})
-              </Text>
+              <Text style={styles.section}>{t("badges.section", { n: unlocked, total: BADGES.length })}</Text>
               <View style={styles.badgeGrid}>
                 {BADGES.map((b) => {
                   const at = game.badges[b.id];
                   return (
-                    <View key={b.id} style={{ width: "48%", flexGrow: 1 }} accessibilityLabel={`${b.name}, ${at ? "unlocked" : "locked"}`}>
+                    <View key={b.id} style={{ width: "48%", flexGrow: 1 }} accessibilityLabel={t(at ? "badges.a11yUnlocked" : "badges.a11yLocked", { name: badgeName(b.id) })}>
                       <PixelBox border={at ? C.green : C.line} inner={[styles.badgeCell, !at && { opacity: 0.8 }]}>
                         <BadgeIcon id={b.id} size={72} locked={!at} />
-                        <Text style={[styles.badgeName, !at && { color: C.dim }]}>{b.name}</Text>
-                        <Text style={[styles.dim, { textAlign: "center" }]}>{at ? `Unlocked ${at.slice(0, 10)}` : b.hint}</Text>
+                        <Text style={[styles.badgeName, !at && { color: C.dim }]}>{badgeName(b.id)}</Text>
+                        <Text style={[styles.dim, { textAlign: "center" }]}>{at ? t("badges.unlockedOn", { date: at.slice(0, 10) }) : badgeHint(b.id)}</Text>
                       </PixelBox>
                     </View>
                   );
                 })}
               </View>
-              <Text style={styles.section}>HOW XP WORKS</Text>
+              <Text style={styles.section}>{t("xpHow.title")}</Text>
               <PixelBox style={styles.cardGap} inner={styles.cardPad}>
                 {(Object.keys(XP) as (keyof typeof XP)[]).map((k) => (
                   <View key={k} style={[styles.rowBetween, { paddingVertical: 5 }]}>
-                    <Text style={[styles.body, { flex: 1 }]}>{ACTION_LABEL[k]}</Text>
+                    <Text style={[styles.body, { flex: 1 }]}>{actionLabel(k)}</Text>
                     <Text style={[styles.chipText, { color: C.green, fontSize: 10 }]}>+{XP[k]}</Text>
                   </View>
                 ))}
                 <Text style={[styles.dim, { marginTop: 8 }]}>
-                  Each market counts once for verify and add. Levels: {LEVELS.map((l) => `${l.name} ${l.min}`).join(", ")}. XP is a personal log, not money.
+                  {t("xpHow.note", { levels: LEVELS.map((l, i) => `${levelName(i)} ${l.min}`).join(t("list.sep")) })}
                 </Text>
               </PixelBox>
             </ScrollView>
@@ -1293,9 +1327,9 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: "row", marginTop: 14, marginHorizontal: -20, marginBottom: -18 },
   stepBit: { flex: 1, height: 4 },
   brand: { color: C.greenBright, fontFamily: PX, fontSize: 10 },
-  display: { color: C.text, fontFamily: PX, fontSize: 22, marginTop: 18 },
+  display: { color: C.text, fontFamily: PX, fontSize: 22, lineHeight: 30, marginTop: 18 },
   subtitle: { color: C.dim, fontSize: T.small, lineHeight: 19 },
-  heroKicker: { color: C.ink, fontFamily: PX, fontSize: 16 },
+  heroKicker: { color: C.ink, fontFamily: PX, fontSize: 16, lineHeight: 22 },
   heroDim: { color: C.inkSoft, fontSize: T.small, lineHeight: 18 },
   heroBody: { color: C.ink, fontSize: T.body, lineHeight: 22, marginTop: 8 },
   heroRowTitle: { color: C.ink, fontSize: T.body, fontWeight: "700" },
@@ -1308,15 +1342,15 @@ const styles = StyleSheet.create({
   weekDot: { width: 34, height: 34, borderWidth: 3, borderColor: alpha(C.ink, 0.3), alignItems: "center", justifyContent: "center" },
   weekLabel: { color: C.inkSoft, fontFamily: PX, fontSize: 8 },
   clockRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
-  clockBtnText: { color: C.greenBright, fontFamily: PX, fontSize: 11 },
+  clockBtnText: { color: C.greenBright, fontFamily: PX, fontSize: 11, lineHeight: 16, textAlign: "center", paddingHorizontal: 6 },
   cardGap: { marginTop: 14 },
   cardPad: { padding: 14 },
   statusHead: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
-  statusWord: { fontFamily: PX, fontSize: 13 },
+  statusWord: { fontFamily: PX, fontSize: 13, lineHeight: 18, flexShrink: 1 },
   recapText: { color: C.text, fontSize: T.heading, fontWeight: "700", lineHeight: 25, marginVertical: 6 },
   cardTitle: { color: C.text, fontFamily: PX, fontSize: 11, lineHeight: 18, marginBottom: 8 },
   cardLabel: { color: C.dim, fontSize: 8, marginBottom: 4, textTransform: "uppercase", fontFamily: PX },
-  section: { color: C.greenBright, fontSize: 12, marginTop: 26, fontFamily: PX },
+  section: { color: C.greenBright, fontSize: 12, lineHeight: 18, marginTop: 26, fontFamily: PX },
   question: { color: C.text, fontSize: T.body + 1, fontWeight: "700", marginVertical: 6, lineHeight: 22 },
   statusBig: { fontSize: T.heading, fontWeight: "700", marginBottom: 6 },
   body: { color: C.text, fontSize: T.body, lineHeight: 21, marginVertical: 2 },
@@ -1332,11 +1366,12 @@ const styles = StyleSheet.create({
   glanceNum: { fontSize: 18, fontFamily: PX },
   glanceLabel: { fontSize: 7, textTransform: "uppercase", fontFamily: PX },
   chipText: { fontSize: 8, fontFamily: PX },
+  langText: { fontSize: T.small, fontWeight: "700" },
   verifyHead: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
   bigCount: { color: C.text, fontFamily: PX, fontSize: 28 },
   bigCountOf: { color: C.dim, fontSize: 14 },
   stamp: { ...StyleSheet.absoluteFillObject, backgroundColor: "#0a0f0bd9", alignItems: "center", justifyContent: "center", zIndex: 40 },
-  stampText: { color: C.greenBright, fontFamily: PX, marginTop: 22, fontSize: 12 },
+  stampText: { color: C.greenBright, fontFamily: PX, marginTop: 22, fontSize: 12, lineHeight: 18, textAlign: "center", paddingHorizontal: 24 },
   badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
   badgeCell: { padding: 14, alignItems: "center", gap: 8 },
   badgeName: { color: C.text, fontFamily: PX, fontSize: 9, lineHeight: 14, textAlign: "center" },

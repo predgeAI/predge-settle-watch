@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { ALERT_CHANNEL } from "./watcher";
+import { t } from "./i18n";
 
 const ID = "settle-watch-clock-in";
 
@@ -14,8 +15,8 @@ export async function scheduleClockInNudge(hour: number, enabled: boolean): Prom
     await Notifications.scheduleNotificationAsync({
       identifier: ID,
       content: {
-        title: "Clock in",
-        body: "See what changed on your watchlist today and keep your streak going.",
+        title: t("nudge.title"),
+        body: t("nudge.body"),
         data: { clockIn: true },
       },
       trigger: {

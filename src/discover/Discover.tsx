@@ -1,21 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Modal, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../Text";
+import { fmtDec, fmtNum, t, type Key } from "../i18n";
 import { alpha, C, PX, T } from "../theme";
 import { Button, Chip, LiveMascot, PixelBox, Press, Scanlines } from "../ui";
 import { PixelIcon } from "../sprites";
-import { fetchPopular, fetchSegment, fmtInt, fmtVolume, tierOf, type DiscoverMarket, type Segment, type Tier } from "./api";
+import { fetchPopular, fetchSegment, fmtVolume, tierOf, type DiscoverMarket, type Segment, type Tier } from "./api";
 
 const TIER_COLOR: Record<Tier, string> = { low: C.green, mid: C.purpleSoft, high: C.orange };
-const TIER_LABEL: Record<Tier, string> = { low: "LOW", mid: "MEDIUM", high: "HIGH" };
+const tierLabel = (tier: Tier) => t(`dc.tier.${tier}` as Key);
 
 export function DiscoverCard({ onOpen }: { onOpen: () => void }) {
   return (
-    <Press onPress={onOpen} label="Open Discover">
+    <Press onPress={onOpen} label={t("dc.open")}>
       <PixelBox border={C.green} style={{ marginTop: 14 }} inner={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 14 }}>
         <PixelIcon name="bell" px={5} color={C.green} />
         <View style={{ flex: 1 }}>
-          <Text style={st.kicker}>DISCOVER</Text>
-          <Text style={st.cardText}>Popular open markets, each with a plain dispute statistic. Tap WATCH to follow one.</Text>
+          <Text style={st.kicker}>{t("dc.kicker")}</Text>
+          <Text style={st.cardText}>{t("dc.card")}</Text>
         </View>
       </PixelBox>
     </Press>
@@ -34,7 +36,7 @@ function Row({ m, watching, onWatch }: { m: DiscoverMarket; watching: boolean; o
         setErr(null);
         setSeg(await fetchSegment(m.id));
       } catch (e) {
-        setErr((e as Error).message || "Could not load the statistic.");
+        setErr((e as Error).message || t("dc.statFail"));
       }
     }
   };
@@ -44,29 +46,28 @@ function Row({ m, watching, onWatch }: { m: DiscoverMarket; watching: boolean; o
       <Press onPress={toggle} label={m.question}>
         <Text style={st.q}>{m.question}</Text>
         <Text style={st.dim}>
-          {m.endDate ? `Ends ${m.endDate} . ` : ""}24 h volume {fmtVolume(m.volume24hr)}
+          {m.endDate ? t("dc.ends", { date: m.endDate }) : ""}
+          {t("dc.volume", { v: fmtDec(fmtVolume(m.volume24hr)) })}
         </Text>
       </Press>
       {open ? (
         <View style={{ marginTop: 12 }}>
           {seg === undefined && !err ? <ActivityIndicator color={C.green} /> : null}
           {err ? <Text style={[st.dim, { color: C.orange }]}>{err}</Text> : null}
-          {seg === null ? <Text style={st.dim}>No category statistic for this market yet.</Text> : null}
+          {seg === null ? <Text style={st.dim}>{t("dc.noStat")}</Text> : null}
           {seg && tier ? (
             <>
               <View style={st.rowWrap}>
-                <Chip text={`DISPUTE RATE ${TIER_LABEL[tier]}`} color={TIER_COLOR[tier]} />
+                <Chip text={t("dc.rate", { tier: tierLabel(tier) })} color={TIER_COLOR[tier]} />
                 <Chip text={seg.segment.toUpperCase()} color={C.dim} />
               </View>
-              <Text style={[st.stat, { color: TIER_COLOR[tier] }]}>{(seg.rate * 100).toFixed(1)}%</Text>
-              <Text style={st.body}>
-                of {seg.segment} markets like this were disputed in 2026 ({fmtInt(seg.disputed)} of {fmtInt(seg.markets)}).
-              </Text>
-              <Text style={[st.dim, { marginTop: 6 }]}>A category statistic from Predge. It is not a prediction about this market.</Text>
+              <Text style={[st.stat, { color: TIER_COLOR[tier] }]}>{fmtDec((seg.rate * 100).toFixed(1))}%</Text>
+              <Text style={st.body}>{t("dc.of", { segment: seg.segment, disputed: fmtNum(Math.round(seg.disputed)), markets: fmtNum(Math.round(seg.markets)) })}</Text>
+              <Text style={[st.dim, { marginTop: 6 }]}>{t("dc.note")}</Text>
             </>
           ) : null}
           <View style={{ marginTop: 12 }}>
-            {watching ? <Chip text="WATCHING" color={C.green} /> : <Button small title="Watch" onPress={() => onWatch(m.id)} />}
+            {watching ? <Chip text={t("dc.watching")} color={C.green} /> : <Button small title={t("dc.watch")} onPress={() => onWatch(m.id)} />}
           </View>
         </View>
       ) : null}
@@ -83,7 +84,7 @@ export function DiscoverModal(props: { visible: boolean; onClose: () => void; wa
     try {
       setList(await fetchPopular());
     } catch {
-      setErr("Could not load markets. Check your connection and try again.");
+      setErr(t("dc.loadFail"));
     }
   }, []);
   useEffect(() => {
@@ -96,14 +97,14 @@ export function DiscoverModal(props: { visible: boolean; onClose: () => void; wa
         <ScrollView contentContainerStyle={st.scroll}>
           <View style={st.head}>
             <View style={st.rowBetween}>
-              <Button small kind="ghost" title="Back" onPress={props.onClose} />
-              <Button small kind="ghost" title="Refresh" onPress={load} />
+              <Button small kind="ghost" title={t("common.back")} onPress={props.onClose} />
+              <Button small kind="ghost" title={t("dc.refresh")} onPress={load} />
             </View>
             <View style={[st.rowBetween, { marginTop: 18 }]}>
-              <Text style={st.title}>DISCOVER</Text>
+              <Text style={st.title}>{t("dc.kicker")}</Text>
               <LiveMascot mood={err ? "sleep" : "idle"} px={5} />
             </View>
-            <Text style={[st.dim, { marginTop: 8 }]}>Popular open Polymarket markets. Tap one to see its category statistic.</Text>
+            <Text style={[st.dim, { marginTop: 8 }]}>{t("dc.sub")}</Text>
           </View>
           {list === null && !err ? (
             <View style={{ marginTop: 30 }}>
@@ -114,11 +115,11 @@ export function DiscoverModal(props: { visible: boolean; onClose: () => void; wa
             <PixelBox border={C.orange} style={{ marginTop: 16 }} inner={{ padding: 16 }}>
               <Text style={st.body}>{err}</Text>
               <View style={{ marginTop: 12 }}>
-                <Button title="Try again" onPress={load} />
+                <Button title={t("common.tryAgain")} onPress={load} />
               </View>
             </PixelBox>
           ) : null}
-          {list && list.length === 0 ? <Text style={[st.dim, { marginTop: 20 }]}>No markets to show right now.</Text> : null}
+          {list && list.length === 0 ? <Text style={[st.dim, { marginTop: 20 }]}>{t("dc.none")}</Text> : null}
           {list?.map((m) => (
             <Row key={m.id} m={m} watching={props.watchingIds.includes(m.id)} onWatch={props.onWatch} />
           ))}
@@ -137,7 +138,7 @@ const st = StyleSheet.create({
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   title: { color: C.greenBright, fontFamily: PX, fontSize: 18 },
-  kicker: { color: C.green, fontFamily: PX, fontSize: 9, marginBottom: 8 },
+  kicker: { color: C.green, fontFamily: PX, fontSize: 9, lineHeight: 14, marginBottom: 8 },
   cardText: { color: C.text, fontSize: T.body, lineHeight: 21 },
   q: { color: C.text, fontSize: T.body + 1, fontWeight: "700", lineHeight: 22 },
   dim: { color: C.dim, fontSize: T.small, lineHeight: 18, marginTop: 4 },

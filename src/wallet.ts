@@ -9,6 +9,7 @@ import {
 import { Buffer } from "buffer";
 import { APP_IDENTITY, CLUSTERS, MEMO_PROGRAM_ID, PINNED_KID, TX_SIGNATURE_RE, type Cluster } from "./config";
 import type { StoredWallet } from "./store";
+import { t } from "./i18n";
 
 /** fetch with a hard timeout, so a stalled request fails fast and can be retried. */
 function timedFetch(ms: number) {
@@ -64,17 +65,17 @@ export async function freshBlockhash(cluster: Cluster): Promise<Fresh> {
 export function friendlyWalletError(e: unknown): string {
   const m = (e as Error)?.message ?? String(e);
   if (/network request failed|failed to fetch|timed out|aborted|timeout/i.test(m)) {
-    return "The phone could not reach the Solana network. Check the connection and try again.";
+    return t("wallet.errNetwork");
   }
-  if (/declined|rejected|cancel/i.test(m)) return "The wallet request was declined, so no receipt was made.";
+  if (/declined|rejected|cancel/i.test(m)) return t("wallet.errDeclined");
   if (/not landed|blockhash not found|block height exceeded|expired|simulation failed/i.test(m)) {
-    return "The network did not take the receipt in time, so it was dropped. Nothing was charged. Tap Anchor to try again.";
+    return t("wallet.errDropped");
   }
-  if (/not confirmed/i.test(m)) {
-    return "The receipt was sent but the network has not confirmed it yet. Nothing is shown until it is on chain. Check again in a minute.";
-  }
-  if (/in CLOSED|session.*clos|websocket/i.test(m)) return "The wallet closed the connection before it answered. Try again.";
-  if (/insufficient|0x1|debit an account/i.test(m)) return "The wallet needs a little SOL for the network fee.";
+  if (/not confirmed/i.test(m)) return t("wallet.errNotConfirmed");
+  if (/in CLOSED|session.*clos|websocket/i.test(m)) return t("wallet.errClosed");
+  if (/insufficient|0x1|debit an account/i.test(m)) return t("wallet.errFee");
+  if (/returned no valid signature/i.test(m)) return t("wallet.errNoSig");
+  if (/returned no account/i.test(m)) return t("wallet.errNoAccount");
   return m.slice(0, 200);
 }
 
