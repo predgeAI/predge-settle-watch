@@ -11,6 +11,7 @@ import { DailyDisputeCard } from "../dailyDispute/DailyDispute";
 import { Text } from "../Text";
 import { t, tn } from "../i18n";
 import { EmptyWatchlist, HeaderHelp, StatusHelp } from "../learn";
+import { ExampleLink, ExampleModal } from "../learn/Example";
 import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, styles, TabScroll, type AddMarketProps } from "./shared";
 
 export interface TodayTabProps {
@@ -42,6 +43,8 @@ export interface TodayTabProps {
   /** True while no Polymarket wallet is saved: shows a one-line hint that opens ME. */
   positionsHint: boolean;
   onOpenMe: () => void;
+  /** Adds the walkthrough's example market (quietly). */
+  onWatchExample: () => void;
 }
 
 export function TodayTab(p: TodayTabProps) {
@@ -64,6 +67,7 @@ export function TodayTab(p: TodayTabProps) {
         </Text>
         <Text style={[styles.subtitle, { marginTop: 8 }]}>{t("home.subtitle")}</Text>
         <HeaderHelp />
+        <ExampleLink />
         <View style={styles.stepRow}>
           {Array.from({ length: 24 }).map((_, i) => (
             <View key={i} style={[styles.stepBit, { backgroundColor: i % 3 === 0 ? alpha(C.purple, 0.55) : alpha(C.green, 0.35) }]} />
@@ -200,6 +204,7 @@ export function TodayTab(p: TodayTabProps) {
 
       {/* Add a market */}
       <AddMarketCard {...p.add} />
+      <ExampleModal onWatch={p.onWatchExample} />
     </TabScroll>
   );
 }

@@ -65,6 +65,7 @@ import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, LevelBadge, LiveMascot, PixelBar, PixelBox, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
 import type { Mood } from "./src/sprites";
 import Onboarding from "./src/Onboarding";
+import { EXAMPLE_MARKET } from "./src/learn/Example";
 import { setFeedPrefs, setFeedPrefsSaver, type FeedPrefs } from "./src/discover/interests";
 import { FLAGS } from "./src/features";
 import { RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
@@ -818,6 +819,7 @@ export default function App() {
     <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={C.green} progressBackgroundColor={C.surfaceHi} />
   );
   const add = { input, setInput, busy, addMarket };
+  const watchExample = () => void addMarket(EXAMPLE_MARKET.key, { quiet: true });
 
   let content: React.ReactNode;
   if (!settings) {
@@ -827,7 +829,7 @@ export default function App() {
       </SafeAreaView>
     );
   } else if (!settings.onboarded) {
-    content = <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onDone={finishOnboarding} />;
+    content = <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onWatchExample={watchExample} onDone={finishOnboarding} />;
   } else {
     content = (
       <SafeAreaView style={styles.root}>
@@ -859,6 +861,7 @@ export default function App() {
           add={add}
           positionsHint={!positions.address}
           onOpenMe={() => setTab("me")}
+          onWatchExample={watchExample}
         />
         <PlayTab
           active={tab === "play"}

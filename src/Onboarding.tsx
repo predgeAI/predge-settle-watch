@@ -9,6 +9,7 @@ import { XP } from "./game";
 import type { Mood } from "./sprites";
 import { openTour } from "./learn/tour";
 import { FeedPicker } from "./discover/FeedPicker";
+import { ExampleWalkthrough } from "./learn/Example";
 import type { FeedPrefs } from "./discover/interests";
 
 // One idea per screen. The longer explanation lives in Settings > How it works.
@@ -24,7 +25,13 @@ const LAST = 6;
 const W = Dimensions.get("window").width - 48;
 const DOT_AT = [0.3, 0.55, 0.8];
 
-export default function Onboarding(props: { initialFeed: FeedPrefs; onDone: (addExamples: boolean, clockedIn: boolean, feed?: FeedPrefs) => void }) {
+export default function Onboarding(props: {
+  initialFeed: FeedPrefs;
+  onWatchExample: () => void;
+  onDone: (addExamples: boolean, clockedIn: boolean, feed?: FeedPrefs) => void;
+}) {
+  // Before the game-style steps: one plain sentence, then an optional walkthrough on a real market.
+  const [pre, setPre] = useState<"plain" | "example" | null>("plain");
   const [step, setStep] = useState(0);
   const [feed, setFeed] = useState<FeedPrefs>(props.initialFeed);
   const [feedSet, setFeedSet] = useState(false); // only save what the user actually chose
@@ -83,6 +90,40 @@ export default function Onboarding(props: { initialFeed: FeedPrefs; onDone: (add
   const mood: Mood = step === 1 ? "alarm" : step === 2 || step === LAST || clocked ? "cheer" : "idle";
   const STEPS = steps();
   const info = step === 1 ? STEPS[0] : step === 2 ? STEPS[1] : step === 3 ? STEPS[2] : null;
+
+  if (pre) {
+    return (
+      <View style={st.root}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={st.wrap}>
+            {pre === "plain" ? (
+              <>
+                <View style={{ flex: 1, justifyContent: "center" }}>
+                  <Reveal key="plain" style={{ alignItems: "center" }}>
+                    <LiveMascot mood="idle" px={10} />
+                    <Text style={[st.body, st.plain]}>{t("onb.plain.body")}</Text>
+                  </Reveal>
+                </View>
+                <Button title={t("onb.plain.example")} onPress={() => setPre("example")} />
+                <Press onPress={() => setPre(null)} label={t("onb.plain.skip")} haptics={false}>
+                  <Text style={st.link}>{t("onb.plain.skip")}</Text>
+                </Press>
+              </>
+            ) : (
+              <ExampleWalkthrough
+                onWatch={() => {
+                  props.onWatchExample();
+                  setPre(null);
+                }}
+                onClose={() => setPre(null)}
+              />
+            )}
+          </View>
+        </SafeAreaView>
+        <Scanlines />
+      </View>
+    );
+  }
 
   return (
     <View style={st.root}>
@@ -251,6 +292,7 @@ const st = StyleSheet.create({
   kicker: { color: C.green, fontFamily: PX, fontSize: 9, lineHeight: 14, marginBottom: 12 },
   title: { color: C.text, fontFamily: PX, fontSize: 16, lineHeight: 26, marginBottom: 12 },
   body: { color: C.text, fontSize: 16, lineHeight: 24 },
+  plain: { fontSize: 19, lineHeight: 29, textAlign: "center", marginTop: 28 },
   dim: { color: C.dim, fontSize: T.small, lineHeight: 18, fontFamily: undefined },
   plus: { color: C.greenBright, fontFamily: PX, fontSize: 18 },
   dot: { position: "absolute", top: 33, width: 14, height: 14, backgroundColor: C.greenBright },
