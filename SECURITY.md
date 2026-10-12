@@ -33,3 +33,21 @@ The Clock In security module flagged known advisories in `tar`, `@xmldom/xmldom`
 - Updated through `overrides` in `package.json`: `@xmldom/xmldom` 0.8.15, `postcss` 8.5.29, `image-size` 2.0.4, `uuid` 11.1.1, `stream-json` 3.7.0. Type check, the 103 self-tests, `expo prebuild` and the release build pass.
 - `tar` stays on 6.2.1: the fixed 7.x line breaks `expo prebuild` (the Expo CLI uses the 6.x API to unpack the native template). It only runs on the developer machine when generating `android/`, on Expo's own template archive.
 - None of these packages ship in the app. The release APK built with and without the overrides is byte-identical (sha256 `b826dff4…`, the same file as the v0.3.9 release asset), so they are build and tooling dependencies only.
+
+## Client-integration leads reviewed (12 Oct 2026)
+
+The security module listed three leads it could not confirm. Each was checked by hand:
+
+- **Deep links** (`src/league/LeagueEntry.tsx`): the only thing read from an incoming link is an
+  invite code, extracted by `inviteCodeFromUrl` in `src/league/logic.ts` with a strict pattern
+  (`settlewatch://invite/<8 alphanumerics>` or `/i/<8 alphanumerics>`). Anything else is ignored. The
+  code is stored as a pending invite and shown to the user; a link cannot trigger a transaction,
+  a signature or a network call to an arbitrary host.
+- **Non-local `http://`** (`src/share/card.ts`): the string is the SVG XML namespace
+  `http://www.w3.org/2000/svg`, not a network endpoint. The app makes no plain-HTTP requests.
+- **`skipPreflight`** (`src/wallet.ts`): used only when re-broadcasting a transaction the wallet has
+  already signed and the app has already decoded and checked (`src/txcheck.ts`: memo, fee payer, no
+  unexpected programs). Preflight is skipped because lagging public devnet nodes report a false
+  "Blockhash not found". The result is still checked: the loop reads `getSignatureStatuses`,
+  surfaces any on-chain error, and records a receipt only once it is confirmed.
+

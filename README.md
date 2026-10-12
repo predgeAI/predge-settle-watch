@@ -152,6 +152,25 @@ Release signing: set `SETTLEWATCH_UPLOAD_STORE_FILE`, `SETTLEWATCH_UPLOAD_STORE_
 
 `npx tsx scripts/verify-live.ts 5186278 4585694 601819` runs the app's own verifier against live signed records and confirms that the tamper test fails.
 
+## Feature status
+
+Every row below was run on a physical Android phone (Realme) with the 0.4.0 release APK.
+
+| Feature | Status |
+|---|---|
+| Watchlist, plain-word statuses, Today tab | Live |
+| On-device verification (8 checks, tamper test rejects) | Live |
+| Watch receipt: memo tx via Mobile Wallet Adapter (Solflare, Phantom) | Live on devnet; mainnet after the network switch |
+| Evidence pack unlock for 1 SKR | Live on mainnet ([tx](https://explorer.solana.com/tx/27drBVRJfdbsdKT9hd36hvntTf528MdJUkscNSzAXQ2199bfsWZkXGZNmjHiLnBuQVZcGFbNHdji3FDfoHvcTCvM)) |
+| SKR holder perks (tier, extra slots) | Live, read from the wallet's SKR balance |
+| Daily Dispute, streaks, XP, Hall of Disputes | Live |
+| Weekly league, friends, clans | Live; points are game points, capped by the server, not verified |
+| Watch my positions (paste a Polymarket wallet) | Live, read-only public data |
+| Alerts and daily digest | Live, on Android's background schedule (15 min minimum), no push server |
+| Home-screen widget, share card | Live |
+| Six languages | Live |
+| Solana dApp Store listing | Planned |
+
 ## Status
 
 - Built for Clock In, October 2026. First commit 5 Oct 2026.
