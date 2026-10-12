@@ -114,7 +114,7 @@ All native changes are made by plugins at `expo prebuild`, so `/android` is gene
 
 - Four tabs ([src/tabs/](../src/tabs)): Today, Play, Discover, Me. The tab bar hides while the keyboard is open.
 - [src/dialog.tsx](../src/dialog.tsx): an in-app pixel dialog with the same arguments as `Alert.alert`, queued, with success, error and neutral variants. Falls back to `Alert.alert` if no host is mounted.
-- [src/i18n.ts](../src/i18n.ts): English is the source; Spanish, Portuguese (Brazil), Simplified Chinese and Korean must have exactly the same keys. Plurals through `tn`. The pixel font is used only where it has the glyphs (`pixelFontOk`).
+- [src/i18n.ts](../src/i18n.ts): English is the source; Spanish, Portuguese (Brazil), Simplified Chinese, Korean and Russian must have exactly the same keys. Plurals through `tn` and `pluralForm`: `.one`/`.other` everywhere, plus `.few`/`.many` in Russian (missing forms fall back to `.other`). The pixel font is used only where it has the glyphs (`pixelFontOk`).
 - Feature modules behind flags in [src/features.ts](../src/features.ts): `dailyDispute`, `glossary`, `ruleDetective`, `discover`. Puzzle and rule data are built offline by `scripts/build-daily-dispute.py` and `scripts/build-rule-cases.py`.
 
 ## Tests
