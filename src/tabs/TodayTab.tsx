@@ -10,6 +10,7 @@ import { FLAGS } from "../features";
 import { DailyDisputeCard } from "../dailyDispute/DailyDispute";
 import { Text } from "../Text";
 import { t, tn } from "../i18n";
+import { EmptyWatchlist, HeaderHelp, StatusHelp } from "../learn";
 import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, styles, TabScroll, type AddMarketProps } from "./shared";
 
 export interface TodayTabProps {
@@ -59,6 +60,7 @@ export function TodayTab(p: TodayTabProps) {
           {level.next ? t("home.xpNext", { xp: game.xp, toNext: level.toNext, next: levelName(level.index + 1) }) : t("home.xpTop", { xp: game.xp })}
         </Text>
         <Text style={[styles.subtitle, { marginTop: 8 }]}>{t("home.subtitle")}</Text>
+        <HeaderHelp />
         <View style={styles.stepRow}>
           {Array.from({ length: 24 }).map((_, i) => (
             <View key={i} style={[styles.stepBit, { backgroundColor: i % 3 === 0 ? alpha(C.purple, 0.55) : alpha(C.green, 0.35) }]} />
@@ -180,10 +182,13 @@ export function TodayTab(p: TodayTabProps) {
           ))}
         </View>
       ) : null}
+      {items.length ? <StatusHelp /> : null}
       {filter ? <Text style={[styles.dim, { marginTop: 6 }]}>{t("list.filtered", { label: statusLabel(filter) })}</Text> : null}
       {p.shown.map((it, i) => (
         <MarketCard key={it.key} item={it} index={i} onOpen={() => p.onOpenDetail(it.key)} />
       ))}
+
+      {items.length === 0 ? <EmptyWatchlist /> : null}
 
       {/* Add a market */}
       <AddMarketCard {...p.add} />

@@ -76,6 +76,7 @@ import Intro from "./src/Intro";
 import { EvidencePackCard } from "./src/skr";
 import { Text } from "./src/Text";
 import { DialogHost, showDialog } from "./src/dialog";
+import { LearnHost, Term, TOUR_REF } from "./src/learn";
 import { detectLanguage, en, setLanguage, t, useLang, type Key } from "./src/i18n";
 import { ago, EXAMPLES, short, statusColor, statusLabel, statusWord, styles } from "./src/tabs/shared";
 import { TodayTab } from "./src/tabs/TodayTab";
@@ -788,6 +789,7 @@ export default function App() {
                       <View style={styles.statusHead}>
                         <StatusIcon level={detail.last?.risk_level} color={statusColor(detail.last?.risk_level)} px={4} />
                         <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20, lineHeight: 28, flexShrink: 1 }]}>{statusWord(detail.last?.risk_level)}</Text>
+                        <Term id="status" />
                       </View>
                     </View>
                     <LiveMascot mood={detailMood} px={4} />
@@ -814,6 +816,7 @@ export default function App() {
                           <Text style={styles.bigCountOf}>/{detail.verification?.checks.length ?? 0}</Text>
                         </Text>
                       </View>
+                      <Term id="verified" />
                     </View>
                     <Text style={styles.dim}>
                       {t("detail.checksPassed", {
@@ -854,7 +857,10 @@ export default function App() {
                 </Animated.View>
 
                 <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-                  <Text style={styles.cardTitle}>{t("detail.receiptTitle", { net: net.toUpperCase() })}</Text>
+                  <View style={styles.rowBetween}>
+                    <Text style={[styles.cardTitle, { flexShrink: 1 }]}>{t("detail.receiptTitle", { net: net.toUpperCase() })}</Text>
+                    <Term id="receipt" />
+                  </View>
                   <Text style={styles.dim}>{t("detail.receiptBody")}</Text>
                   {detail.verification?.packHash && detail.last ? (
                     <Text style={[styles.mono, { fontSize: 11, marginVertical: 8, color: C.greenDeep }]}>
@@ -1018,6 +1024,7 @@ export default function App() {
       <StatusBar style="light" />
       {content}
       {!introDone ? <Intro onDone={() => setIntroDone(true)} /> : null}
+      <LearnHost onDone={() => award("learn", { ref: TOUR_REF })} onDiscover={() => setTab("discover")} />
       <DialogHost />
     </View>
   );

@@ -589,4 +589,30 @@ t("verify ticks rise from 0.35 to 0.6, then a firm click", () => {
   assert.ok(v.slice(1).every((st) => st.delay === 60));
   assert.equal(LAUNCH_LEAD_MS, PRIMITIVE_MS.QUICK_RISE + PATTERNS.launch[1].delay);
 });
+// ---- 60-second tour and term explanations ----
+import { TOUR_REF, tourDone } from "../src/learn/tour";
+t("tour: the numbers are exactly 853 / 2,543 / 33.5% in English", () => {
+  setLang("en");
+  assert.equal(enDict["learn.s4.stat"], "853 of 2,543");
+  assert.equal(enDict["learn.s4.pct"], "33.5%");
+  assert.equal(
+    enDict["learn.s4.body"],
+    "This year 853 of 2,543 disputed markets that settled ended up different from the disputed proposal. That is 33.5%, from 1 Jan to 2 Oct 2026."
+  );
+  assert.equal((853 / 2543 * 100).toFixed(1), "33.5");
+});
+t("tour and term strings stay plain: no em dashes, no payout or flipped wording", () => {
+  const keys = Object.keys(enDict).filter((k) => k.startsWith("learn.") || k.startsWith("term."));
+  assert.ok(keys.length > 40);
+  for (const k of keys) assert.ok(!/(\u2014|payout|flipped|settle[sd]? wrong|\bbet\b|wager)/i.test(enDict[k as keyof typeof enDict]), k);
+  for (const n of [1, 2, 3, 4, 5]) assert.ok(`learn.s${n}.title` in enDict && `learn.s${n}.body` in enDict, `slide ${n}`);
+});
+t("tour XP: +10 once via the game award system", () => {
+  const a = applyAction(NEW_GAME, "learn", { ref: TOUR_REF }, at("2026-10-12"));
+  assert.equal(a.gained, 10);
+  assert.equal(XP.learn, 10);
+  assert.ok(tourDone(a.state));
+  assert.ok(!tourDone(NEW_GAME));
+  assert.equal(applyAction(a.state, "learn", { ref: TOUR_REF }, at("2026-10-13")).gained, 0);
+});
 console.log(`${n} checks passed`);
