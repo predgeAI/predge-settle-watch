@@ -4,6 +4,7 @@ import { Buffer } from "buffer";
 import { APP_IDENTITY, CLUSTERS, DEFAULT_CLUSTER } from "../config";
 import { loadWallet } from "../store";
 import { api, LeagueError, saveSession, type Session } from "./api";
+import { t } from "../i18n";
 
 /**
  * Sign in to the League with the Solana wallet: Mobile Wallet Adapter signMessages over a SIWS-style
@@ -41,7 +42,7 @@ export async function signInWithWallet(): Promise<Session> {
       const first = await transact(async (wallet) => {
         const auth = await authorizeFor(wallet, undefined, chain);
         const acct = auth.accounts[0];
-        if (!acct) throw new LeagueError("no_account", "The wallet returned no account.", 0);
+        if (!acct) throw new LeagueError("no_account", t("lg.err.noAccount"), 0);
         return { address: toBase58(acct.address), authToken: auth.auth_token };
       });
       address = first.address;
@@ -51,9 +52,9 @@ export async function signInWithWallet(): Promise<Session> {
     const signed = await transact(async (wallet) => {
       const auth = await authorizeFor(wallet, authToken, chain);
       const acct = auth.accounts[0];
-      if (!acct || toBase58(acct.address) !== address) throw new LeagueError("wrong_account", "Use the same wallet account you connected.", 0);
+      if (!acct || toBase58(acct.address) !== address) throw new LeagueError("wrong_account", t("lg.err.wrongAccount"), 0);
       const [out] = await wallet.signMessages({ addresses: [acct.address], payloads: [new TextEncoder().encode(message)] });
-      if (!out) throw new LeagueError("no_signature", "The wallet did not sign.", 0);
+      if (!out) throw new LeagueError("no_signature", t("lg.err.noSignature"), 0);
       return out;
     });
     // The wallet returns either the 64 byte signature or the message followed by it. The server accepts both.
@@ -62,7 +63,7 @@ export async function signInWithWallet(): Promise<Session> {
     return session;
   } catch (e) {
     if (e instanceof LeagueError) throw e;
-    throw new LeagueError("wallet", "Sign-in was cancelled or the wallet is unavailable.", 0);
+    throw new LeagueError("wallet", t("lg.err.wallet"), 0);
   }
 }
 

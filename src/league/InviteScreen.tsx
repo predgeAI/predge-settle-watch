@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Share, Text, View } from "react-native";
+import { Share, View } from "react-native";
+import { Text } from "../Text";
+import { t } from "../i18n";
 import * as Clipboard from "expo-clipboard";
 import { C } from "../theme";
 import { Button, PixelBox } from "../ui";
@@ -32,34 +34,34 @@ export function InviteScreen({ me, onChanged }: { me: Me; onChanged: () => void 
     setMsg(null);
     try {
       const r = await api.acceptInvite(code.trim());
-      setMsg(r.already ? `You are already friends with ${r.friend.nickname}.` : `You and ${r.friend.nickname} are friends now.`);
+      setMsg(r.already ? t("lg.alreadyFriends", { name: r.friend.nickname }) : t("lg.friendsNow", { name: r.friend.nickname }));
       setCode("");
       onChanged();
       friends.reload();
     } catch (e) {
-      setErr(e instanceof LeagueError ? e.message : "Something went wrong.");
+      setErr(e instanceof LeagueError ? e.message : t("common.wrong"));
     }
   };
 
   return (
     <View>
       <PixelBox border={C.green} bg={C.surface} style={{ marginTop: 14 }} inner={{ padding: 14 }}>
-        <Text style={st.label}>YOUR INVITE CODE</Text>
+        <Text style={st.label}>{t("lg.yourCode")}</Text>
         <Text style={st.h}>{me.inviteCode}</Text>
-        <Text style={[st.dim, { marginTop: 8 }]}>Friends who join with your code become your friends. You earn 25 XP when a friend finishes onboarding (up to 5 friends).</Text>
+        <Text style={[st.dim, { marginTop: 8 }]}>{t("lg.codeNote")}</Text>
         <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-          <View style={{ flex: 1 }}><Button title="Share" onPress={share} /></View>
-          <View style={{ flex: 1 }}><Button kind="ghost" title={copied ? "Copied" : "Copy link"} onPress={copy} /></View>
+          <View style={{ flex: 1 }}><Button title={t("common.share")} onPress={share} /></View>
+          <View style={{ flex: 1 }}><Button kind="ghost" title={copied ? t("common.copied") : t("lg.copyLink")} onPress={copy} /></View>
         </View>
       </PixelBox>
 
-      <SectionTitle>HAVE A CODE?</SectionTitle>
-      <Field label="FRIEND CODE" value={code} onChange={setCode} placeholder="8 characters" max={8} caps />
-      <Button title="Add friend" onPress={accept} disabled={code.trim().length !== 8} style={{ marginTop: 12 }} />
+      <SectionTitle>{t("lg.haveCode")}</SectionTitle>
+      <Field label={t("lg.friendCode")} value={code} onChange={setCode} placeholder={t("lg.ph8")} max={8} caps />
+      <Button title={t("lg.addFriend")} onPress={accept} disabled={code.trim().length !== 8} style={{ marginTop: 12 }} />
       {msg ? <Text style={st.notice}>{msg}</Text> : null}
       {err ? <Text style={[st.err, { marginTop: 8 }]}>{err}</Text> : null}
 
-      <SectionTitle>YOUR FRIENDS</SectionTitle>
+      <SectionTitle>{t("lg.yourFriends")}</SectionTitle>
       {friends.data ? (
         friends.data.friends.length ? (
           friends.data.friends.map((f) => (
@@ -70,7 +72,7 @@ export function InviteScreen({ me, onChanged }: { me: Me; onChanged: () => void 
             </PixelBox>
           ))
         ) : (
-          <Text style={st.dim}>No friends yet. Share your code.</Text>
+          <Text style={st.dim}>{t("lg.noFriendsYet")}</Text>
         )
       ) : (
         <Loading error={friends.error} onRetry={friends.reload} />
