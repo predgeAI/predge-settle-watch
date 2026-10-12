@@ -14,7 +14,7 @@ Settle Watch is a native Android app built by Predge for Solana Mobile's **Clock
 | License | MIT |
 
 <!-- Change the demo video link here only. Every demo video link in this README uses this one reference. -->
-[demo-video]: https://youtu.be/CFtoGIHPZKk
+[demo-video]: https://youtu.be/9eHI8X_-jX4
 [deck]: https://github.com/predgeAI/predge-settle-watch/releases/latest/download/settle-watch-pitch-deck.pdf
 
 ## The problem
