@@ -67,7 +67,7 @@ export function friendlyWalletError(e: unknown): string {
   if (/network request failed|failed to fetch|timed out|aborted|timeout/i.test(m)) {
     return t("wallet.errNetwork");
   }
-  if (/declined|rejected|cancel/i.test(m)) return t("wallet.errDeclined");
+  if (/declined|rejected|cancel|authorization request failed/i.test(m)) return t("wallet.errDeclined");
   if (/not landed|blockhash not found|block height exceeded|expired|simulation failed/i.test(m)) {
     return t("wallet.errDropped");
   }
