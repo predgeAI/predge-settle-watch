@@ -114,3 +114,23 @@ const FRIENDLY = new Set(["rate_limited", "unauthorized", "nickname_taken", "nic
 export function friendlyError(code: string | undefined, message: string | undefined): string {
   return (code && FRIENDLY.has(code) ? t(`lg.err.${code}` as Key) : "") || message || t("common.wrongRetry");
 }
+
+/**
+ * Ranks leaderboard rows by weekly XP, highest first. Equal XP shares a rank (1, 1, 3).
+ * The board list and the "This week" line both use this, so they always show the same rank.
+ */
+export function rankRows<R extends { weeklyXp: number; rank: number }>(rows: R[]): R[] {
+  const sorted = [...rows].sort((a, b) => b.weeklyXp - a.weeklyXp);
+  const out: R[] = [];
+  sorted.forEach((r, i) => {
+    const rank = i > 0 && sorted[i - 1].weeklyXp === r.weeklyXp ? out[i - 1].rank : i + 1;
+    out.push({ ...r, rank });
+  });
+  return out;
+}
+
+/** Your rank on a board: from your own row when the board lists you, else the rank the server sent. */
+export function boardRank(rows: { weeklyXp: number; rank: number; you: boolean }[], fallback: number | null | undefined): number | null {
+  const mine = rankRows(rows).find((r) => r.you);
+  return mine ? mine.rank : (fallback ?? null);
+}

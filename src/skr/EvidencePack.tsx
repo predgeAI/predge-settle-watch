@@ -1,7 +1,8 @@
 // Evidence pack for one market, unlocked with 1 SKR on Solana mainnet.
 // The pack is built only from what the phone already holds: the verified signed record and the local timeline.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { showDialog } from "../dialog";
 import { Text } from "../Text";
 import { PixelBox, Button } from "../ui";
 import { C, MONO, PX, T } from "../theme";
@@ -56,9 +57,9 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
         const u: PackUnlock = { key: p.key, marketId: p.marketId, packHash: p.packHash, signature: p.signature, at: new Date().toISOString() };
         await record(u);
         if (live && p.key === item.key) setUnlock(u);
-        Alert.alert(t("skr.okTitle"), t("skr.resumedOk"));
+        showDialog(t("skr.okTitle"), t("skr.resumedOk"));
       } else {
-        Alert.alert(t("skr.failedTitle"), t("skr.resumedDropped"));
+        showDialog(t("skr.failedTitle"), t("skr.resumedDropped"));
       }
     })();
     return () => {
@@ -86,14 +87,14 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
         await savePendingUnlock(null);
         setUnlock(u);
         haptic.success();
-        Alert.alert(t("skr.okTitle"), t("skr.okBody", { sig: short(signature) }), [
+        showDialog(t("skr.okTitle"), t("skr.okBody", { sig: short(signature) }), [
           { text: t("anchor.openExplorer"), onPress: () => openMainnetExplorer(signature) },
           { text: t("common.ok") },
         ]);
       } catch (e) {
         // Keep a signed payment that may still land, so it is checked again later. Drop one that cannot.
         if (!signed || /not landed|block height|rejected/i.test((e as Error)?.message ?? "")) await savePendingUnlock(null).catch(() => undefined);
-        Alert.alert(t("skr.failedTitle"), friendlyWalletError(e));
+        showDialog(t("skr.failedTitle"), friendlyWalletError(e));
       } finally {
         paying = false;
         setBusy(null);
@@ -104,20 +105,20 @@ export function EvidencePackCard(props: { item: WatchItem; wallet: StoredWallet 
 
   const onPress = useCallback(async () => {
     if (!treasury || paying) return;
-    if (!wallet) return Alert.alert(t("skr.packTitle"), t("skr.connectFirst"));
-    if (!item.verification?.verified || !item.verification.packHash || !item.last) return Alert.alert(t("skr.packTitle"), t("skr.verifyFirst"));
+    if (!wallet) return showDialog(t("skr.packTitle"), t("skr.connectFirst"));
+    if (!item.verification?.verified || !item.verification.packHash || !item.last) return showDialog(t("skr.packTitle"), t("skr.verifyFirst"));
     setBusy("check");
     let check: Awaited<ReturnType<typeof checkCanPay>>;
     try {
       check = await checkCanPay(wallet.address);
     } catch {
       setBusy(null);
-      return Alert.alert(t("skr.failedTitle"), t("skr.checkFail"));
+      return showDialog(t("skr.failedTitle"), t("skr.checkFail"));
     }
     setBusy(null);
-    if (check.reason === "no_skr") return Alert.alert(t("skr.noSkrTitle"), t("skr.noSkrBody", { n: formatSkr(check.skr.ata) }));
-    if (check.reason === "no_sol") return Alert.alert(t("skr.noSolTitle"), t("skr.noSolBody", { n: (check.needLamports / 1e9).toFixed(4) }));
-    Alert.alert(t("skr.confirmTitle"), t("skr.confirmBody"), [
+    if (check.reason === "no_skr") return showDialog(t("skr.noSkrTitle"), t("skr.noSkrBody", { n: formatSkr(check.skr.ata) }));
+    if (check.reason === "no_sol") return showDialog(t("skr.noSolTitle"), t("skr.noSolBody", { n: (check.needLamports / 1e9).toFixed(4) }));
+    showDialog(t("skr.confirmTitle"), t("skr.confirmBody"), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("skr.confirmBtn"), onPress: () => doPay(check.createTreasuryAta) },
     ]);

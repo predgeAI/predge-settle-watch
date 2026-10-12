@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   Animated,
   AppState,
   Linking,
@@ -11,15 +9,13 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Switch,
-  TextInput,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
-import { fetchSettlementRisk, MAX_INPUT_LENGTH, parseMarketInput, type SettlementRisk } from "./src/api";
+import { fetchSettlementRisk, parseMarketInput, type SettlementRisk } from "./src/api";
 import { verifyRecord, type Verification } from "./src/verify";
 import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, MAX_WATCHLIST, PINNED_KID, type Cluster } from "./src/config";
 import {
@@ -64,64 +60,41 @@ import {
 import { loadGame, saveGame } from "./src/gameStore";
 import { scheduleClockInNudge } from "./src/nudge";
 import { updateWidget } from "./src/widget";
-import { alpha, C, MONO, PX, STATUS, STATUS_ORDER, T } from "./src/theme";
+import { alpha, C, PX, STATUS_ORDER, T } from "./src/theme";
 import * as haptic from "./src/haptic";
-import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, Flame, LevelBadge, LiveMascot, PixelBar, PixelBox, Press, Reveal, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
-import { PixelIcon, type Mood } from "./src/sprites";
+import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, LevelBadge, LiveMascot, PixelBar, PixelBox, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
+import type { Mood } from "./src/sprites";
 import Onboarding from "./src/Onboarding";
 import { FLAGS } from "./src/features";
-import { DiscoverCard, DiscoverModal } from "./src/discover/Discover";
-import { RuleDetectiveCard, RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
-import { GlossaryEntry, GlossaryModal } from "./src/glossary/Glossary";
+import { RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
+import { GlossaryModal } from "./src/glossary/Glossary";
 import { shareReceipt, ShareCardHost } from "./src/share/ShareCard";
 import { LEAGUE_ENABLED } from "./src/league/config";
-import { LeagueCard, LeagueModal } from "./src/league/LeagueEntry";
-import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
+import { LeagueModal } from "./src/league/LeagueEntry";
+import { DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
-import { EvidencePackCard, SkrBalance } from "./src/skr";
+import { EvidencePackCard } from "./src/skr";
 import { Text } from "./src/Text";
-import { detectLanguage, en, fmtDec, fmtNum, LANGS, setLanguage, t, tn, useLang, type Key } from "./src/i18n";
+import { DialogHost, showDialog } from "./src/dialog";
+import { detectLanguage, en, setLanguage, t, useLang, type Key } from "./src/i18n";
+import { ago, EXAMPLES, short, statusColor, statusLabel, statusWord, styles } from "./src/tabs/shared";
+import { TodayTab } from "./src/tabs/TodayTab";
+import { PlayTab } from "./src/tabs/PlayTab";
+import { DiscoverTab } from "./src/tabs/DiscoverTab";
+import { MeTab } from "./src/tabs/MeTab";
+import { TabBar, type TabId } from "./src/tabs/TabBar";
 
 // Use the phone's language for the intro until the saved choice loads.
 setLanguage(detectLanguage());
-
-const EXAMPLES: { label: Key; key: string }[] = [
-  { label: "ex.disputed", key: "5186278" },
-  { label: "ex.twice", key: "4585694" },
-  { label: "ex.quiet", key: "601819" },
-];
-
-function short(s: string, n = 4) {
-  return s.length > n * 2 + 3 ? `${s.slice(0, n)}...${s.slice(-n)}` : s;
-}
-
-function ago(iso?: string) {
-  if (!iso) return t("time.never");
-  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
-  if (s < 60) return t("time.s", { n: s });
-  if (s < 3600) return t("time.m", { n: Math.round(s / 60) });
-  if (s < 86400) return t("time.h", { n: Math.round(s / 3600) });
-  return t("time.d", { n: Math.round(s / 86400) });
-}
-
-/** 3005 -> "3,005" (or "3.005") without relying on Intl support in the JS engine. */
-const num = fmtNum;
-
-function hh(h: number) {
-  return `${String(h).padStart(2, "0")}:00`;
-}
 
 function openExplorer(sig: string, cluster: Cluster) {
   try {
     Linking.openURL(EXPLORER_TX(sig, cluster));
   } catch {
-    Alert.alert(t("explorer.title"), t("explorer.noSig"));
+    showDialog(t("explorer.title"), t("explorer.noSig"));
   }
 }
 
-const statusColor = (level?: string) => STATUS[level ?? ""]?.color ?? C.dim;
-const statusLabel = (level?: string) => (level && STATUS[level] ? t(`status.${level}.label` as Key) : "...");
-const statusWord = (level?: string) => (level && STATUS[level] ? t(`status.${level}.word` as Key) : t("status.checking"));
 
 // Check labels and details come from src/verify.ts in English; only their display is translated.
 const CHECK_KEYS = new Map<string, Key>(
@@ -166,51 +139,6 @@ function friendlyAddError(e: unknown): string {
   return m.slice(0, 200) || t("common.wrongRetry");
 }
 
-/** Bold, color-coded market card with a pixel icon. Pulses when its status changes. */
-function MarketCard({ item, index, onOpen }: { item: WatchItem; index: number; onOpen: () => void }) {
-  const level = item.last?.risk_level ?? "";
-  const color = statusColor(level);
-  const prev = useRef(level);
-  const flash = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (prev.current !== level) {
-      prev.current = level;
-      flash.setValue(1);
-      haptic.thud();
-      Animated.timing(flash, { toValue: 0, duration: 1400, useNativeDriver: true }).start();
-    }
-  }, [level, flash]);
-  const changedToday = changesLast24h(item).length > 0;
-  return (
-    <Reveal delay={Math.min(index, 6) * 60} style={{ marginTop: 12 }}>
-      <Press onPress={onOpen} label={item.question ?? item.key}>
-        <PixelBox border={color} bg={alpha(color, 0.1)} lift={alpha(color, 0.55)} inner={{ padding: 14 }}>
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] }) }]} />
-          <View style={styles.rowBetween}>
-            <View style={styles.statusHead}>
-              <StatusIcon level={level} color={color} px={3} />
-              <Text style={[styles.statusWord, { color }]}>{statusWord(level)}</Text>
-            </View>
-            <Text style={[styles.dim, { flexShrink: 1, textAlign: "right" }]}>
-              {t("card.checked", { ago: ago(item.lastPolledAt) })}
-              {item.lastError ? t("card.error", { msg: item.lastError.slice(0, 80) }) : ""}
-            </Text>
-          </View>
-          <Text style={styles.question} numberOfLines={2}>
-            {item.question ?? item.key}
-          </Text>
-          <Text style={[styles.body, { color }]}>{statusLine(item.snapshot)}</Text>
-          <View style={styles.rowWrap}>
-            {item.verification ? <Chip text={item.verification.verified ? t("chip.verified") : t("chip.notVerified")} color={item.verification.verified ? C.green : C.red} /> : null}
-            {changedToday ? <Chip text={t("chip.changedToday")} color={C.orange} /> : null}
-            {item.anchors.length ? <Chip text={t("chip.receipts", { n: item.anchors.length })} color={C.purpleSoft} /> : null}
-          </View>
-        </PixelBox>
-      </Press>
-    </Reveal>
-  );
-}
-
 // ---------------------------------------------------------------------------
 
 export default function App() {
@@ -245,10 +173,11 @@ export default function App() {
   const [glossOpen, setGlossOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
   const [leagueOpen, setLeagueOpen] = useState(false);
-  const [discoverOpen, setDiscoverOpen] = useState(false);
   const [glossTick, setGlossTick] = useState(0);
   const [introDone, setIntroDone] = useState(false);
   const [clockPlay, setClockPlay] = useState(0);
+  // Bottom tabs. Always opens on TODAY; the choice is not saved.
+  const [tab, setTab] = useState<TabId>("today");
   const reduced = useReducedMotion();
   const shake = useShake();
   const lang = useLang();
@@ -325,7 +254,7 @@ export default function App() {
     commitGame(r.state, r);
     setClockPlay((n) => n + 1);
     haptic.success();
-    if (r.usedFreeMiss) Alert.alert(t("streak.savedTitle"), t("streak.savedBody"));
+    if (r.usedFreeMiss) showDialog(t("streak.savedTitle"), t("streak.savedBody"));
   }, [commitGame]);
 
   const openDetail = useCallback(
@@ -400,23 +329,23 @@ export default function App() {
     async (raw: string, opts: { quiet?: boolean } = {}): Promise<boolean> => {
       const key = parseMarketInput(raw);
       if (!key) {
-        if (!opts.quiet) Alert.alert(t("add.notMarketTitle"), t("add.notMarketBody"));
+        if (!opts.quiet) showDialog(t("add.notMarketTitle"), t("add.notMarketBody"));
         return false;
       }
       const current = await loadWatchlist();
       if (current.length >= MAX_WATCHLIST) {
-        Alert.alert(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
+        showDialog(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
         return false;
       }
       if (current.some((i) => i.key === key || i.marketId === key)) {
-        if (!opts.quiet) Alert.alert(t("add.already"), key);
+        if (!opts.quiet) showDialog(t("add.already"), key);
         return true;
       }
       setBusy("add");
       try {
         const r = await fetchSettlementRisk(key);
         if (current.some((i) => i.marketId === r.market.market_id)) {
-          if (!opts.quiet) Alert.alert(t("add.already"), r.market.question);
+          if (!opts.quiet) showDialog(t("add.already"), r.market.question);
           return true;
         }
         const v = await verifyRecord(r);
@@ -444,7 +373,7 @@ export default function App() {
         return true;
       } catch (e) {
         // Quiet adds (the example markets) retry on their own, so no alert for a network problem.
-        if (!opts.quiet) Alert.alert(t("add.failed"), friendlyAddError(e));
+        if (!opts.quiet) showDialog(t("add.failed"), friendlyAddError(e));
         return false;
       } finally {
         setBusy(null);
@@ -485,7 +414,7 @@ export default function App() {
       await saveWallet(w);
       refreshBalance(w, cluster);
     } catch (e) {
-      Alert.alert(t("wallet.title"), t("wallet.connectFail", { msg: (e as Error).message, net }));
+      showDialog(t("wallet.title"), t("wallet.connectFail", { msg: (e as Error).message, net }));
     } finally {
       setBusy(null);
     }
@@ -516,7 +445,7 @@ export default function App() {
       await refreshBalance(wallet, cluster);
     } catch (e) {
       await Clipboard.setStringAsync(wallet.address);
-      Alert.alert(t("faucet.title"), t("faucet.body"));
+      showDialog(t("faucet.title"), t("faucet.body"));
     } finally {
       setBusy(null);
     }
@@ -584,7 +513,7 @@ export default function App() {
         setStamp(true);
         await new Promise((res) => setTimeout(res, reduced ? 300 : 1300));
         setStamp(false);
-        Alert.alert(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
+        showDialog(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
           { text: t("anchor.openExplorer"), onPress: () => openExplorer(signature, cluster) },
           { text: t("share.card"), onPress: () => shareReceipt(item, { signature, packHash, riskLevel: last.risk_level, at: new Date().toISOString(), cluster }) },
           { text: t("common.ok") },
@@ -592,7 +521,7 @@ export default function App() {
       } catch (e) {
         // Keep a signed receipt that may still land, so it is checked again later. Drop one that cannot.
         if (!signed || /not landed|block height|rejected/i.test((e as Error)?.message ?? "")) await savePending(null);
-        Alert.alert(t("anchor.failed"), `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? t("anchor.feeDevnet") : t("anchor.feeMain")}`);
+        showDialog(t("anchor.failed"), `${friendlyWalletError(e)}\n\n${cluster === "devnet" ? t("anchor.feeDevnet") : t("anchor.feeMain")}`);
       } finally {
         anchoringRef.current = false;
         setBusy(null);
@@ -603,12 +532,12 @@ export default function App() {
 
   const onAnchor = useCallback(
     (item: WatchItem, action: "watch" | "acknowledge") => {
-      if (!wallet) return Alert.alert(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
+      if (!wallet) return showDialog(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
       if (!item.verification?.verified || !item.verification.packHash || !item.last) {
-        return Alert.alert(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
+        return showDialog(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
       }
       if (cluster === "mainnet-beta") {
-        return Alert.alert(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
+        return showDialog(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
           { text: t("common.cancel"), style: "cancel" },
           { text: t("anchor.anchor"), onPress: () => doAnchor(item, action) },
         ]);
@@ -630,13 +559,13 @@ export default function App() {
         await savePending(null);
         if (result === "confirmed") {
           await recordAnchor(p.key, p.signature, p.packHash, p.action, p.riskLevel, p.cluster);
-          Alert.alert(t("anchor.savedTitle"), t("anchor.savedConfirmed"));
+          showDialog(t("anchor.savedTitle"), t("anchor.savedConfirmed"));
         } else {
-          Alert.alert(t("anchor.notFinishedTitle"), t("anchor.droppedBody"));
+          showDialog(t("anchor.notFinishedTitle"), t("anchor.droppedBody"));
         }
       } else {
         await savePending(null);
-        Alert.alert(t("anchor.notFinishedTitle"), t("anchor.notFinishedBody"));
+        showDialog(t("anchor.notFinishedTitle"), t("anchor.notFinishedBody"));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -662,7 +591,7 @@ export default function App() {
   }, []);
 
   const onDigestNow = useCallback(async () => {
-    if (!items.length) return Alert.alert(t("digest.title"), t("digest.addFirst"));
+    if (!items.length) return showDialog(t("digest.title"), t("digest.addFirst"));
     const { title, body } = digestText(items);
     await notify(title, body, { digest: true });
   }, [items]);
@@ -720,6 +649,11 @@ export default function App() {
     return () => clearTimeout(id);
   }, [items, game, settings?.language]);
 
+  // Showing the intro again leaves the tabs, so coming back starts on TODAY.
+  useEffect(() => {
+    if (settings && !settings.onboarded) setTab("today");
+  }, [settings?.onboarded]);
+
   const lastCheck = items.map((i) => i.lastPolledAt ?? "").sort().pop();
 
 
@@ -729,7 +663,7 @@ export default function App() {
   const recap = weeklyRecap(game);
   const canIn = canClockIn(game);
   const unlocked = BADGES.filter((b) => game.badges[b.id]).length;
-  const top = leagueOpen ? "league" : discoverOpen ? "discover" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
+  const top = leagueOpen ? "league" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
   const overlays = (where: string) => (
     <>
       <XpToast text={toast.text} tick={toast.tick} />
@@ -739,6 +673,11 @@ export default function App() {
   // The Watcher mirrors the watchlist: asleep when quiet, alarmed on caution or watch, cheering once clocked in.
   const homeMood: Mood = !items.length ? "sleep" : counts.caution + counts.watch > 0 ? "alarm" : !canIn ? "cheer" : "sleep";
   const detailMood: Mood = !detail ? "idle" : detail.last?.risk_level === "caution" || detail.last?.risk_level === "watch" ? "alarm" : detail.last?.risk_level === "resolved" ? "cheer" : "sleep";
+
+  const refreshControl = () => (
+    <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={C.green} progressBackgroundColor={C.surfaceHi} />
+  );
+  const add = { input, setInput, busy, addMarket };
 
   let content: React.ReactNode;
   if (!settings) {
@@ -752,317 +691,76 @@ export default function App() {
   } else {
     content = (
       <SafeAreaView style={styles.root}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={C.green} progressBackgroundColor={C.surfaceHi} />}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.header}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.brand}>SETTLE WATCH</Text>
-              <Press onPress={() => setBadgesOpen(true)} label={t("home.levelLabel", { n: level.index + 1, name: levelName(level.index) })}>
-                <LevelBadge index={level.index} progress={level.progress} />
-              </Press>
-            </View>
-            <Text style={styles.display}>{levelName(level.index).toUpperCase()}</Text>
-            <View style={{ marginTop: 10 }}>
-              <PixelBar value={level.progress} />
-            </View>
-            <Text style={[styles.subtitle, { marginTop: 8 }]}>
-              {level.next ? t("home.xpNext", { xp: game.xp, toNext: level.toNext, next: levelName(level.index + 1) }) : t("home.xpTop", { xp: game.xp })}
-            </Text>
-            <Text style={[styles.subtitle, { marginTop: 8 }]}>{t("home.subtitle")}</Text>
-            <View style={styles.stepRow}>
-              {Array.from({ length: 24 }).map((_, i) => (
-                <View key={i} style={[styles.stepBit, { backgroundColor: i % 3 === 0 ? alpha(C.purple, 0.55) : alpha(C.green, 0.35) }]} />
-              ))}
-            </View>
-          </View>
-
-          {pendingExamples.length ? (
-            <PixelBox border={C.orange} bg={alpha(C.orange, 0.1)} style={{ marginTop: 14 }} inner={{ padding: 12 }}>
-              <Text style={styles.body}>{tn("home.stillLoading", pendingExamples.length)}</Text>
-            </PixelBox>
-          ) : null}
-
-          {/* Today: the hero, on paper */}
-          <PixelBox border={C.ink} bg={C.cream} lift="#8c7f66" style={{ marginTop: 14 }} inner={{ padding: 16 }}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.heroKicker}>{t("home.today")}</Text>
-              <View style={{ marginTop: -4 }}>
-                <LiveMascot mood={homeMood} px={4} />
-              </View>
-            </View>
-            <Text style={styles.heroDim}>{t("home.last24", { ago: ago(lastCheck) })}</Text>
-            {items.length === 0 ? (
-              <Text style={styles.heroBody}>{t("home.empty")}</Text>
-            ) : today.length === 0 ? (
-              <Text style={styles.heroBody}>
-                {tn("home.noChanges", items.length)}{" "}
-                {counts.caution + counts.watch ? tn("home.attention", counts.caution + counts.watch) : t("home.noAttention")}
-              </Text>
-            ) : (
-              today.map(({ item, changes }) => (
-                <Pressable
-                  key={item.key}
-                  onPress={() => {
-                    doClockIn();
-                    openDetail(item.key);
-                  }}
-                  style={styles.todayRow}
-                  accessibilityRole="button"
-                >
-                  <View style={[styles.dotBig, { backgroundColor: statusColor(item.last?.risk_level) }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.heroRowTitle} numberOfLines={1}>
-                      {item.question ?? item.key}
-                    </Text>
-                    <Text style={styles.heroDim}>
-                      {changes[0].text} . {ago(changes[0].at)}
-                      {changes.length > 1 ? t("home.more", { n: changes.length - 1 }) : ""}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))
-            )}
-
-            <View style={styles.heroRule} />
-            <View style={styles.streakRow}>
-              <Flame size={5} lit={streak > 0} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.streakNum}>
-                  {streak} <Text style={styles.streakUnit}>{t("home.dayStreak")}</Text>
-                </Text>
-                <Text style={styles.heroDim}>{t("home.freeMiss", { best: game.best })}</Text>
-              </View>
-            </View>
-            <View style={styles.weekRow}>
-              {week.map((d) => (
-                <View key={d.day} style={styles.weekCell} accessibilityLabel={t(d.done ? "home.dayDone" : d.saved ? "home.daySaved" : "home.dayMissed", { day: d.day })}>
-                  <View
-                    style={[
-                      styles.weekDot,
-                      d.done && { backgroundColor: C.ink, borderColor: C.ink },
-                      d.saved && !d.done && { borderColor: C.purple, backgroundColor: alpha(C.purple, 0.2) },
-                      d.today && !d.done && { borderColor: C.ink, borderStyle: "dashed" },
-                    ]}
-                  >
-                    {d.done ? <PixelIcon name="check" px={3} color={C.green} /> : null}
-                  </View>
-                  <Text style={styles.weekLabel}>{d.label}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.clockRow}>
-              {clockPlay > 0 && !canIn ? <Burst play={clockPlay} size={46} /> : null}
-              <View style={{ flex: 1 }}>
-                <Press onPress={doClockIn} disabled={!canIn} haptics={false} label={canIn ? t("home.clockInLabel") : t("home.clockedInLabel")}>
-                  <PixelBox border={canIn ? C.ink : alpha(C.ink, 0.25)} bg={canIn ? C.ink : alpha(C.ink, 0.1)} lift={canIn ? "#000000" : undefined} inner={{ paddingVertical: 15, alignItems: "center" }}>
-                    <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? t("home.clockIn", { xp: XP.clock_in + Math.min(streak + 1, 7) * 2 }) : t("home.clockedIn")}</Text>
-                  </PixelBox>
-                </Press>
-              </View>
-            </View>
-            <Text style={[styles.heroDim, { marginTop: 10 }]}>
-              {settings.digest ? t("home.digestAt", { time: hh(settings.digestHour) }) : t("home.digestOff")}{" "}
-              {bgOk === false ? t("home.bgOff") : t("home.bgOn")}
-            </Text>
-          </PixelBox>
-
-          {FLAGS.dailyDispute ? <DailyDisputeCard refreshKey={puzzleTick} onOpen={() => setPuzzleOpen(true)} /> : null}
-
-          {/* Wallet: one compact row */}
-          <PixelBox style={styles.cardGap} inner={[styles.cardPad, wallet ? { gap: 10 } : styles.rowBetween]}>
-            <View style={wallet ? undefined : { flex: 1 }}>
-              <Text style={styles.cardLabel}>{t("wallet.label", { net })}</Text>
-              {wallet ? (
-                <Pressable onPress={() => Clipboard.setStringAsync(wallet.address)} accessibilityLabel={t("wallet.copy")}>
-                  <Text style={styles.mono}>
-                    {short(wallet.address, 6)}
-                    <Text style={styles.dim}>  {balance === null ? "" : `${balance.toFixed(4)} SOL`}</Text>
-                    <SkrBalance address={wallet.address} style={styles.dim} />
-                  </Text>
-                </Pressable>
-              ) : (
-                <Text style={styles.dim}>{t("wallet.hint")}</Text>
-              )}
-            </View>
-            {busy === "wallet" || busy === "airdrop" ? (
-              <ActivityIndicator color={C.green} />
-            ) : wallet ? (
-              <View style={styles.row}>
-                {cluster === "devnet" ? <Button small kind="ghost" title={t("wallet.devnetSol")} onPress={onAirdrop} disabled={!!busy} /> : null}
-                <Button small kind="ghost" title={t("wallet.disconnect")} onPress={onDisconnect} />
-              </View>
-            ) : (
-              <View style={{ flexShrink: 1 }}>
-                <Button small title={t("wallet.connect")} onPress={onConnect} disabled={!!busy} />
-              </View>
-            )}
-          </PixelBox>
-
-          {/* Watchlist at a glance */}
-          <Text style={styles.section}>{t("list.title", { n: items.length })}</Text>
-          {items.length ? (
-            <View style={styles.glance}>
-              {STATUS_ORDER.map((r) => (
-                <Press key={r} onPress={() => setFilter(filter === r ? null : r)} label={t("list.show", { label: statusLabel(r) })} fill>
-                  <PixelBox
-                    p={3}
-                    border={alpha(STATUS[r].color, filter === r ? 1 : 0.5)}
-                    bg={alpha(STATUS[r].color, filter === r ? 0.28 : 0.1)}
-                    inner={{ paddingVertical: 10, alignItems: "center", gap: 6 }}
-                  >
-                    <StatusIcon level={r} color={STATUS[r].color} px={2} />
-                    <Text style={[styles.glanceNum, { color: STATUS[r].color }]}>{counts[r]}</Text>
-                    <Text style={[styles.glanceLabel, { color: STATUS[r].color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                      {statusLabel(r)}
-                    </Text>
-                  </PixelBox>
-                </Press>
-              ))}
-            </View>
-          ) : null}
-          {filter ? <Text style={[styles.dim, { marginTop: 6 }]}>{t("list.filtered", { label: statusLabel(filter) })}</Text> : null}
-          {shown.map((it, i) => (
-            <MarketCard key={it.key} item={it} index={i} onOpen={() => openDetail(it.key)} />
-          ))}
-
-          {/* Add a market */}
-          <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-            <Text style={styles.cardTitle}>{t("add.title")}</Text>
-            <PixelBox p={2} border={C.line} bg={C.bg} style={{ marginVertical: 8 }} inner={{ paddingHorizontal: 12 }}>
-              <TextInput
-                value={input}
-                onChangeText={setInput}
-                placeholder={t("add.placeholder")}
-                placeholderTextColor={C.dim}
-                style={styles.input}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={MAX_INPUT_LENGTH}
-                onSubmitEditing={() => addMarket(input)}
-              />
-            </PixelBox>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Button title={busy === "add" ? t("add.checking") : t("add.button")} onPress={() => addMarket(input)} disabled={!!busy} />
-              </View>
-              <Button
-                kind="ghost"
-                title={t("add.paste")}
-                onPress={async () => setInput((await Clipboard.getStringAsync()).slice(0, MAX_INPUT_LENGTH))}
-                disabled={!!busy}
-              />
-            </View>
-            <Text style={[styles.dim, { marginTop: 10 }]}>{t("add.examples")}</Text>
-            <View style={styles.rowWrap}>
-              {EXAMPLES.map((e) => (
-                <Button key={e.key} small kind="ghost" title={t(e.label)} onPress={() => addMarket(e.key)} disabled={!!busy} />
-              ))}
-            </View>
-          </PixelBox>
-
-          {FLAGS.discover ? <DiscoverCard onOpen={() => setDiscoverOpen(true)} /> : null}
-          {LEAGUE_ENABLED ? <LeagueCard onOpen={() => setLeagueOpen(true)} /> : null}
-          {FLAGS.ruleDetective ? <RuleDetectiveCard onOpen={() => setRuleOpen(true)} /> : null}
-          {FLAGS.glossary ? <GlossaryEntry game={game} refreshKey={glossTick} onOpen={() => setGlossOpen(true)} /> : null}
-
-          {/* Weekly recap */}
-          <PixelBox border={C.purple} bg="#1b1233" style={styles.cardGap} inner={styles.cardPad}>
-            <Text style={styles.cardLabel}>{t("recap.title")}</Text>
-            <Text style={styles.recapText}>{recap.text}</Text>
-            <Text style={styles.dim}>{t("recap.xp", { n: recap.xp })}</Text>
-          </PixelBox>
-
-          {/* Badges */}
-          <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>{t("badges.title")}</Text>
-              <Text style={styles.dim}>{t("badges.count", { n: unlocked, total: BADGES.length })}</Text>
-            </View>
-            <View style={[styles.rowBetween, { marginVertical: 10 }]}>
-              {BADGES.map((b) => (
-                <BadgeIcon key={b.id} id={b.id} size={40} locked={!game.badges[b.id]} />
-              ))}
-            </View>
-            <Button small kind="ghost" title={t("badges.all")} onPress={() => setBadgesOpen(true)} />
-          </PixelBox>
-
-          {/* Settings */}
-          <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-            <Text style={styles.cardTitle}>{t("settings.title")}</Text>
-            <Text style={styles.body}>{t("settings.language")}</Text>
-            <View style={[styles.rowWrap, { marginTop: 4, marginBottom: 12 }]}>
-              {LANGS.map((l) => (
-                <Press key={l.id} onPress={() => updateSettings({ language: l.id })} label={l.name}>
-                  <PixelBox p={2} border={lang === l.id ? "#2f6b38" : C.line} bg={lang === l.id ? C.green : C.surfaceHi} inner={{ paddingHorizontal: 10, paddingVertical: 7 }}>
-                    <Text style={[styles.langText, { color: lang === l.id ? "#07120a" : C.text }]}>{l.name}</Text>
-                  </PixelBox>
-                </Press>
-              ))}
-            </View>
-            <View style={styles.rowBetween}>
-              <Text style={[styles.body, { flex: 1 }]}>{t("settings.digest")}</Text>
-              <Switch
-                value={settings.digest}
-                onValueChange={(v) => updateSettings({ digest: v })}
-                trackColor={{ true: C.greenDeep, false: C.line }}
-                thumbColor={settings.digest ? C.green : C.dim}
-              />
-            </View>
-            {settings.digest ? (
-              <View style={styles.rowBetween}>
-                <Text style={[styles.dim, { flex: 1 }]}>{t("settings.digestHint", { time: hh(settings.digestHour) })}</Text>
-                <View style={styles.row}>
-                  <Button small kind="ghost" title="-" onPress={() => updateSettings({ digestHour: (settings.digestHour + 23) % 24 })} />
-                  <Button small kind="ghost" title="+" onPress={() => updateSettings({ digestHour: (settings.digestHour + 1) % 24 })} />
-                </View>
-              </View>
-            ) : null}
-            <View style={[styles.rowBetween, { marginTop: 12 }]}>
-              <Text style={[styles.body, { flexShrink: 1 }]}>{t("settings.network")}</Text>
-              <View style={styles.row}>
-                {(["devnet", "mainnet-beta"] as Cluster[]).map((c) => (
-                  <Press key={c} onPress={() => onSwitchCluster(c)} label={CLUSTERS[c].label}>
-                    <PixelBox p={2} border={cluster === c ? "#2f6b38" : C.line} bg={cluster === c ? C.green : C.surfaceHi} inner={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                      <Text style={[styles.chipText, { color: cluster === c ? "#07120a" : C.text }]}>{CLUSTERS[c].label.toUpperCase()}</Text>
-                    </PixelBox>
-                  </Press>
-                ))}
-              </View>
-            </View>
-            <View style={[styles.rowWrap, { marginTop: 12 }]}>
-              <Button small kind="ghost" title={t("settings.checkNow")} onPress={refreshAll} />
-              <Button small kind="ghost" title={t("settings.digestNow")} onPress={onDigestNow} />
-              <Button small kind="ghost" title={t("settings.testAlert")} onPress={onTestAlert} />
-              <Button small kind="ghost" title={t("settings.showIntro")} onPress={() => updateSettings({ onboarded: false })} />
-            </View>
-            <View style={styles.howRule} />
-            <Text style={styles.cardTitle}>{t("how.title")}</Text>
-            <Text style={styles.body}>{t("how.p1")}</Text>
-            <Text style={styles.body}>{t("how.p2")}</Text>
-            {context ? (
-              <>
-                <Text style={[styles.body, { marginTop: 6 }]}>
-                  {t("how.context", {
-                    period: String(context.period),
-                    disputes: num(context.disputes),
-                    markets: num(context.disputed_markets),
-                    settled: num(context.settled_disputed_markets),
-                    diff: num(context.settled_differently_from_disputed_proposal),
-                    share: fmtDec(String(context.settled_differently_share)),
-                  })}
-                </Text>
-                <Text style={[styles.dim, { marginTop: 6 }]}>{t("how.source", { source: String(context.source) })}</Text>
-              </>
-            ) : null}
-          </PixelBox>
-
-          <Text style={[styles.dim, { marginTop: 16, textAlign: "center" }]}>
-            {t("footer", { kid: PINNED_KID })}
-          </Text>
-        </ScrollView>
+        <TodayTab
+          active={tab === "today"}
+          refreshControl={refreshControl()}
+          settings={settings}
+          game={game}
+          level={level}
+          streak={streak}
+          week={week}
+          canIn={canIn}
+          clockPlay={clockPlay}
+          bgOk={bgOk}
+          items={items}
+          today={today}
+          counts={counts}
+          shown={shown}
+          filter={filter}
+          setFilter={setFilter}
+          pendingExamples={pendingExamples}
+          lastCheck={lastCheck}
+          homeMood={homeMood}
+          puzzleTick={puzzleTick}
+          onBadges={() => setBadgesOpen(true)}
+          onClockIn={doClockIn}
+          onOpenDetail={openDetail}
+          onPuzzle={() => setPuzzleOpen(true)}
+          add={add}
+        />
+        <PlayTab
+          active={tab === "play"}
+          refreshControl={refreshControl()}
+          game={game}
+          level={level}
+          recap={recap}
+          unlocked={unlocked}
+          puzzleTick={puzzleTick}
+          glossTick={glossTick}
+          onPuzzle={() => setPuzzleOpen(true)}
+          onRule={() => setRuleOpen(true)}
+          onGlossary={() => setGlossOpen(true)}
+          onLeague={() => setLeagueOpen(true)}
+          onBadges={() => setBadgesOpen(true)}
+        />
+        <DiscoverTab
+          active={tab === "discover"}
+          refreshControl={refreshControl()}
+          watchingIds={items.map((i) => i.marketId ?? i.key)}
+          onWatch={(id) => addMarket(id)}
+          add={add}
+        />
+        <MeTab
+          active={tab === "me"}
+          refreshControl={refreshControl()}
+          settings={settings}
+          lang={lang}
+          wallet={wallet}
+          balance={balance}
+          busy={busy}
+          cluster={cluster}
+          net={net}
+          context={context}
+          onConnect={onConnect}
+          onDisconnect={onDisconnect}
+          onAirdrop={onAirdrop}
+          onSwitchCluster={onSwitchCluster}
+          updateSettings={updateSettings}
+          onCheckNow={refreshAll}
+          onDigestNow={onDigestNow}
+          onTestAlert={onTestAlert}
+        />
+        <TabBar tab={tab} onChange={setTab} />
         {overlays("main")}
 
         {/* Market detail */}
@@ -1078,7 +776,7 @@ export default function App() {
                       kind="ghost"
                       title={t("common.remove")}
                       onPress={() =>
-                        Alert.alert(t("detail.removeTitle"), detail.question ?? detail.key, [
+                        showDialog(t("detail.removeTitle"), detail.question ?? detail.key, [
                           { text: t("common.cancel"), style: "cancel" },
                           { text: t("common.remove"), style: "destructive", onPress: () => removeMarket(detail.key) },
                         ])
@@ -1283,15 +981,6 @@ export default function App() {
             <Scanlines />
           </SafeAreaView>
         </Modal>
-        {FLAGS.discover ? (
-          <DiscoverModal
-            visible={discoverOpen}
-            onClose={() => setDiscoverOpen(false)}
-            watchingIds={items.map((i) => i.marketId ?? i.key)}
-            onWatch={(id) => addMarket(id)}
-            overlay={overlays("discover")}
-          />
-        ) : null}
         {LEAGUE_ENABLED ? <LeagueModal visible={leagueOpen} onClose={() => setLeagueOpen(false)} overlay={overlays("league")} /> : null}
         {FLAGS.ruleDetective ? (
           <RuleDetectiveModal visible={ruleOpen} onClose={() => setRuleOpen(false)} award={(kind, ref) => award(kind, { ref })} overlay={overlays("rule")} />
@@ -1329,66 +1018,7 @@ export default function App() {
       <StatusBar style="light" />
       {content}
       {!introDone ? <Intro onDone={() => setIntroDone(true)} /> : null}
+      <DialogHost />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  scroll: { paddingHorizontal: 16, paddingBottom: 56 },
-  header: { marginHorizontal: -16, paddingHorizontal: 20, paddingTop: 52, paddingBottom: 18, backgroundColor: "#160f2b", borderBottomWidth: 4, borderBottomColor: C.purple },
-  detailHead: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 18, borderBottomWidth: 4 },
-  stepRow: { flexDirection: "row", marginTop: 14, marginHorizontal: -20, marginBottom: -18 },
-  stepBit: { flex: 1, height: 4 },
-  brand: { color: C.greenBright, fontFamily: PX, fontSize: 10 },
-  display: { color: C.text, fontFamily: PX, fontSize: 22, lineHeight: 30, marginTop: 18 },
-  subtitle: { color: C.dim, fontSize: T.small, lineHeight: 19 },
-  heroKicker: { color: C.ink, fontFamily: PX, fontSize: 16, lineHeight: 22 },
-  heroDim: { color: C.inkSoft, fontSize: T.small, lineHeight: 18 },
-  heroBody: { color: C.ink, fontSize: T.body, lineHeight: 22, marginTop: 8 },
-  heroRowTitle: { color: C.ink, fontSize: T.body, fontWeight: "700" },
-  heroRule: { height: 3, backgroundColor: alpha(C.ink, 0.18), marginVertical: 14 },
-  streakRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  streakNum: { color: C.ink, fontFamily: PX, fontSize: 22, marginBottom: 6 },
-  streakUnit: { fontSize: 10 },
-  weekRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 14 },
-  weekCell: { alignItems: "center", gap: 6 },
-  weekDot: { width: 34, height: 34, borderWidth: 3, borderColor: alpha(C.ink, 0.3), alignItems: "center", justifyContent: "center" },
-  weekLabel: { color: C.inkSoft, fontFamily: PX, fontSize: 8 },
-  clockRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
-  clockBtnText: { color: C.greenBright, fontFamily: PX, fontSize: 11, lineHeight: 16, textAlign: "center", paddingHorizontal: 6 },
-  cardGap: { marginTop: 14 },
-  cardPad: { padding: 14 },
-  statusHead: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
-  statusWord: { fontFamily: PX, fontSize: 13, lineHeight: 18, flexShrink: 1 },
-  recapText: { color: C.text, fontSize: T.heading, fontWeight: "700", lineHeight: 25, marginVertical: 6 },
-  cardTitle: { color: C.text, fontFamily: PX, fontSize: 11, lineHeight: 18, marginBottom: 8 },
-  cardLabel: { color: C.dim, fontSize: 8, marginBottom: 4, textTransform: "uppercase", fontFamily: PX },
-  section: { color: C.greenBright, fontSize: 12, lineHeight: 18, marginTop: 26, fontFamily: PX },
-  question: { color: C.text, fontSize: T.body + 1, fontWeight: "700", marginVertical: 6, lineHeight: 22 },
-  statusBig: { fontSize: T.heading, fontWeight: "700", marginBottom: 6 },
-  body: { color: C.text, fontSize: T.body, lineHeight: 21, marginVertical: 2 },
-  dim: { color: C.dim, fontSize: T.small, lineHeight: 18 },
-  mono: { color: C.text, fontFamily: MONO, fontSize: T.small },
-  input: { color: C.text, paddingVertical: 12, fontSize: T.body },
-  row: { flexDirection: "row", gap: 8, marginTop: 8, alignItems: "center" },
-  rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8, alignItems: "center" },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  checkRow: { flexDirection: "row", alignItems: "flex-start", marginVertical: 4 },
-  todayRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
-  glance: { flexDirection: "row", gap: 8, marginTop: 12 },
-  glanceNum: { fontSize: 18, fontFamily: PX },
-  glanceLabel: { fontSize: 7, textTransform: "uppercase", fontFamily: PX },
-  chipText: { fontSize: 8, fontFamily: PX },
-  langText: { fontSize: T.small, fontWeight: "700" },
-  verifyHead: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
-  bigCount: { color: C.text, fontFamily: PX, fontSize: 28 },
-  bigCountOf: { color: C.dim, fontSize: 14 },
-  stamp: { ...StyleSheet.absoluteFillObject, backgroundColor: "#0a0f0bd9", alignItems: "center", justifyContent: "center", zIndex: 40 },
-  stampText: { color: C.greenBright, fontFamily: PX, marginTop: 22, fontSize: 12, lineHeight: 18, textAlign: "center", paddingHorizontal: 24 },
-  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
-  badgeCell: { padding: 14, alignItems: "center", gap: 8 },
-  badgeName: { color: C.text, fontFamily: PX, fontSize: 9, lineHeight: 14, textAlign: "center" },
-  howRule: { height: 3, backgroundColor: C.line, marginVertical: 16 },
-  dotBig: { width: 12, height: 12 },
-});
