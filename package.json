@@ -50,5 +50,12 @@
   "license": "MIT",
   "engines": {
     "node": ">=20 <21"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.8.15",
+    "postcss": "8.5.29",
+    "image-size": "2.0.4",
+    "uuid": "11.1.1",
+    "stream-json": "3.7.0"
   }
 }

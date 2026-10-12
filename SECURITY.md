@@ -25,3 +25,11 @@ Out of scope:
 - Release signing keys are kept outside the repository and read from local Gradle properties.
 
 Full model, trust assumptions and known limitations: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
+
+## Dependency advisories (12 Oct 2026)
+
+The Clock In security module flagged known advisories in `tar`, `@xmldom/xmldom`, `image-size`, `postcss`, `uuid` and `stream-json`, all pulled in through Expo, React Native tooling and the Solana and wallet adapter packages.
+
+- Updated through `overrides` in `package.json`: `@xmldom/xmldom` 0.8.15, `postcss` 8.5.29, `image-size` 2.0.4, `uuid` 11.1.1, `stream-json` 3.7.0. Type check, the 103 self-tests, `expo prebuild` and the release build pass.
+- `tar` stays on 6.2.1: the fixed 7.x line breaks `expo prebuild` (the Expo CLI uses the 6.x API to unpack the native template). It only runs on the developer machine when generating `android/`, on Expo's own template archive.
+- None of these packages ship in the app. The release APK built with and without the overrides is byte-identical (sha256 `b826dff4…`, the same file as the v0.3.9 release asset), so they are build and tooling dependencies only.
