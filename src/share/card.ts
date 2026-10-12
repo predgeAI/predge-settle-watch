@@ -46,7 +46,7 @@ export interface CardInput {
   /** Translated labels. */
   text: {
     headline: string;
-    checks: string; // already filled, e.g. "7/7 checks on my phone"
+    checks: string; // already filled, e.g. "8/8 checks on my phone"
     pack: string;
     receipt: string;
     date: string;

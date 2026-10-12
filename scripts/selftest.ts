@@ -450,7 +450,7 @@ t("card: receipt card carries the exact numbers and the explorer link", () => {
     { signature: SIG, packHash: "f".repeat(64), riskLevel: "caution", at: "2026-10-12T09:30:00.000Z", cluster: "devnet" }
   );
   const input = receiptCardInput(r, "#e2703a");
-  assert.equal(input.text.checks, "7/7 checks on my phone");
+  assert.equal(input.text.checks, "8/8 checks on my phone");
   assert.equal(input.statusWord, "CAUTION");
   assert.equal(input.networkLabel, "Devnet");
   assert.equal(input.explorerUrl, `https://explorer.solana.com/tx/${SIG}?cluster=devnet`);
@@ -697,6 +697,114 @@ at2("positions: fetch errors map to kinds", async () => {
   assert.equal(await kindOf(fetchPositions(ADDR, { timeoutMs: 20, fetchImpl: slow as never })), "timeout");
   const ok = await fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: true, status: 200, json: async () => positionsFixture })) });
   assert.equal(ok.length, 3);
+});
+
+// ---- verification: freshness and the key list ----
+import { CLOCK_SKEW_MS, freshnessCheck, KEY_LIST_GRACE_MS, MAX_RECORD_AGE_MS, resetKeyListMemory, usableForReceipt, verifyRecord, VERIFY_CHECKS, type KeyListCache, type KeyListStore } from "../src/verify";
+import { PINNED_PUBLIC_KEY_HEX } from "../src/config";
+import { VERIFIED_CHECKS } from "../src/share/receipt";
+import recordFixture from "./record-fixture.json";
+const REC = recordFixture as unknown as import("../src/api").SettlementRisk;
+const SIGNED_AT = Date.parse("2026-10-12T13:15:17.617Z"); // issued_at inside the signed payload of the fixture
+const memStore = (init: KeyListCache | null = null) => {
+  let v = init;
+  const st: KeyListStore & { value: () => KeyListCache | null } = { get: async () => v, set: async (x) => void (v = x), value: () => v };
+  return st;
+};
+const listed = async () => [PINNED_PUBLIC_KEY_HEX];
+const down = async () => null;
+t("freshness: 24 h window, 10 min clock skew, signed time required", () => {
+  const p = { issued_at: "2026-10-12T12:00:00Z", checked_at: "2026-10-01T00:00:00Z" };
+  const at = Date.parse(p.issued_at);
+  assert.equal(freshnessCheck(p, at + 60_000).ok, true);
+  assert.equal(freshnessCheck(p, at + 60_000).detail, "signed 1 min ago");
+  assert.equal(freshnessCheck(p, at + MAX_RECORD_AGE_MS).ok, true);
+  const stale = freshnessCheck(p, at + MAX_RECORD_AGE_MS + 1);
+  assert.equal(stale.ok, false);
+  assert.equal(stale.detail, "stale: signed 24 h ago");
+  assert.equal(freshnessCheck(p, at - CLOCK_SKEW_MS).ok, true);
+  assert.equal(freshnessCheck(p, at - CLOCK_SKEW_MS - 1).ok, false);
+  assert.match(freshnessCheck(p, at - CLOCK_SKEW_MS - 60_000).detail ?? "", /in the future/);
+  // issued_at wins over checked_at; checked_at is the fallback.
+  assert.equal(freshnessCheck({ checked_at: p.issued_at }, at + 60_000).ok, true);
+  assert.equal(freshnessCheck({}, at).detail, "no signed timestamp");
+  assert.equal(freshnessCheck({ issued_at: "yesterday" }, at).ok, false);
+});
+at2("verify: a live signed record passes all 8 checks while fresh", async () => {
+  resetKeyListMemory();
+  const v = await verifyRecord(REC, { now: SIGNED_AT + 3_600_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(v.checks.length, VERIFY_CHECKS);
+  assert.equal(VERIFY_CHECKS, 8);
+  assert.equal(VERIFIED_CHECKS, VERIFY_CHECKS);
+  assert.ok(v.checks.every((c) => c.ok && c.status === "pass"), JSON.stringify(v.checks));
+  assert.equal(v.verified, true);
+  assert.equal(v.signedAt, "2026-10-12T13:15:17.617Z");
+  assert.equal(usableForReceipt(v, SIGNED_AT + 3_600_000), true);
+  assert.equal(usableForReceipt(v, SIGNED_AT + MAX_RECORD_AGE_MS + 1), false, "a saved verification goes stale");
+  assert.equal(usableForReceipt({ ...v, signedAt: undefined }, SIGNED_AT), false, "verifications from before 0.3.9 cannot back a receipt");
+  const tampered = await verifyRecord(REC, { tamper: true, now: SIGNED_AT + 3_600_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(tampered.verified, false);
+});
+at2("verify: a stale record is shown but not verified", async () => {
+  resetKeyListMemory();
+  const v = await verifyRecord(REC, { now: SIGNED_AT + MAX_RECORD_AGE_MS + 3_600_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(v.verified, false);
+  assert.equal(v.packHash !== null, true);
+  const fresh = v.checks[7];
+  assert.equal(fresh.label, "Record was signed in the last 24 hours");
+  assert.equal(fresh.status, "fail");
+  assert.equal(fresh.detail, "stale: signed 25 h ago");
+  assert.equal(v.checks.filter((c) => c.ok).length, 7);
+  const future = await verifyRecord(REC, { now: SIGNED_AT - CLOCK_SKEW_MS - 60_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(future.verified, false);
+});
+at2("verify: unreachable key list is unknown, never passed; verified only with a good list from the last 7 days", async () => {
+  const now = SIGNED_AT + 3_600_000;
+  // A successful fetch is remembered with its time.
+  resetKeyListMemory();
+  const store = memStore();
+  await verifyRecord(REC, { now, fetchKeys: listed, keyStore: store });
+  assert.equal(store.value()?.at, now);
+  // List down, good copy 2 days old: check 2 is unknown, the record still counts as verified.
+  resetKeyListMemory();
+  const cached = memStore({ at: now - 2 * 24 * 3_600_000, activeKeys: [PINNED_PUBLIC_KEY_HEX] });
+  const a = await verifyRecord(REC, { now, fetchKeys: down, keyStore: cached });
+  assert.equal(a.checks[1].ok, false);
+  assert.equal(a.checks[1].status, "unknown");
+  assert.equal(a.checks[1].detail, "key list not reachable, pinned key used; last good list 48 h ago");
+  assert.equal(a.verified, true);
+  assert.equal(a.checks.filter((c) => c.ok).length, 7);
+  // List down, no good copy: unknown and not verified.
+  resetKeyListMemory();
+  const b = await verifyRecord(REC, { now, fetchKeys: down, keyStore: memStore() });
+  assert.equal(b.checks[1].status, "unknown");
+  assert.equal(b.checks[1].detail, "key list not reachable, pinned key used; no good list in the last 7 days");
+  assert.equal(b.verified, false);
+  // Good copy older than 7 days, or one that did not list the key: not verified.
+  resetKeyListMemory();
+  const old = await verifyRecord(REC, { now, fetchKeys: down, keyStore: memStore({ at: now - KEY_LIST_GRACE_MS - 1, activeKeys: [PINNED_PUBLIC_KEY_HEX] }) });
+  assert.equal(old.verified, false);
+  resetKeyListMemory();
+  const other = await verifyRecord(REC, { now, fetchKeys: down, keyStore: memStore({ at: now - 60_000, activeKeys: ["ab".repeat(32)] }) });
+  assert.equal(other.verified, false);
+  // A fetched list without the key fails outright and is not stored as good.
+  resetKeyListMemory();
+  const revokedStore = memStore();
+  const revoked = await verifyRecord(REC, { now, fetchKeys: async () => ["ab".repeat(32)], keyStore: revokedStore });
+  assert.equal(revoked.checks[1].status, "fail");
+  assert.equal(revoked.verified, false);
+  assert.equal(revokedStore.value(), null);
+  // A throwing fetch is treated like an unreachable list.
+  resetKeyListMemory();
+  const threw = await verifyRecord(REC, { now, fetchKeys: async () => { throw new Error("offline"); }, keyStore: memStore() });
+  assert.equal(threw.checks[1].status, "unknown");
+  resetKeyListMemory();
+});
+t("share card: the checks line uses the real count", () => {
+  setLang("en");
+  const base = { question: "Q", riskLevel: "caution", packHash: "f".repeat(64), signature: SIG, at: "2026-10-12T09:30:00.000Z" };
+  assert.equal(receiptCardInput(base, "#e2703a").text.checks, "8/8 checks on my phone");
+  assert.equal(receiptCardInput({ ...base, checks: { ok: 7, total: 8 } }, "#e2703a").text.checks, "7/8 checks on my phone");
 });
 
 Promise.all(asyncChecks).then(

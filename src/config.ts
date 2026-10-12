@@ -6,6 +6,9 @@ export const KEYS_URL = `${PREDGE_API}/.well-known/predge-keys.json`;
 export const PINNED_KID = "13fa3d18a369e6c7";
 export const PINNED_PUBLIC_KEY_HEX = "13fa3d18a369e6c71bf941563ba47822b30182273d5106a0e8fb61c5016352d9";
 
+/** Number of checks verifyRecord (src/verify.ts) runs on a signed record. All pass on a fully verified record. */
+export const VERIFY_CHECKS = 8;
+
 // Solana. Receipts go to devnet by default; the user can switch to mainnet in
 // Settings, where a memo costs only the network fee (about 0.000005 SOL).
 export type Cluster = "devnet" | "mainnet-beta";
