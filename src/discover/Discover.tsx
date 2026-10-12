@@ -75,7 +75,11 @@ function Row({ m, watching, onWatch }: { m: DiscoverMarket; watching: boolean; o
   );
 }
 
-export function DiscoverModal(props: { visible: boolean; onClose: () => void; watchingIds: string[]; onWatch: (id: string) => void; overlay?: React.ReactNode }) {
+/**
+ * The Discover feed: header, popular markets and their dispute rates. Loads the first time it becomes visible.
+ * Used inline by the Discover tab and inside DiscoverModal. Children render between the header and the list.
+ */
+export function DiscoverFeed(props: { visible: boolean; watchingIds: string[]; onWatch: (id: string) => void; onClose?: () => void; children?: React.ReactNode }) {
   const [list, setList] = useState<DiscoverMarket[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -92,37 +96,46 @@ export function DiscoverModal(props: { visible: boolean; onClose: () => void; wa
   }, [props.visible, list, err, load]);
 
   return (
+    <>
+      <View style={st.head}>
+        <View style={[st.rowBetween, !props.onClose && { justifyContent: "flex-end" }]}>
+          {props.onClose ? <Button small kind="ghost" title={t("common.back")} onPress={props.onClose} /> : null}
+          <Button small kind="ghost" title={t("dc.refresh")} onPress={load} />
+        </View>
+        <View style={[st.rowBetween, { marginTop: 18 }]}>
+          <Text style={st.title}>{t("dc.kicker")}</Text>
+          <LiveMascot mood={err ? "sleep" : "idle"} px={5} />
+        </View>
+        <Text style={[st.dim, { marginTop: 8 }]}>{t("dc.sub")}</Text>
+      </View>
+      {props.children}
+      {list === null && !err ? (
+        <View style={{ marginTop: 30 }}>
+          <ActivityIndicator color={C.green} />
+        </View>
+      ) : null}
+      {err ? (
+        <PixelBox border={C.orange} style={{ marginTop: 16 }} inner={{ padding: 16 }}>
+          <Text style={st.body}>{err}</Text>
+          <View style={{ marginTop: 12 }}>
+            <Button title={t("common.tryAgain")} onPress={load} />
+          </View>
+        </PixelBox>
+      ) : null}
+      {list && list.length === 0 ? <Text style={[st.dim, { marginTop: 20 }]}>{t("dc.none")}</Text> : null}
+      {list?.map((m) => (
+        <Row key={m.id} m={m} watching={props.watchingIds.includes(m.id)} onWatch={props.onWatch} />
+      ))}
+    </>
+  );
+}
+
+export function DiscoverModal(props: { visible: boolean; onClose: () => void; watchingIds: string[]; onWatch: (id: string) => void; overlay?: React.ReactNode }) {
+  return (
     <Modal visible={props.visible} statusBarTranslucent animationType="slide" onRequestClose={props.onClose}>
       <SafeAreaView style={st.root}>
         <ScrollView contentContainerStyle={st.scroll}>
-          <View style={st.head}>
-            <View style={st.rowBetween}>
-              <Button small kind="ghost" title={t("common.back")} onPress={props.onClose} />
-              <Button small kind="ghost" title={t("dc.refresh")} onPress={load} />
-            </View>
-            <View style={[st.rowBetween, { marginTop: 18 }]}>
-              <Text style={st.title}>{t("dc.kicker")}</Text>
-              <LiveMascot mood={err ? "sleep" : "idle"} px={5} />
-            </View>
-            <Text style={[st.dim, { marginTop: 8 }]}>{t("dc.sub")}</Text>
-          </View>
-          {list === null && !err ? (
-            <View style={{ marginTop: 30 }}>
-              <ActivityIndicator color={C.green} />
-            </View>
-          ) : null}
-          {err ? (
-            <PixelBox border={C.orange} style={{ marginTop: 16 }} inner={{ padding: 16 }}>
-              <Text style={st.body}>{err}</Text>
-              <View style={{ marginTop: 12 }}>
-                <Button title={t("common.tryAgain")} onPress={load} />
-              </View>
-            </PixelBox>
-          ) : null}
-          {list && list.length === 0 ? <Text style={[st.dim, { marginTop: 20 }]}>{t("dc.none")}</Text> : null}
-          {list?.map((m) => (
-            <Row key={m.id} m={m} watching={props.watchingIds.includes(m.id)} onWatch={props.onWatch} />
-          ))}
+          <DiscoverFeed visible={props.visible} watchingIds={props.watchingIds} onWatch={props.onWatch} onClose={props.onClose} />
         </ScrollView>
         {props.overlay}
         <Scanlines />
