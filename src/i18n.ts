@@ -588,6 +588,23 @@ export const en = {
   "lg.err.wrongAccount": "Use the same wallet account you connected.",
   "lg.err.noSignature": "The wallet did not sign.",
   "lg.err.wallet": "Sign-in was cancelled or the wallet is unavailable.",
+  // share card
+  "share.card": "Share card",
+  "share.title": "Your receipt card",
+  "share.headline": "I VERIFIED THIS MARKET",
+  "share.checks": "{ok}/{n} checks on my phone",
+  "share.pack": "PACK",
+  "share.receipt": "RECEIPT",
+  "share.date": "DATE",
+  "share.network": "NETWORK",
+  "share.scan": "SCAN FOR THE RECEIPT",
+  "share.footer": "Settle Watch · verified on my phone · Solana Mobile",
+  "share.message": "I verified this Polymarket market on my phone with Settle Watch. Receipt on Solana: {url}",
+  "share.shareLink": "Share link",
+  "share.copyImage": "Copy image",
+  "share.copied": "Card image copied. Paste it into any app that takes images.",
+  "share.copyFailed": "Could not copy the image. Take a screenshot of the card instead.",
+  "share.hint": "Share the link, copy the card image, or take a screenshot of the card.",
 };
 
 export type Key = keyof typeof en;
@@ -1147,6 +1164,23 @@ const es: Dict = {
   "lg.err.wrongAccount": "Usa la misma cuenta de wallet que conectaste.",
   "lg.err.noSignature": "La wallet no firmó.",
   "lg.err.wallet": "Se canceló el inicio de sesión o la wallet no está disponible.",
+  // share card
+  "share.card": "Compartir tarjeta",
+  "share.title": "Tu tarjeta de recibo",
+  "share.headline": "VERIFIQUÉ ESTE MERCADO",
+  "share.checks": "{ok}/{n} comprobaciones en mi teléfono",
+  "share.pack": "PAQUETE",
+  "share.receipt": "RECIBO",
+  "share.date": "FECHA",
+  "share.network": "RED",
+  "share.scan": "ESCANEA EL RECIBO",
+  "share.footer": "Settle Watch · verificado en mi teléfono · Solana Mobile",
+  "share.message": "Verifiqué este mercado de Polymarket en mi teléfono con Settle Watch. Recibo en Solana: {url}",
+  "share.shareLink": "Compartir enlace",
+  "share.copyImage": "Copiar imagen",
+  "share.copied": "Imagen copiada. Pégala en cualquier app que acepte imágenes.",
+  "share.copyFailed": "No se pudo copiar la imagen. Haz una captura de pantalla de la tarjeta.",
+  "share.hint": "Comparte el enlace, copia la imagen o haz una captura de pantalla de la tarjeta.",
 };
 
 const pt: Dict = {
@@ -1703,6 +1737,23 @@ const pt: Dict = {
   "lg.err.wrongAccount": "Use a mesma conta da carteira que você conectou.",
   "lg.err.noSignature": "A carteira não assinou.",
   "lg.err.wallet": "O login foi cancelado ou a carteira não está disponível.",
+  // share card
+  "share.card": "Compartilhar cartão",
+  "share.title": "Seu cartão de recibo",
+  "share.headline": "EU VERIFIQUEI ESTE MERCADO",
+  "share.checks": "{ok}/{n} verificações no meu celular",
+  "share.pack": "PACOTE",
+  "share.receipt": "RECIBO",
+  "share.date": "DATA",
+  "share.network": "REDE",
+  "share.scan": "ESCANEIE O RECIBO",
+  "share.footer": "Settle Watch · verificado no meu celular · Solana Mobile",
+  "share.message": "Verifiquei este mercado da Polymarket no meu celular com o Settle Watch. Recibo na Solana: {url}",
+  "share.shareLink": "Compartilhar link",
+  "share.copyImage": "Copiar imagem",
+  "share.copied": "Imagem copiada. Cole em qualquer app que aceite imagens.",
+  "share.copyFailed": "Não foi possível copiar a imagem. Faça uma captura de tela do cartão.",
+  "share.hint": "Compartilhe o link, copie a imagem ou faça uma captura de tela do cartão.",
 };
 
 const zh: Dict = {
@@ -2259,6 +2310,23 @@ const zh: Dict = {
   "lg.err.wrongAccount": "请使用你之前连接的同一个钱包账户。",
   "lg.err.noSignature": "钱包没有签名。",
   "lg.err.wallet": "登录已取消，或钱包不可用。",
+  // share card
+  "share.card": "分享卡片",
+  "share.title": "你的收据卡片",
+  "share.headline": "我验证了这个市场",
+  "share.checks": "手机上完成 {ok}/{n} 项检查",
+  "share.pack": "数据包",
+  "share.receipt": "收据",
+  "share.date": "日期",
+  "share.network": "网络",
+  "share.scan": "扫码查看收据",
+  "share.footer": "Settle Watch · 在我的手机上验证 · Solana Mobile",
+  "share.message": "我用 Settle Watch 在手机上验证了这个 Polymarket 市场。Solana 上的收据：{url}",
+  "share.shareLink": "分享链接",
+  "share.copyImage": "复制图片",
+  "share.copied": "卡片图片已复制，可粘贴到任何支持图片的应用。",
+  "share.copyFailed": "无法复制图片，请截屏保存卡片。",
+  "share.hint": "分享链接、复制卡片图片，或截屏保存卡片。",
 };
 
 const ko: Dict = {
@@ -2815,6 +2883,23 @@ const ko: Dict = {
   "lg.err.wrongAccount": "연결했던 같은 지갑 계정을 사용하세요.",
   "lg.err.noSignature": "지갑이 서명하지 않았어요.",
   "lg.err.wallet": "로그인이 취소됐거나 지갑을 사용할 수 없어요.",
+  // share card
+  "share.card": "카드 공유",
+  "share.title": "내 영수증 카드",
+  "share.headline": "이 마켓을 검증했어요",
+  "share.checks": "내 휴대폰에서 {ok}/{n} 검사 통과",
+  "share.pack": "팩",
+  "share.receipt": "영수증",
+  "share.date": "날짜",
+  "share.network": "네트워크",
+  "share.scan": "스캔해서 영수증 보기",
+  "share.footer": "Settle Watch · 내 휴대폰에서 검증 · Solana Mobile",
+  "share.message": "Settle Watch로 내 휴대폰에서 이 Polymarket 마켓을 검증했어요. Solana 영수증: {url}",
+  "share.shareLink": "링크 공유",
+  "share.copyImage": "이미지 복사",
+  "share.copied": "카드 이미지를 복사했어요. 이미지를 받는 앱에 붙여 넣으세요.",
+  "share.copyFailed": "이미지를 복사하지 못했어요. 카드를 스크린샷으로 저장하세요.",
+  "share.hint": "링크를 공유하거나, 카드 이미지를 복사하거나, 스크린샷을 찍으세요.",
 };
 
 const DICTS: Record<Lang, Dict> = { en, es, pt, zh, ko };

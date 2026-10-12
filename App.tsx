@@ -73,6 +73,7 @@ import { FLAGS } from "./src/features";
 import { DiscoverCard, DiscoverModal } from "./src/discover/Discover";
 import { RuleDetectiveCard, RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
 import { GlossaryEntry, GlossaryModal } from "./src/glossary/Glossary";
+import { shareReceipt, ShareCardHost } from "./src/share/ShareCard";
 import { LEAGUE_ENABLED } from "./src/league/config";
 import { LeagueCard, LeagueModal } from "./src/league/LeagueEntry";
 import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
@@ -584,6 +585,7 @@ export default function App() {
         setStamp(false);
         Alert.alert(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(signature, 6) })}${t("anchor.onChain")}`, [
           { text: t("anchor.openExplorer"), onPress: () => openExplorer(signature, cluster) },
+          { text: t("share.card"), onPress: () => shareReceipt(item, { signature, packHash, riskLevel: last.risk_level, at: new Date().toISOString(), cluster }) },
           { text: t("common.ok") },
         ]);
       } catch (e) {
@@ -1184,6 +1186,7 @@ export default function App() {
                       <Text style={[styles.mono, { color: C.purpleSoft, marginTop: 6 }]}>
                         {t(`action.${a.action}`)} . {CLUSTERS[a.cluster ?? "devnet"].label} . {short(a.signature, 8)} . {ago(a.at)}
                       </Text>
+                      <Text style={[styles.mono, { color: C.green, paddingVertical: 4 }]} onPress={() => shareReceipt(detail, a)}>{`> ${t("share.card")}`}</Text>
                     </Pressable>
                   ))}
                 </PixelBox>
@@ -1290,6 +1293,7 @@ export default function App() {
         {FLAGS.ruleDetective ? (
           <RuleDetectiveModal visible={ruleOpen} onClose={() => setRuleOpen(false)} award={(kind, ref) => award(kind, { ref })} overlay={overlays("rule")} />
         ) : null}
+        <ShareCardHost />
         {FLAGS.glossary ? (
           <GlossaryModal
             visible={glossOpen}
