@@ -8,8 +8,9 @@ import { alpha, C, MONO, PX, STATUS, T } from "../theme";
 import * as haptic from "../haptic";
 import { Button, Chip, PixelBox, Press, Reveal, StatusIcon } from "../ui";
 import { Text } from "../Text";
-import { fmtNum, t, type Key } from "../i18n";
+import { fmtNum, t, useLang, type Key } from "../i18n";
 import { fmtShares, heldOf } from "../positions/sync";
+import { forYou, leadsWithCryptoTech, rankFeed, useFeed } from "../discover/interests";
 
 export const EXAMPLES: { label: Key; key: string }[] = [
   { label: "ex.disputed", key: "5186278" },
@@ -98,7 +99,28 @@ export interface AddMarketProps {
   addMarket: (raw: string) => unknown;
 }
 
-/** "Watch a market": input, paste, add and the example markets. */
+/** Up to 2 markets from the personal Discover feed, once Discover has loaded it. */
+function ForYou({ busy, addMarket }: Pick<AddMarketProps, "busy" | "addMarket">) {
+  const { prefs, markets } = useFeed();
+  const lang = useLang();
+  if (!markets) return null;
+  const picks = forYou(rankFeed(markets, prefs, { cryptoTechFirst: leadsWithCryptoTech(prefs, lang) }), 2, EXAMPLES.map((e) => e.key));
+  if (!picks.length) return null;
+  return (
+    <>
+      <View style={[styles.rowWrap, { marginTop: 10 }]}>
+        <Chip text={t("feed.forYou")} color={C.teal} />
+      </View>
+      <View style={styles.rowWrap}>
+        {picks.map((m) => (
+          <Button key={m.id} small kind="ghost" title={m.question.length > 44 ? `${m.question.slice(0, 41)}...` : m.question} onPress={() => addMarket(m.id)} disabled={!!busy} />
+        ))}
+      </View>
+    </>
+  );
+}
+
+/** "Watch a market": input, paste, add, the example markets and up to 2 "For you" picks. */
 export function AddMarketCard({ input, setInput, busy, addMarket }: AddMarketProps) {
   return (
     <PixelBox style={styles.cardGap} inner={styles.cardPad}>
@@ -128,6 +150,7 @@ export function AddMarketCard({ input, setInput, busy, addMarket }: AddMarketPro
           <Button key={e.key} small kind="ghost" title={t(e.label)} onPress={() => addMarket(e.key)} disabled={!!busy} />
         ))}
       </View>
+      <ForYou busy={busy} addMarket={addMarket} />
     </PixelBox>
   );
 }

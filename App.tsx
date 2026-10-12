@@ -65,6 +65,8 @@ import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, LevelBadge, LiveMascot, PixelBar, PixelBox, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
 import type { Mood } from "./src/sprites";
 import Onboarding from "./src/Onboarding";
+import { EXAMPLE_MARKET } from "./src/learn/Example";
+import { setFeedPrefs, setFeedPrefsSaver, type FeedPrefs } from "./src/discover/interests";
 import { FLAGS } from "./src/features";
 import { RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
 import { GlossaryModal } from "./src/glossary/Glossary";
@@ -77,7 +79,7 @@ import { EvidencePackCard } from "./src/skr";
 import { Text } from "./src/Text";
 import { DialogHost, showDialog } from "./src/dialog";
 import { LearnHost, Term, TOUR_REF } from "./src/learn";
-import { detectLanguage, en, setLanguage, t, useLang, type Key } from "./src/i18n";
+import { detectLanguage, en, setLanguage, setPlainWords, t, useLang, type Key } from "./src/i18n";
 import { ago, EXAMPLES, short, statusColor, statusLabel, statusWord, styles } from "./src/tabs/shared";
 import { TodayTab } from "./src/tabs/TodayTab";
 import { PlayTab } from "./src/tabs/PlayTab";
@@ -216,8 +218,18 @@ export default function App() {
   const updateSettings = useCallback(async (patch: Partial<Settings>) => {
     const next = await saveSettings(patch);
     setLanguage(next.language);
+    setPlainWords(next.plainWords);
     setSettings(next);
   }, []);
+
+  // Feed interests and country: Discover, "For you" and the tour read them from the shared feed state.
+  useEffect(() => {
+    if (settings) setFeedPrefs({ interests: settings.interests, country: settings.country });
+  }, [settings]);
+  useEffect(() => {
+    setFeedPrefsSaver((p) => updateSettings({ interests: p.interests, country: p.country }));
+    return () => setFeedPrefsSaver(null);
+  }, [updateSettings]);
 
   const refreshAll = useCallback(async () => {
     if (pollingRef.current) return;
@@ -301,6 +313,7 @@ export default function App() {
     (async () => {
       const s = await loadSettings();
       setLanguage(s.language);
+      setPlainWords(s.plainWords);
       setSettings(s);
       setItems(await loadWatchlist());
       const g = await loadGame();
@@ -509,8 +522,8 @@ export default function App() {
   }, [settings?.onboarded, syncPositions]);
 
   const finishOnboarding = useCallback(
-    async (addExamples: boolean, clockedIn = false) => {
-      await updateSettings({ onboarded: true });
+    async (addExamples: boolean, clockedIn = false, feed?: FeedPrefs) => {
+      await updateSettings(feed ? { onboarded: true, interests: feed.interests, country: feed.country } : { onboarded: true });
       if (clockedIn) doClockIn();
       await setupNotifications();
       setBgOk(await registerBackgroundPolling());
@@ -806,6 +819,7 @@ export default function App() {
     <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={C.green} progressBackgroundColor={C.surfaceHi} />
   );
   const add = { input, setInput, busy, addMarket };
+  const watchExample = () => void addMarket(EXAMPLE_MARKET.key, { quiet: true });
 
   let content: React.ReactNode;
   if (!settings) {
@@ -815,7 +829,7 @@ export default function App() {
       </SafeAreaView>
     );
   } else if (!settings.onboarded) {
-    content = <Onboarding onDone={finishOnboarding} />;
+    content = <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onWatchExample={watchExample} onDone={finishOnboarding} />;
   } else {
     content = (
       <SafeAreaView style={styles.root}>
@@ -847,6 +861,7 @@ export default function App() {
           add={add}
           positionsHint={!positions.address}
           onOpenMe={() => setTab("me")}
+          onWatchExample={watchExample}
         />
         <PlayTab
           active={tab === "play"}
