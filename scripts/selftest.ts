@@ -352,4 +352,74 @@ t("status line: a proposed answer in its challenge window is not called Quiet", 
   assert.equal(statusLine({ ...base, risk_level: "ok", uma_state: "requested" }), "Quiet: no dispute, no clarification");
   assert.equal(statusLine({ ...base, open_dispute: true }), "Open UMA dispute");
 });
+// ---- share card: QR encoder ----
+import { encodeQr, formatBits, qrByteCapacity, rsRemainder, versionBits } from "../src/share/qr";
+// Reference matrices from python-qrcode 8.2 (byte mode, level M, mask forced), see scripts/qr-vectors.json.
+import qrVectors from "./qr-vectors.json";
+import { cardShapes, cardSvg, CARD_H, CARD_W, emWidth, plainPunctuation, pixelSafe, shortId, wrapText } from "../src/share/card";
+import { receiptCardInput, receiptFromAnchor, shareMessage } from "../src/share/receipt";
+import { en as enDict, setLanguage as setLang } from "../src/i18n";
+t("qr: Reed-Solomon matches the ISO 18004 worked example (01234567, 1-M)", () =>
+  assert.deepEqual(
+    rsRemainder([0x10, 0x20, 0x0c, 0x56, 0x61, 0x80, 0xec, 0x11, 0xec, 0x11, 0xec, 0x11, 0xec, 0x11, 0xec, 0x11], 10),
+    [0xa5, 0x24, 0xd4, 0xc1, 0xed, 0x36, 0xc7, 0x87, 0x2c, 0x55]
+  ));
+t("qr: format bits for level M", () => {
+  assert.equal(formatBits(0), 0b101010000010010);
+  assert.equal(formatBits(5), 0b100000011001110);
+  assert.equal(formatBits(7), 0b100101010100000);
+});
+t("qr: version 7 information bits", () => assert.equal(versionBits(7), 0b000111110010010100));
+t("qr: byte capacities at level M", () => assert.deepEqual([1, 2, 6, 7, 8, 10].map(qrByteCapacity), [14, 26, 106, 122, 152, 213]));
+for (const v of qrVectors as { text: string; version: number; mask: number; rows: string[] }[]) {
+  t(`qr: version ${v.version} mask ${v.mask} matches the reference matrix (${v.text.length} bytes)`, () => {
+    const q = encodeQr(v.text, { mask: v.mask });
+    assert.equal(q.version, v.version);
+    assert.deepEqual(q.modules.map((r) => r.map((d) => (d ? "1" : "0")).join("")), v.rows);
+  });
+}
+t("qr: picks a mask by penalty and refuses text that is too long", () => {
+  const q = encodeQr("https://explorer.solana.com/tx/" + "5".repeat(88) + "?cluster=devnet");
+  assert.equal(q.version, 8);
+  assert.ok(q.mask >= 0 && q.mask < 8);
+  assert.throws(() => encodeQr("x".repeat(214)));
+});
+// ---- share card: layout and text ----
+const SIG = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRBrFmSx6fPkMqR4hP2a";
+t("card: wraps by words, splits long words, ellipsis past the last line", () => {
+  assert.deepEqual(wrapText("Will the Fed cut rates in December?", 12, 4), ["Will the Fed", "cut rates in", "December?"]);
+  assert.deepEqual(wrapText("abcdefghij", 4, 4), ["abcd", "efgh", "ij"]);
+  assert.deepEqual(wrapText("one two three four five six", 9, 2), ["one two", "three..."]);
+});
+t("card: short ids keep head and tail", () => {
+  assert.equal(shortId(SIG, 6), "5VERv8...R4hP2a");
+  assert.equal(shortId("0x" + "ab".repeat(32), 6), "0xababab...ababab");
+});
+t("card: receipt card carries the exact numbers and the explorer link", () => {
+  setLang("en");
+  const r = receiptFromAnchor(
+    { key: "5186278", question: "Will it happen?", addedAt: "", timeline: [], anchors: [] },
+    { signature: SIG, packHash: "f".repeat(64), riskLevel: "caution", at: "2026-10-12T09:30:00.000Z", cluster: "devnet" }
+  );
+  const input = receiptCardInput(r, "#e2703a");
+  assert.equal(input.text.checks, "7/7 checks on my phone");
+  assert.equal(input.statusWord, "CAUTION");
+  assert.equal(input.networkLabel, "Devnet");
+  assert.equal(input.explorerUrl, `https://explorer.solana.com/tx/${SIG}?cluster=devnet`);
+  assert.equal(shareMessage(r), `I verified this Polymarket market on my phone with Settle Watch. Receipt on Solana: https://explorer.solana.com/tx/${SIG}?cluster=devnet`);
+  const svg = cardSvg(input);
+  for (const s of ["I VERIFIED THIS MARKET", "Will it happen?", "CAUTION", "2026-10-12", "Devnet", "5VERv8...R4hP2a", "Settle Watch · verified on my phone · Solana Mobile"])
+    assert.ok(svg.includes(s), s);
+  for (const sh of cardShapes(input)) if (sh.kind === "rect") assert.ok(sh.x >= 0 && sh.y >= 0 && sh.x + sh.w <= CARD_W && sh.y + sh.h <= CARD_H);
+});
+t("card: curly punctuation becomes ASCII so the pixel font can draw it", () => {
+  const q = plainPunctuation("Will Trump\u2019s \u201cdeal\u201d pass \u2014 by 2027\u2026");
+  assert.equal(q, 'Will Trump\'s "deal" pass - by 2027...');
+  assert.ok(pixelSafe(q));
+  assert.ok(!pixelSafe("\u4e2d\u6587"));
+  assert.equal(emWidth("\u4e2d\u6587", "sans"), 2);
+});
+t("card: English share strings have no em dashes", () => {
+  for (const [k, v] of Object.entries(enDict)) if (k.startsWith("share.")) assert.ok(!v.includes("\u2014"), k);
+});
 console.log(`${n} checks passed`);
