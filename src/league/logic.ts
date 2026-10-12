@@ -1,4 +1,5 @@
 // Pure helpers for the League. No React Native imports, so they run in the offline selftest.
+import { joinList, t, type Key } from "../i18n";
 
 export const AVATAR_COUNT = 16;
 export const EMBLEM_COUNT = 12;
@@ -89,33 +90,27 @@ export function inviteCodeFromUrl(url: string | null | undefined): string | null
 }
 
 export function inviteShareText(link: string, code: string): string {
-  return `Join me in the Settle Watch League. We can compare weekly points as friends. Invite code ${code}\n${link}`;
+  return t("lg.inviteShare", { code, link });
 }
 
 export function clanShareText(name: string, code: string): string {
-  return `Join my clan "${name}" in the Settle Watch League. Clan code ${code}`;
+  return t("lg.clanShare", { name, code });
 }
 
 export function shortCountdown(ms: number): string {
-  if (ms <= 0) return "resetting";
+  if (ms <= 0) return t("lg.resetting");
   const h = Math.floor(ms / 3600_000);
   const d = Math.floor(h / 24);
-  return d > 0 ? `${d}d ${h % 24}h` : `${h}h ${Math.floor((ms % 3600_000) / 60_000)}m`;
+  return d > 0 ? t("lg.cdDays", { d, h: h % 24 }) : t("lg.cdHours", { h, m: Math.floor((ms % 3600_000) / 60_000) });
 }
 
 export function passedLine(names: string[]): string | null {
   if (!names.length) return null;
-  if (names.length === 1) return `You passed ${names[0]}!`;
-  return `You passed ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}!`;
+  if (names.length === 1) return t("lg.passedOne", { name: names[0] });
+  return t("lg.passedMany", { names: joinList(names.slice(0, -1)), last: names[names.length - 1] });
 }
 
-const FRIENDLY: Record<string, string> = {
-  rate_limited: "Too many requests. Wait a moment.",
-  unauthorized: "Your League session ended. Sign in again.",
-  nickname_taken: "That nickname is taken.",
-  nickname_not_allowed: "That nickname is not allowed. Try another one.",
-  clan_full: "That clan is full.",
-};
+const FRIENDLY = new Set(["rate_limited", "unauthorized", "nickname_taken", "nickname_not_allowed", "clan_full"]);
 export function friendlyError(code: string | undefined, message: string | undefined): string {
-  return (code && FRIENDLY[code]) || message || "Something went wrong. Try again.";
+  return (code && FRIENDLY.has(code) ? t(`lg.err.${code}` as Key) : "") || message || t("common.wrongRetry");
 }

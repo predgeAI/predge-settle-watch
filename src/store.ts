@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SettlementRisk } from "./api";
 import type { Verification } from "./verify";
 import { DEFAULT_DIGEST_HOUR, MAX_WATCHLIST, type Cluster } from "./config";
+import { detectLanguage, isLang, t, tn, type Lang } from "./i18n";
 
 export interface Snapshot {
   risk_level: string;
@@ -108,15 +109,14 @@ export function describeChanges(prev: Snapshot | undefined, next: Snapshot): str
   if (!prev) return [];
   const out: string[] = [];
   if (next.dispute_count > prev.dispute_count) {
-    const n = next.dispute_count - prev.dispute_count;
-    out.push(n === 1 ? "New UMA dispute on the proposed answer" : `${n} new UMA disputes`);
+    out.push(tn("change.dispute", next.dispute_count - prev.dispute_count));
   }
-  if (next.sent_to_uma_vote && !prev.sent_to_uma_vote) out.push("Disputed twice: outcome goes to a UMA token-holder vote");
-  if (next.bulletin_board_count > prev.bulletin_board_count) out.push("New bulletin-board update (clarification) on chain");
-  if (next.uma_state !== prev.uma_state) out.push(`UMA state: ${prev.uma_state} -> ${next.uma_state}`);
-  if (next.paused !== prev.paused) out.push(next.paused ? "Resolution paused on chain" : "Resolution unpaused");
-  if (next.resolved_on_chain && !prev.resolved_on_chain) out.push("Settled: on-chain resolution recorded");
-  if (next.risk_level !== prev.risk_level && out.length === 0) out.push(`Risk level: ${prev.risk_level} -> ${next.risk_level}`);
+  if (next.sent_to_uma_vote && !prev.sent_to_uma_vote) out.push(t("change.vote"));
+  if (next.bulletin_board_count > prev.bulletin_board_count) out.push(t("change.bulletin"));
+  if (next.uma_state !== prev.uma_state) out.push(t("change.umaState", { from: prev.uma_state, to: next.uma_state }));
+  if (next.paused !== prev.paused) out.push(next.paused ? t("change.paused") : t("change.unpaused"));
+  if (next.resolved_on_chain && !prev.resolved_on_chain) out.push(t("change.settled"));
+  if (next.risk_level !== prev.risk_level && out.length === 0) out.push(t("change.risk", { from: prev.risk_level, to: next.risk_level }));
   return out;
 }
 
@@ -126,10 +126,11 @@ export interface Settings {
   digestHour: number; // local hour, 0-23
   lastDigestDay?: string; // YYYY-MM-DD, local
   cluster: Cluster; // where receipts are anchored
+  language: Lang; // interface language; follows the phone until the user picks one
 }
 
 const SETTINGS_KEY = "settle-watch/settings/v1";
-export const DEFAULT_SETTINGS: Settings = { onboarded: false, digest: true, digestHour: DEFAULT_DIGEST_HOUR, cluster: "devnet" };
+export const DEFAULT_SETTINGS: Settings = { onboarded: false, digest: true, digestHour: DEFAULT_DIGEST_HOUR, cluster: "devnet", language: "en" };
 
 export async function loadSettings(): Promise<Settings> {
   try {
@@ -141,9 +142,10 @@ export async function loadSettings(): Promise<Settings> {
       digestHour: Number.isInteger(s.digestHour) && s.digestHour! >= 0 && s.digestHour! <= 23 ? s.digestHour! : DEFAULT_SETTINGS.digestHour,
       lastDigestDay: typeof s.lastDigestDay === "string" ? s.lastDigestDay : undefined,
       cluster: s.cluster === "mainnet-beta" ? "mainnet-beta" : "devnet",
+      language: isLang(s.language) ? s.language : detectLanguage(),
     };
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return { ...DEFAULT_SETTINGS, language: detectLanguage() };
   }
 }
 
@@ -166,16 +168,16 @@ export function changesLast24h(item: WatchItem, now = Date.now()): TimelineEvent
 /** One plain-language line for the market's current state. */
 export function statusLine(s: Snapshot | undefined): string {
   // Order matters: settled first, then the most urgent unsettled states.
-  if (!s) return "Not checked yet";
-  if (s.resolved_on_chain) return s.dispute_count ? `Settled on chain after ${s.dispute_count} dispute${s.dispute_count > 1 ? "s" : ""}` : "Settled on chain";
-  if (s.paused) return "Resolution paused on chain";
-  if (s.sent_to_uma_vote) return "Disputed twice: UMA token-holder vote";
-  if (s.open_dispute) return "Open UMA dispute";
-  if (s.bulletin_board_count) return `${s.bulletin_board_count} clarification${s.bulletin_board_count > 1 ? "s" : ""} posted, no open dispute`;
-  if (s.dispute_count && s.uma_state.toLowerCase() === "requested") return "Disputed, reset for a new proposal";
-  if (s.dispute_count) return "Disputed, not settled yet";
-  if (s.risk_level === "watch" && s.uma_state.toLowerCase() === "proposed") return "Answer proposed, no dispute yet";
-  return "Quiet: no dispute, no clarification";
+  if (!s) return t("line.notChecked");
+  if (s.resolved_on_chain) return s.dispute_count ? tn("line.settledAfter", s.dispute_count) : t("line.settled");
+  if (s.paused) return t("line.paused");
+  if (s.sent_to_uma_vote) return t("line.vote");
+  if (s.open_dispute) return t("line.open");
+  if (s.bulletin_board_count) return tn("line.clar", s.bulletin_board_count);
+  if (s.dispute_count && s.uma_state.toLowerCase() === "requested") return t("line.reset");
+  if (s.dispute_count) return t("line.disputed");
+  if (s.risk_level === "watch" && s.uma_state.toLowerCase() === "proposed") return t("line.proposed");
+  return t("line.quiet");
 }
 
 export function localDay(d = new Date()): string {

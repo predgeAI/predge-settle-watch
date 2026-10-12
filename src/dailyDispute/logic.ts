@@ -1,5 +1,6 @@
 // Daily Dispute: one real, historical disputed market per local day. Pure functions, no React.
 import { addDays, daysBetween } from "../game";
+import { t } from "../i18n";
 
 export interface Puzzle {
   id: string;
@@ -97,14 +98,12 @@ export function liveStreak(s: PuzzleState, day: string): number {
 }
 
 export function shareText(number: number, correct: boolean, streak: number): string {
-  return `Settle Watch Daily Dispute #${number} ${correct ? "✅" : "❌"} streak ${streak}`;
+  return t("dd.share", { n: number, mark: correct ? "✅" : "❌", streak });
 }
 
 /** One plain line for the reveal. */
 export function revealLine(p: Puzzle): string {
-  return p.diff === 1
-    ? `It settled differently from the proposed answer. Final result: ${p.final}.`
-    : `The proposed answer stood. Final result: ${p.final}.`;
+  return p.diff === 1 ? t("dd.revealDiff", { final: p.final }) : t("dd.revealStood", { final: p.final });
 }
 
 export function sanitizePuzzleState(raw: unknown): PuzzleState {

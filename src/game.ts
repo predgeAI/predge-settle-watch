@@ -1,6 +1,7 @@
 // Daily clock-in loop: streak, XP, levels, badges, weekly recap.
 // Pure functions only (no React Native imports) so they run in the offline selftest.
 // Everything is local to the phone. No server, no tokens, no money.
+import { en, t, tn, type Key } from "./i18n";
 
 export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play";
 
@@ -16,35 +17,42 @@ export const XP: Record<ActionKind | "clock_in", number> = {
   rule_play: 5,
 };
 
+/** English labels, kept for reference; screens use actionLabel() for the current language. */
 export const ACTION_LABEL: Record<ActionKind | "clock_in", string> = {
-  clock_in: "Clocked in",
-  verify: "Verified a record on this phone",
-  tamper: "Ran the tamper test",
-  anchor: "Anchored a receipt on Solana",
-  add_market: "Added a market",
-  early_catch: "Caught a change within 1 h",
-  puzzle_win: "Called the Daily Dispute right",
-  puzzle_play: "Played the Daily Dispute",
-  rule_play: "Spotted a risky phrase (once per case)",
+  clock_in: en["xp.clock_in"],
+  verify: en["xp.verify"],
+  tamper: en["xp.tamper"],
+  anchor: en["xp.anchor"],
+  add_market: en["xp.add_market"],
+  early_catch: en["xp.early_catch"],
+  puzzle_win: en["xp.puzzle_win"],
+  puzzle_play: en["xp.puzzle_play"],
+  rule_play: en["xp.rule_play"],
 };
+export const actionLabel = (k: ActionKind | "clock_in") => t(`xp.${k}` as Key);
 
+// Level names double as ids (stored level-up results compare them), so they stay English here.
 export const LEVELS = [
-  { name: "Watcher", min: 0 },
-  { name: "Verifier", min: 100 },
-  { name: "Settler", min: 300 },
-  { name: "Oracle", min: 700 },
+  { name: en["level.0"], min: 0 },
+  { name: en["level.1"], min: 100 },
+  { name: en["level.2"], min: 300 },
+  { name: en["level.3"], min: 700 },
 ] as const;
+/** Level name in the current language. */
+export const levelName = (index: number) => t(`level.${Math.max(0, Math.min(LEVELS.length - 1, index))}` as Key);
 
 export const BADGES = [
-  { id: "first_verify", name: "First verify", hint: "Verify a record on this phone" },
-  { id: "tamper_caught", name: "Tamper caught", hint: "Run the tamper test and see it rejected" },
-  { id: "first_receipt", name: "First receipt on Solana", hint: "Anchor a watch receipt" },
-  { id: "streak_7", name: "7-day streak", hint: "Clock in 7 days in a row" },
-  { id: "early_dispute", name: "Dispute spotted early", hint: "Open a disputed market within 1 h of the alert" },
-  { id: "watch_5", name: "5 markets watched", hint: "Watch 5 markets at once" },
-  { id: "puzzles", name: "Puzzles solved", hint: "Call 3 Daily Disputes right" },
+  { id: "first_verify", name: en["badge.first_verify.name"], hint: en["badge.first_verify.hint"] },
+  { id: "tamper_caught", name: en["badge.tamper_caught.name"], hint: en["badge.tamper_caught.hint"] },
+  { id: "first_receipt", name: en["badge.first_receipt.name"], hint: en["badge.first_receipt.hint"] },
+  { id: "streak_7", name: en["badge.streak_7.name"], hint: en["badge.streak_7.hint"] },
+  { id: "early_dispute", name: en["badge.early_dispute.name"], hint: en["badge.early_dispute.hint"] },
+  { id: "watch_5", name: en["badge.watch_5.name"], hint: en["badge.watch_5.hint"] },
+  { id: "puzzles", name: en["badge.puzzles.name"], hint: en["badge.puzzles.hint"] },
 ] as const;
 export type BadgeId = (typeof BADGES)[number]["id"];
+export const badgeName = (id: BadgeId) => t(`badge.${id}.name` as Key);
+export const badgeHint = (id: BadgeId) => t(`badge.${id}.hint` as Key);
 
 export interface GameEvent {
   at: string; // ISO time
@@ -179,13 +187,12 @@ export interface WeekCell {
 /** The last 7 days ending today, for the Home row. */
 export function lastSeven(s: GameState, now: Date = new Date()): WeekCell[] {
   const today = dayOf(now);
-  const L = ["M", "T", "W", "T", "F", "S", "S"];
   const out: WeekCell[] = [];
   for (let i = 6; i >= 0; i--) {
     const day = addDays(today, -i);
     out.push({
       day,
-      label: L[(new Date(toUtc(day)).getUTCDay() + 6) % 7],
+      label: t(`week.${(new Date(toUtc(day)).getUTCDay() + 6) % 7}` as Key),
       done: s.clockIns.includes(day),
       saved: s.savedDays.includes(day),
       today: i === 0,
@@ -299,13 +306,12 @@ export function weeklyRecap(s: GameState, now: Date = new Date()): Recap {
   const early = inWeek.filter((e) => e.kind === "early_catch").length;
   const receipts = inWeek.filter((e) => e.kind === "anchor").length;
   const xp = inWeek.reduce((a, e) => a + e.xp, 0);
-  const pl = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
   return {
     clockIns,
     early,
     receipts,
     xp,
-    text: `This week: ${pl(clockIns, "clock-in")}, ${pl(early, "change")} caught early, ${pl(receipts, "receipt")} on Solana`,
+    text: t("recap.text", { clockIns: tn("recap.clockIns", clockIns), changes: tn("recap.changes", early), receipts: tn("recap.receipts", receipts) }),
   };
 }
 

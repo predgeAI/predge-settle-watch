@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Linking, Modal, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Linking, Modal, SafeAreaView, ScrollView, View } from "react-native";
+import { Text } from "../Text";
+import { t } from "../i18n";
 import { C, PX, T } from "../theme";
 import { Button, PixelBox, Press, Scanlines } from "../ui";
 import { PixelIcon } from "../sprites";
@@ -42,13 +44,13 @@ export function LeagueCard({ onOpen }: { onOpen: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <Press onPress={onOpen} label="Open the League">
+    <Press onPress={onOpen} label={t("lg.open")}>
       <PixelBox border={C.green} bg={C.surface} style={{ marginTop: 14 }} inner={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 14 }}>
         <PixelIcon name="league" px={5} color={C.green} />
         <View style={{ flex: 1 }}>
-          <Text style={{ color: C.green, fontFamily: PX, fontSize: 9, marginBottom: 8 }}>LEAGUE</Text>
+          <Text style={{ color: C.green, fontFamily: PX, fontSize: 9, lineHeight: 14, marginBottom: 8 }}>{t("lg.kicker")}</Text>
           <Text style={{ color: C.text, fontSize: T.body, lineHeight: 21 }}>
-            {line ?? "Compare weekly XP with friends and join a clan. Points are just for fun."}
+            {line ?? t("lg.card")}
           </Text>
         </View>
       </PixelBox>
@@ -78,7 +80,7 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
       if (pending) {
         try {
           const r = await api.acceptInvite(pending);
-          setNote(r.already ? `You are already friends with ${r.friend.nickname}.` : `You and ${r.friend.nickname} are friends now.`);
+          setNote(r.already ? t("lg.alreadyFriends", { name: r.friend.nickname }) : t("lg.friendsNow", { name: r.friend.nickname }));
         } catch (e) {
           setNote(e instanceof LeagueError ? e.message : null);
         }
@@ -88,7 +90,7 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
       setStage("main");
     } catch (e) {
       if (e instanceof LeagueError && e.status === 401) return setStage("signin");
-      setErr(e instanceof LeagueError ? e.message : "Something went wrong.");
+      setErr(e instanceof LeagueError ? e.message : t("common.wrong"));
       setStage("boot");
     }
   }, []);
@@ -104,7 +106,7 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
       await signInWithWallet();
       await load();
     } catch (e) {
-      setErr(e instanceof LeagueError ? e.message : "Sign-in failed.");
+      setErr(e instanceof LeagueError ? e.message : t("lg.signInFailed"));
     } finally {
       setBusy(false);
     }
@@ -116,13 +118,14 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 56 }}>
           <View style={{ marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 16, backgroundColor: "#0f1d13", borderBottomWidth: 4, borderBottomColor: C.green }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Button small kind="ghost" title="Back" onPress={props.onClose} />
+              <Button small kind="ghost" title={t("common.back")} onPress={props.onClose} />
               {me && stage === "main" ? <Avatar id={me.avatar} px={3} /> : null}
             </View>
-            <Text style={{ color: C.greenBright, fontFamily: PX, fontSize: 18, marginTop: 16 }}>LEAGUE</Text>
+            <Text style={{ color: C.greenBright, fontFamily: PX, fontSize: 18, marginTop: 16 }}>{t("lg.title")}</Text>
             {me && stage === "main" ? (
               <Text style={{ color: C.dim, fontSize: T.small, marginTop: 8 }}>
-                {me.nickname}: {me.weeklyXp} XP this week{me.rank ? `, rank #${me.rank}` : ""}
+                {t("lg.meLine", { nick: me.nickname ?? "", xp: me.weeklyXp })}
+                {me.rank ? t("lg.rankSuffix", { n: me.rank }) : ""}
               </Text>
             ) : null}
           </View>
@@ -133,19 +136,19 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
             err ? (
               <View style={{ marginTop: 18 }}>
                 <Text style={st.err}>{err}</Text>
-                <Button small kind="ghost" title="Try again" onPress={load} style={{ marginTop: 10 }} />
+                <Button small kind="ghost" title={t("common.tryAgain")} onPress={load} style={{ marginTop: 10 }} />
               </View>
             ) : (
-              <Text style={[st.dim, { marginTop: 24 }]}>Loading...</Text>
+              <Text style={[st.dim, { marginTop: 24 }]}>{t("common.loading")}</Text>
             )
           ) : null}
 
           {stage === "signin" ? (
             <View>
               <Text style={[st.body, { marginTop: 16 }]}>
-                Sign in with your Solana wallet to play with friends. You sign one free message: no transaction, no fee. Other players only see the nickname you pick, never your address.
+                {t("lg.signInBody")}
               </Text>
-              <Button title={busy ? "Waiting for wallet..." : "Sign in with wallet"} onPress={signIn} disabled={busy} style={{ marginTop: 16 }} />
+              <Button title={busy ? t("common.waitingWallet") : t("lg.signIn")} onPress={signIn} disabled={busy} style={{ marginTop: 16 }} />
               {err ? <Text style={[st.err, { marginTop: 10 }]}>{err}</Text> : null}
               <Disclaimer />
             </View>
@@ -156,7 +159,7 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
           {stage === "main" && me ? (
             <View>
               <Tabs
-                tabs={[{ id: "league", label: "LEAGUE" }, { id: "clan", label: "CLAN" }, { id: "invite", label: "INVITE" }, { id: "me", label: "ME" }]}
+                tabs={[{ id: "league", label: t("lg.tab.league") }, { id: "clan", label: t("lg.tab.clan") }, { id: "invite", label: t("lg.tab.invite") }, { id: "me", label: t("lg.tab.me") }]}
                 value={view}
                 onChange={setView}
               />

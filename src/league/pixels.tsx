@@ -1,5 +1,7 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../Text";
+import { t } from "../i18n";
 import { Sprite } from "../sprites";
 import { C, PX } from "../theme";
 import { avatarMap, emblemMap, MEDAL_MAP, medalFor } from "./logic";
@@ -7,7 +9,7 @@ import { avatarMap, emblemMap, MEDAL_MAP, medalFor } from "./logic";
 export function Avatar({ id, px = 4 }: { id: string; px?: number }) {
   const a = avatarMap(id);
   return (
-    <View style={{ backgroundColor: C.surfaceHi, padding: px / 2 }} accessibilityLabel="Player avatar">
+    <View style={{ backgroundColor: C.surfaceHi, padding: px / 2 }} accessibilityLabel={t("lg.avatarA11y")}>
       <Sprite map={a.map} px={px} palette={a.palette} />
     </View>
   );

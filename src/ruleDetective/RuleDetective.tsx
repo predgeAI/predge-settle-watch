@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { Modal, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../Text";
+import { joinList, t } from "../i18n";
 import raw from "./cases.json";
 import { dayOf, XP, type ActionKind } from "../game";
 import { puzzleNumber } from "../dailyDispute/logic";
@@ -7,18 +9,18 @@ import { alpha, C, PX, T } from "../theme";
 import { Button, LiveMascot, PixelBox, Press, Reveal, Scanlines } from "../ui";
 import { PixelIcon } from "../sprites";
 import * as haptic from "../haptic";
-import { caseIndex, KIND_HINT, KIND_LABEL, otherKinds, segments, type Case } from "./logic";
+import { caseIndex, kindHint, kindLabel, otherKinds, segments, type Case } from "./logic";
 
 const CASES = raw as Case[];
 
 export function RuleDetectiveCard({ onOpen }: { onOpen: () => void }) {
   return (
-    <Press onPress={onOpen} label="Open Rule Detective">
+    <Press onPress={onOpen} label={t("rd.open")}>
       <PixelBox border={C.teal} bg="#0e2229" style={{ marginTop: 14 }} inner={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 14 }}>
         <PixelIcon name="eye" px={5} color={C.teal} />
         <View style={{ flex: 1 }}>
-          <Text style={st.kicker}>RULE DETECTIVE</Text>
-          <Text style={st.cardText}>Read real market rules. Spot the phrase that could cause trouble. +{XP.rule_play} XP a case.</Text>
+          <Text style={st.kicker}>{t("rd.kicker")}</Text>
+          <Text style={st.cardText}>{t("rd.card", { xp: XP.rule_play })}</Text>
         </View>
       </PixelBox>
     </Press>
@@ -50,21 +52,19 @@ export function RuleDetectiveModal(props: { visible: boolean; onClose: () => voi
         <ScrollView contentContainerStyle={st.scroll}>
           <View style={st.head}>
             <View style={st.rowBetween}>
-              <Button small kind="ghost" title="Back" onPress={props.onClose} />
-              <Text style={st.count}>
-                CASE {(step % CASES.length) + 1} OF {CASES.length}
-              </Text>
+              <Button small kind="ghost" title={t("common.back")} onPress={props.onClose} />
+              <Text style={st.count}>{t("rd.count", { n: (step % CASES.length) + 1, total: CASES.length })}</Text>
             </View>
             <View style={[st.rowBetween, { marginTop: 18 }]}>
-              <Text style={st.title}>RULE{"\n"}DETECTIVE</Text>
+              <Text style={st.title}>{t("rd.title")}</Text>
               <LiveMascot mood={picked === null ? "idle" : "cheer"} px={5} />
             </View>
           </View>
 
           <PixelBox border={C.teal} style={{ marginTop: 16 }} inner={{ padding: 16 }}>
-            <Text style={st.label}>THE MARKET</Text>
+            <Text style={st.label}>{t("common.theMarket")}</Text>
             <Text style={st.question}>{c.q}</Text>
-            <Text style={[st.label, { marginTop: 16 }]}>THE RULES</Text>
+            <Text style={[st.label, { marginTop: 16 }]}>{t("rd.rules")}</Text>
             <Text style={st.rules}>
               {segs.map((s, i) =>
                 s.phrase === undefined ? (
@@ -85,21 +85,21 @@ export function RuleDetectiveModal(props: { visible: boolean; onClose: () => voi
 
           {picked === null ? (
             <Reveal>
-              <Text style={st.ask}>Tap the highlighted phrase that could cause trouble.</Text>
-              <Text style={[st.dim, { textAlign: "center", marginTop: 8 }]}>There is no wrong tap. Each one teaches something.</Text>
+              <Text style={st.ask}>{t("rd.ask")}</Text>
+              <Text style={[st.dim, { textAlign: "center", marginTop: 8 }]}>{t("rd.noWrong")}</Text>
             </Reveal>
           ) : (
             <Reveal>
               <PixelBox border={C.green} bg={alpha(C.green, 0.08)} style={{ marginTop: 16 }} inner={{ padding: 16 }}>
-                <Text style={st.result}>{KIND_LABEL[c.phrases[picked].kind].toUpperCase()}</Text>
-                <Text style={st.hint}>{KIND_HINT[c.phrases[picked].kind]}</Text>
+                <Text style={st.result}>{kindLabel(c.phrases[picked].kind).toUpperCase()}</Text>
+                <Text style={st.hint}>{kindHint(c.phrases[picked].kind)}</Text>
                 {otherKinds(c, picked).length ? (
-                  <Text style={[st.dim, { marginTop: 10 }]}>Also worth a look here: {otherKinds(c, picked).map((k) => KIND_LABEL[k].toLowerCase()).join(", ")}.</Text>
+                  <Text style={[st.dim, { marginTop: 10 }]}>{t("rd.also", { list: joinList(otherKinds(c, picked).map((k) => kindLabel(k).toLowerCase())) })}</Text>
                 ) : null}
-                <Text style={[st.dim, { marginTop: 10 }]}>Common trouble spots, not a claim about what happened in this market.</Text>
+                <Text style={[st.dim, { marginTop: 10 }]}>{t("rd.disclaimer")}</Text>
               </PixelBox>
               <View style={{ marginTop: 14 }}>
-                <Button title="Next case" onPress={next} />
+                <Button title={t("rd.next")} onPress={next} />
               </View>
             </Reveal>
           )}
@@ -116,9 +116,9 @@ const st = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingBottom: 56 },
   head: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 18, backgroundColor: "#0b1c22", borderBottomWidth: 4, borderBottomColor: C.teal },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  count: { color: C.teal, fontFamily: PX, fontSize: 9 },
+  count: { color: C.teal, fontFamily: PX, fontSize: 9, lineHeight: 14, flexShrink: 1, textAlign: "right" },
   title: { color: C.greenBright, fontFamily: PX, fontSize: 18, lineHeight: 28 },
-  kicker: { color: C.teal, fontFamily: PX, fontSize: 9, marginBottom: 8 },
+  kicker: { color: C.teal, fontFamily: PX, fontSize: 9, lineHeight: 14, marginBottom: 8 },
   cardText: { color: C.text, fontSize: T.body, lineHeight: 21 },
   label: { color: C.dim, fontFamily: PX, fontSize: 8, marginBottom: 8 },
   question: { color: C.text, fontSize: 18, fontWeight: "700", lineHeight: 25 },
@@ -127,6 +127,6 @@ const st = StyleSheet.create({
   phraseOn: { backgroundColor: alpha(C.teal, 0.3), color: C.greenBright },
   ask: { color: C.text, fontFamily: PX, fontSize: 10, lineHeight: 18, marginTop: 20, textAlign: "center" },
   dim: { color: C.dim, fontSize: T.small, lineHeight: 18 },
-  result: { color: C.green, fontFamily: PX, fontSize: 12, marginBottom: 10 },
+  result: { color: C.green, fontFamily: PX, fontSize: 12, lineHeight: 18, marginBottom: 10 },
   hint: { color: C.text, fontSize: T.body + 1, lineHeight: 23 },
 });

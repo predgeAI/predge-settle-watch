@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { fetchSettlementRisk } from "./api";
 import { verifyRecord } from "./verify";
 import { BACKGROUND_TASK } from "./config";
+import { setLanguage, t, tk, tn } from "./i18n";
 import {
   changesLast24h,
   describeChanges,
@@ -27,16 +28,20 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/** Creates the Android channel, or renames it after a language change. */
+export async function setupChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(ALERT_CHANNEL, {
+    name: t("notif.channelName"),
+    description: t("notif.channelDesc"),
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 150, 250],
+    lightColor: "#86e28a",
+  });
+}
+
 export async function setupNotifications(): Promise<boolean> {
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync(ALERT_CHANNEL, {
-      name: "Settlement alerts",
-      description: "UMA disputes, clarifications and on-chain settlement of watched markets",
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 150, 250],
-      lightColor: "#86e28a",
-    });
-  }
+  await setupChannel();
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   const asked = await Notifications.requestPermissionsAsync();
@@ -60,7 +65,7 @@ export async function pollItem(item: WatchItem): Promise<{ item: WatchItem; chan
     const now = new Date().toISOString();
     const timeline = [...item.timeline];
     if (!item.snapshot) {
-      timeline.unshift({ at: now, text: `Watching. ${r.recommendation}`, verified: verification.verified, kind: "info" });
+      timeline.unshift({ at: now, text: t("timeline.watching", { rec: r.recommendation }), verified: verification.verified, kind: "info" });
     }
     for (const c of changes) timeline.unshift({ at: now, text: c, verified: verification.verified, kind: "change" });
     return {
@@ -86,6 +91,8 @@ export async function pollItem(item: WatchItem): Promise<{ item: WatchItem; chan
 
 /** Polls the whole watchlist, persists it and raises one notification per changed market. */
 export async function pollAll(): Promise<{ items: WatchItem[]; changed: number }> {
+  // The background task starts without the UI, so it reads the chosen language itself.
+  setLanguage((await loadSettings()).language);
   const items = await loadWatchlist();
   const out: WatchItem[] = [];
   let changed = 0;
@@ -94,9 +101,11 @@ export async function pollAll(): Promise<{ items: WatchItem[]; changed: number }
     out.push(item);
     if (changes.length) {
       changed++;
-      const badge = item.verification?.verified ? "Verified on device" : "NOT verified";
+      const badge = item.verification?.verified ? t("notif.verified") : t("notif.notVerified");
+      const level = item.last?.risk_level;
+      const word = level ? tk(`status.${level}.word`, level.toUpperCase()) : t("notif.update");
       await notify(
-        `${item.last?.risk_level?.toUpperCase() ?? "UPDATE"}: ${item.question ?? item.key}`.slice(0, 120),
+        `${word}: ${item.question ?? item.key}`.slice(0, 120),
         `${changes.join(". ")}. ${badge}.`,
         { key: item.key }
       );
@@ -119,18 +128,12 @@ export function digestText(items: WatchItem[]): { title: string; body: string } 
   const changed = items.filter((i) => changesLast24h(i).length > 0);
   const attention = items.filter((i) => i.last?.risk_level === "caution" || i.last?.risk_level === "watch").length;
   const n = items.length;
-  const title = changed.length
-    ? `Settle Watch daily: ${changed.length} of ${n} market${n > 1 ? "s" : ""} changed status`
-    : `Settle Watch daily: no status changes across ${n} market${n > 1 ? "s" : ""}`;
+  const title = changed.length ? tn("digest.changed", n, { changed: changed.length }) : tn("digest.quiet", n);
   const lines = changed
     .slice(0, 3)
     .map((i) => `${(i.question ?? i.key).slice(0, 60)}: ${changesLast24h(i)[0].text}`);
-  if (changed.length > 3) lines.push(`and ${changed.length - 3} more`);
-  lines.push(
-    attention
-      ? `${attention} market${attention > 1 ? "s" : ""} still need${attention > 1 ? "" : "s"} attention (Caution or Watch).`
-      : "Nothing on your watchlist needs attention."
-  );
+  if (changed.length > 3) lines.push(t("digest.more", { n: changed.length - 3 }));
+  lines.push(attention ? tn("digest.attention", attention) : t("digest.none"));
   return { title, body: lines.join("\n") };
 }
 

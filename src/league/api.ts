@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LEAGUE_API, SESSION_KEY } from "./config";
 import { friendlyError } from "./logic";
+import { t } from "../i18n";
 
 export class LeagueError extends Error {
   constructor(public code: string, message: string, public status: number) {
@@ -78,7 +79,7 @@ async function request<T>(method: string, path: string, body?: unknown, auth = t
     }
   }
   void last;
-  throw new LeagueError("network", "Cannot reach the League. Check your connection.", 0);
+  throw new LeagueError("network", t("lg.err.network"), 0);
 }
 
 export const api = {
