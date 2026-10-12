@@ -76,8 +76,8 @@ export function DailyDisputeModal(props: { visible: boolean; onClose: () => void
     setS(r.state);
     setJust((n) => n + 1);
     await savePuzzleState(r.state);
-    if (r.correct) haptic.success();
-    else haptic.reject();
+    if (r.correct) haptic.verifySteps(3);
+    else haptic.rejected();
     props.award(r.correct ? "puzzle_win" : "puzzle_play", day);
   };
 
@@ -146,7 +146,7 @@ export function DailyDisputeModal(props: { visible: boolean; onClose: () => void
             <Reveal key={`r${just}`}>
               <PixelBox border={played.correct ? C.green : C.orange} bg={alpha(played.correct ? C.green : C.orange, 0.1)} style={{ marginTop: 16 }} inner={{ padding: 16 }}>
                 <View style={st.revealHead}>
-                  <Burst play={1} kind={played.correct ? "ok" : "bad"} size={64} />
+                  <Burst play={1} kind={played.correct ? "ok" : "bad"} size={64} haptic="none" />
                   <View style={{ flex: 1 }}>
                     <Text style={[st.result, { color: played.correct ? C.green : C.orange }]}>{played.correct ? t("dd.niceCall") : t("dd.notThisTime")}</Text>
                     <Text style={st.xp}>+{played.correct ? XP.puzzle_win : XP.puzzle_play} XP</Text>

@@ -123,7 +123,7 @@ export function Press(props: {
   return (
     <Pressable
       onPress={() => {
-        if (props.haptics !== false) haptic.tap();
+        if (props.haptics !== false) (props.role === "tab" ? haptic.tab : haptic.tap)();
         props.onPress?.();
       }}
       onPressIn={() => setDown(true)}
@@ -228,13 +228,52 @@ const SPARK_DIRS = [
   [0.7, -0.7],
 ];
 
-/** Pops a pixel check (or cross) with a spray of pixel sparks. Re-plays when `play` changes. */
-export function Burst(props: { play: number; kind?: "ok" | "bad"; size?: number }) {
+export type BurstHaptic = "clockIn" | "verify" | "rejected" | "stamp" | "none";
+
+/**
+ * Which haptic a Burst plays when it pops. Without an explicit `haptic` prop it follows how the
+ * app uses each burst: a cross is a rejection, the full-screen stamp (size >= 120) is a confirmed
+ * receipt, the verify card burst (size >= 64) runs the check ticks, the small one is clock-in.
+ */
+export function burstHaptic(props: { kind?: "ok" | "bad"; size?: number; haptic?: BurstHaptic }): BurstHaptic {
+  if (props.haptic) return props.haptic;
+  const size = props.size ?? 64;
+  if (props.kind === "bad") return "rejected";
+  if (size >= 120) return "stamp";
+  if (size >= 64) return "verify";
+  return "clockIn";
+}
+
+// Last `play` value felt per haptic, so a burst that remounts with an old value (switching tabs and
+// back) replays its picture but does not buzz again.
+const feltBurst = new Map<string, number>();
+
+function playBurstHaptic(kind: BurstHaptic, size: number, play: number, steps?: number) {
+  const key = `${kind}:${size}`;
+  if (kind === "none" || feltBurst.get(key) === play) return;
+  feltBurst.set(key, play);
+  if (kind === "clockIn") haptic.clockIn();
+  else if (kind === "verify") haptic.verifySteps(steps ?? 7);
+  else if (kind === "rejected") haptic.rejected();
+  else if (kind === "stamp") haptic.stamp();
+}
+
+/**
+ * Pops a pixel check (or cross) with a spray of pixel sparks. Re-plays when `play` changes,
+ * together with a matching haptic (see burstHaptic; `steps` sets the verify tick count).
+ */
+export function Burst(props: { play: number; kind?: "ok" | "bad"; size?: number; haptic?: BurstHaptic; steps?: number }) {
   const size = props.size ?? 64;
   const p = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
   const bad = props.kind === "bad";
   const col = bad ? C.red : C.green;
+  const feel = burstHaptic(props);
+  useEffect(() => {
+    if (!props.play) return;
+    playBurstHaptic(feel, size, props.play, props.steps);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.play]);
   useEffect(() => {
     if (!props.play) return;
     p.setValue(0);
@@ -289,7 +328,8 @@ export function CelebrationOverlay({ item, onClose }: { item: Celebration | null
   const tick = useTicker(350, !!item && !reduced);
   useEffect(() => {
     if (!item) return;
-    haptic.success();
+    if (item.kind === "level") haptic.levelUp();
+    else haptic.stamp();
     s.setValue(0);
     Animated.spring(s, { toValue: 1, friction: 6, tension: 70, useNativeDriver: true }).start();
   }, [item, s]);

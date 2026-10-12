@@ -561,4 +561,24 @@ t("SKR pack unlock awards XP once per market and the Pack opener badge", () => {
   assert.equal(b.gained, 0);
   assert.deepEqual(b.badges, []);
 });
+// ---- haptic choreography ----
+import { LAUNCH_LEAD_MS, MAX_PATTERN_MS, PATTERNS, patternMs, PRIMITIVE_MS, verifyPattern } from "../src/hapticPatterns";
+
+t("haptic patterns stay short and well-formed", () => {
+  for (const [name, steps] of Object.entries({ ...PATTERNS, verify7: verifyPattern(7), verify12: verifyPattern(12) })) {
+    assert.ok(steps.length > 0, name);
+    assert.ok(patternMs(steps) <= MAX_PATTERN_MS, `${name} is ${patternMs(steps)} ms`);
+    for (const st of steps) {
+      assert.ok(st.p in PRIMITIVE_MS, `${name}: ${st.p}`);
+      assert.ok(st.scale >= 0 && st.scale <= 1 && st.delay >= 0, name);
+    }
+  }
+});
+t("verify ticks rise from 0.35 to 0.6, then a firm click", () => {
+  const v = verifyPattern(7);
+  assert.equal(v.length, 8);
+  assert.deepEqual([v[0].scale, v[6].scale, v[7].p, v[7].scale], [0.35, 0.6, "CLICK", 0.9]);
+  assert.ok(v.slice(1).every((st) => st.delay === 60));
+  assert.equal(LAUNCH_LEAD_MS, PRIMITIVE_MS.QUICK_RISE + PATTERNS.launch[1].delay);
+});
 console.log(`${n} checks passed`);

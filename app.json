@@ -39,6 +39,7 @@
       "./plugins/with-release-signing",
       "./plugins/with-activity-config",
       "./plugins/with-home-widget",
+      "./plugins/with-rich-haptics",
       "expo-asset",
       [
         "expo-splash-screen",

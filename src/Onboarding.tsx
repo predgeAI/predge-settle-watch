@@ -28,6 +28,8 @@ export default function Onboarding(props: { onDone: (addExamples: boolean, clock
   const reduced = useReducedMotion();
   const blink = useTicker(500, !reduced);
   const x = useRef(new Animated.Value(0)).current;
+  const dotTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => dotTimers.current.forEach(clearTimeout), []);
   const pop = useRef(new Animated.Value(0)).current;
   const first = XP.clock_in + 2;
   useLang();
@@ -44,6 +46,8 @@ export default function Onboarding(props: { onDone: (addExamples: boolean, clock
       return;
     }
     setWalking(true);
+    // A light tick as the mascot picks up each market dot.
+    dotTimers.current = DOT_AT.map((f) => setTimeout(haptic.tap, Math.round(1500 * f)));
     Animated.timing(x, { toValue: W - 60, duration: 1500, easing: Easing.linear, useNativeDriver: false }).start(() => {
       setWalking(false);
       haptic.success();
@@ -54,10 +58,14 @@ export default function Onboarding(props: { onDone: (addExamples: boolean, clock
   const clockIn = () => {
     if (clocked) return;
     setClocked(true);
-    haptic.success();
+    haptic.clockIn();
     pop.setValue(0);
     Animated.timing(pop, { toValue: 1, duration: reduced ? 1 : 1100, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   };
+
+  useEffect(() => {
+    if (step === LAST) haptic.levelUp();
+  }, [step]);
 
   useEffect(() => {
     if (step === 3) {

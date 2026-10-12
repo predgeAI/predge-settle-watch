@@ -38,7 +38,7 @@ export function RuleDetectiveModal(props: { visible: boolean; onClose: () => voi
   const pick = (i: number) => {
     if (picked !== null) return;
     setPicked(i);
-    haptic.tap();
+    haptic.success(); // the explanation is revealed
     props.award("rule_play", c.id);
   };
   const next = () => {
