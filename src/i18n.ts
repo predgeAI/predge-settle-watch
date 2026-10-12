@@ -655,6 +655,7 @@ export const en = {
   "lg.err.wrongAccount": "Use the same wallet account you connected.",
   "lg.err.noSignature": "The wallet did not sign.",
   "lg.err.wallet": "Sign-in was cancelled or the wallet is unavailable.",
+  "lg.err.badMessage": "The League sent a sign-in request this app does not accept, so nothing was signed.",
   // share card
   "share.card": "Share card",
   "share.title": "Your receipt card",
@@ -1333,6 +1334,7 @@ const es: Dict = {
   "lg.err.wrongAccount": "Usa la misma cuenta de wallet que conectaste.",
   "lg.err.noSignature": "La wallet no firmó.",
   "lg.err.wallet": "Se canceló el inicio de sesión o la wallet no está disponible.",
+  "lg.err.badMessage": "La Liga envió una solicitud de inicio de sesión que esta app no acepta, así que no se firmó nada.",
   // share card
   "share.card": "Compartir tarjeta",
   "share.title": "Tu tarjeta de recibo",
@@ -2008,6 +2010,7 @@ const pt: Dict = {
   "lg.err.wrongAccount": "Use a mesma conta da carteira que você conectou.",
   "lg.err.noSignature": "A carteira não assinou.",
   "lg.err.wallet": "O login foi cancelado ou a carteira não está disponível.",
+  "lg.err.badMessage": "A Liga enviou um pedido de login que este app não aceita, então nada foi assinado.",
   // share card
   "share.card": "Compartilhar cartão",
   "share.title": "Seu cartão de recibo",
@@ -2683,6 +2686,7 @@ const zh: Dict = {
   "lg.err.wrongAccount": "请使用你之前连接的同一个钱包账户。",
   "lg.err.noSignature": "钱包没有签名。",
   "lg.err.wallet": "登录已取消，或钱包不可用。",
+  "lg.err.badMessage": "联赛发来的登录请求不被本应用接受，因此没有签名任何内容。",
   // share card
   "share.card": "分享卡片",
   "share.title": "你的收据卡片",
@@ -3358,6 +3362,7 @@ const ko: Dict = {
   "lg.err.wrongAccount": "연결했던 같은 지갑 계정을 사용하세요.",
   "lg.err.noSignature": "지갑이 서명하지 않았어요.",
   "lg.err.wallet": "로그인이 취소됐거나 지갑을 사용할 수 없어요.",
+  "lg.err.badMessage": "리그가 이 앱이 허용하지 않는 로그인 요청을 보내서 아무것도 서명하지 않았어요.",
   // share card
   "share.card": "카드 공유",
   "share.title": "내 영수증 카드",

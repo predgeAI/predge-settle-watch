@@ -912,6 +912,49 @@ t("wallet tx: SKR payment rejects added transfers and a changed amount", () => {
   assert.equal(reason(() => checkUnlockTx(serialize([...ixs, ixs[1]], pay), skrParams)), "instructions");
 });
 
+// ---- League sign-in message ----
+import { checkSignInMessage, leagueHost, reportsToLeague } from "../src/league/logic";
+import { LEAGUE_API } from "../src/league/config";
+// Same text as buildMessage in the settle-watch-league server (lib/service.ts).
+const siws = (p: { domain?: string; wallet?: string; nonce?: string; issuedAt?: string; expiresAt?: string }) =>
+  [
+    `${p.domain ?? "settle-watch-league.vercel.app"} wants you to sign in with your Solana account:`,
+    p.wallet ?? RCPT_TX.payer,
+    "",
+    "Sign in to the Settle Watch League. This does not send a transaction and costs nothing.",
+    "",
+    `URI: https://${p.domain ?? "settle-watch-league.vercel.app"}`,
+    "Version: 1",
+    "Chain ID: mainnet",
+    `Nonce: ${p.nonce ?? "0123456789abcdef0123456789abcdef"}`,
+    `Issued At: ${p.issuedAt ?? "2026-10-12T10:00:00.000Z"}`,
+    `Expiration Time: ${p.expiresAt ?? "2026-10-12T10:05:00.000Z"}`,
+  ].join("\n");
+t("league: sign-in message must name this League, this wallet and now", () => {
+  const domain = leagueHost(LEAGUE_API);
+  assert.equal(domain, "settle-watch-league.vercel.app");
+  const now = Date.parse("2026-10-12T10:01:00Z");
+  const ok = { domain, address: RCPT_TX.payer, now };
+  assert.equal(checkSignInMessage(siws({}), ok), null);
+  assert.equal(checkSignInMessage(siws({ domain: "evil.example" }), ok), "domain");
+  assert.equal(checkSignInMessage(siws({ domain: "settle-watch-league.vercel.app.evil.io" }), ok), "domain");
+  assert.equal(checkSignInMessage(siws({ wallet: "3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC" }), ok), "address");
+  assert.equal(checkSignInMessage(siws({}).replace("Chain ID: mainnet\n", ""), ok), "chain");
+  assert.equal(checkSignInMessage(siws({ nonce: "" }), ok), "nonce");
+  assert.equal(checkSignInMessage(siws({}).replace(/Issued At: .*\n/, ""), ok), "issued at");
+  assert.equal(checkSignInMessage(siws({ issuedAt: "2026-10-12T09:50:00.000Z", expiresAt: "2026-10-12T10:20:00.000Z" }), ok), "issued at");
+  assert.equal(checkSignInMessage(siws({ issuedAt: "2026-10-12T10:12:00.000Z", expiresAt: "2026-10-12T10:17:00.000Z" }), ok), "issued at");
+  assert.equal(checkSignInMessage(siws({ issuedAt: "2026-10-12T09:52:00.000Z", expiresAt: "2026-10-12T09:57:00.000Z" }), ok), "expiration");
+  assert.equal(checkSignInMessage(siws({}).replace("URI: https://settle-watch-league.vercel.app", "URI: https://evil.example"), ok), "uri");
+  assert.equal(checkSignInMessage(siws({}) + "\nNonce: 1111111111111111", ok), "duplicate field");
+  assert.equal(checkSignInMessage("transfer all funds", ok), "header");
+  assert.equal(checkSignInMessage("x".repeat(1001), ok), "length");
+});
+t("league: pack_open stays local XP and is never reported", () => {
+  assert.equal(reportsToLeague("pack_open"), false);
+  for (const k of ["clock_in", "verify", "tamper", "anchor", "add_market"]) assert.equal(reportsToLeague(k), true);
+});
+
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),
   (e) => {
