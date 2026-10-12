@@ -2,7 +2,7 @@
 // Pure (no React Native imports) so the offline selftest can check it. Every label is
 // translated here, in the app's current language, because the native widget has no i18n.
 import { liveStreak, type GameState } from "./game";
-import { t, tk } from "./i18n";
+import { t, tk, tn } from "./i18n";
 import type { WatchItem } from "./store";
 
 export const WIDGET_LEVELS = ["caution", "watch", "ok", "resolved"] as const;
@@ -48,7 +48,7 @@ export function buildWidgetSummary(items: WatchItem[], game: GameState, now: Dat
     topTitle: title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 3)}...` : title,
     topLine: items.length ? t("home.noAttention") : t("widget.empty"),
     streak: liveStreak(game, now),
-    streakLabel: t("home.dayStreak"),
+    streakLabel: tn("home.streakDays", liveStreak(game, now)),
     checkedAt: Number.isFinite(checkedAt) ? checkedAt : 0,
     checked: t("card.checked"),
     time: { never: t("time.never"), s: t("time.s"), m: t("time.m"), h: t("time.h"), d: t("time.d") },

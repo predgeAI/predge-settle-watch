@@ -2,6 +2,10 @@
 import assert from "node:assert/strict";
 import { assertSettlementRisk, MAX_INPUT_LENGTH, parseMarketInput } from "../src/api";
 import { canonicalize } from "../src/canonical";
+import { setPlainWords } from "../src/i18n";
+
+// Most checks below pin the technical wording; the plain-words overlay has its own checks near the end.
+setPlainWords(false);
 
 let n = 0;
 const t = (name: string, fn: () => void) => {
@@ -1259,6 +1263,101 @@ import type { DiscoverMarket } from "../src/discover/api";
     } finally {
       setLang("en");
     }
+  });
+}
+
+// ---- Plain words overlay, first screen, example walkthrough ----
+import { PLAIN, PLAIN_EN } from "../src/i18nPlain";
+import { getPlainWords, LANGS as ALL_LANGS, t as tPlain } from "../src/i18n";
+import { memoText as memoPlain } from "../src/wallet";
+import { readFileSync, readdirSync } from "node:fs";
+{
+  const enAll = enDict as Record<string, string>;
+  const ph = (x: string) => [...new Set(x.match(/\{\w+\}/g) ?? [])].sort();
+  const base = Object.keys(PLAIN_EN);
+  t("plain words: every overlay key is a real key, in all six languages, with the same placeholders", () => {
+    assert.equal(ALL_LANGS.length, 6);
+    for (const k of base) assert.ok(k in enAll, k);
+    for (const { id } of ALL_LANGS) {
+      const o = PLAIN[id] as Record<string, string>;
+      for (const k of base) assert.ok(typeof o[k] === "string" && o[k].trim() !== "", `${id} ${k}`);
+      for (const k of Object.keys(o)) {
+        const b = k.replace(/\.(few|many)$/, ".other");
+        assert.ok(base.includes(b), `${id} extra ${k}`);
+        // Russian .one may name {n} where English says "someone".
+        const want = ph((PLAIN_EN as Record<string, string>)[b]);
+        const got = ph(o[k]).filter((p) => !(id === "ru" && k.endsWith(".one") && p === "{n}" && !want.includes("{n}")));
+        assert.deepEqual(got, want, `${id} ${k}`);
+      }
+    }
+    for (const k of base.filter((x) => x.endsWith(".other"))) {
+      const b = k.slice(0, -6);
+      assert.ok(`${b}.few` in PLAIN.ru && `${b}.many` in PLAIN.ru, `ru ${b}`);
+    }
+  });
+  t("plain words: no em dashes in English, no payout/flipped/settle-wrong wording anywhere", () => {
+    const en = [...Object.values(PLAIN_EN), ...["onb.plain.body", "onb.plain.example", "ex.walk.s1", "ex.walk.s2", "ex.walk.s3", "ex.walk.s4", "ex.walk.watch", "home.exampleLink", "settings.plainWords", "settings.plainWordsHint"].map((k) => enAll[k])];
+    for (const v of en) assert.ok(!/\u2014/.test(v), v);
+    for (const { id } of ALL_LANGS) for (const v of Object.values(PLAIN[id])) assert.ok(!/(payout|flipped|settle[sd]? wrong)/i.test(v ?? ""), v ?? "");
+    assert.equal(enAll["onb.plain.body"], "People bet on real events. Sometimes the result gets challenged and changed. Settle Watch warns you if that happens to yours.");
+  });
+  t("plain words: never touches memo, verification, checks, share or wallet text", () => {
+    for (const k of base) assert.ok(!/^(check|share|wallet|anchor\.ok|timeline|action|detail\.checks)/.test(k), k);
+    const files = ["src/verify.ts", "src/wallet.ts", "src/txcheck.ts", "src/canonical.ts", ...readdirSync("src/share").map((f) => `src/share/${f}`)];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      for (const k of base) assert.ok(!src.includes(`"${k.replace(/\.(one|other)$/, "")}`), `${f} uses ${k}`);
+    }
+    const memoArgs = { action: "watch" as const, marketId: "5186278", riskLevel: "caution", packHash: "a".repeat(64) };
+    setPlainWords(true);
+    const on = [memoPlain(memoArgs), canonicalize({ risk_level: "caution", note: "Disputed" })];
+    setPlainWords(false);
+    assert.deepEqual([memoPlain(memoArgs), canonicalize({ risk_level: "caution", note: "Disputed" })], on);
+  });
+  t("plain words: on shows everyday labels, off shows the technical ones, in the widget too", () => {
+    const snap = { risk_level: "caution", uma_state: "Disputed", dispute_count: 1, open_dispute: true, sent_to_uma_vote: false, bulletin_board_count: 0, resolved_on_chain: false, paused: false };
+    try {
+      setPlainWords(true);
+      assert.equal(getPlainWords(), true);
+      assert.equal(tPlain("status.caution.word"), "CHALLENGED");
+      assert.equal(tPlain("status.ok.label"), "All calm");
+      assert.equal(tPlain("status.resolved.word"), "FINAL");
+      assert.equal(tPlain("detail.anchorWatch"), "Save proof on Solana");
+      assert.equal(tPlain("term.pack.title"), "FULL STORY");
+      assert.equal(statusLine(snap), "Being challenged right now");
+      assert.deepEqual(buildWidgetSummary([], NEW_GAME).tiles.map((x) => x.label), ["CHALLENGED", "WATCH", "CALM", "FINAL"]);
+      setLang("ru");
+      assert.equal(tnRu("change.dispute", 2), "2 новых спора");
+      assert.equal(tnRu("change.dispute", 5), "5 новых споров");
+      assert.equal(tnRu("line.settledAfter", 1), "Итог окончательный после 1 спора");
+      assert.equal(tRu("status.caution.word"), "ОСПАРИВАЮТ");
+      // The checks keep the technical names.
+      assert.equal(tRu("check.d.fields", { n: 3 }), ruDict["check.d.fields"].replace("{n}", "3"));
+      setLang("en");
+      setPlainWords(false);
+      assert.equal(tPlain("status.caution.word"), "CAUTION");
+      assert.equal(statusLine(snap), "Open UMA dispute");
+      assert.deepEqual(buildWidgetSummary([], NEW_GAME).tiles.map((x) => x.label), ["CAUTION", "WATCH", "QUIET", "SETTLED"]);
+    } finally {
+      setLang("en");
+      setPlainWords(false);
+    }
+  });
+  t("widget: streak label agrees with the number", () => {
+    setLang("ru");
+    try {
+      const g = clockIn(NEW_GAME, at("2026-10-12")).state;
+      assert.equal(buildWidgetSummary([], g, at("2026-10-12")).streakLabel, "ДЕНЬ ПОДРЯД");
+      assert.equal(buildWidgetSummary([], NEW_GAME, at("2026-10-12")).streakLabel, "ДНЕЙ ПОДРЯД");
+    } finally {
+      setLang("en");
+    }
+  });
+  t("settings: plain words default on, a turned-off value stays off", () => {
+    const device = { language: () => "en" as const, country: () => undefined };
+    assert.equal(normalizeSettings({ onboarded: true, language: "ru" }, device).plainWords, true);
+    assert.equal(normalizeSettings({}, device).plainWords, true);
+    assert.equal(normalizeSettings(JSON.parse(serializeSettings({ ...normalizeSettings({}, device), plainWords: false })), device).plainWords, false);
   });
 }
 

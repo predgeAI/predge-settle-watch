@@ -78,7 +78,7 @@ import { EvidencePackCard } from "./src/skr";
 import { Text } from "./src/Text";
 import { DialogHost, showDialog } from "./src/dialog";
 import { LearnHost, Term, TOUR_REF } from "./src/learn";
-import { detectLanguage, en, setLanguage, t, useLang, type Key } from "./src/i18n";
+import { detectLanguage, en, setLanguage, setPlainWords, t, useLang, type Key } from "./src/i18n";
 import { ago, EXAMPLES, short, statusColor, statusLabel, statusWord, styles } from "./src/tabs/shared";
 import { TodayTab } from "./src/tabs/TodayTab";
 import { PlayTab } from "./src/tabs/PlayTab";
@@ -217,6 +217,7 @@ export default function App() {
   const updateSettings = useCallback(async (patch: Partial<Settings>) => {
     const next = await saveSettings(patch);
     setLanguage(next.language);
+    setPlainWords(next.plainWords);
     setSettings(next);
   }, []);
 
@@ -311,6 +312,7 @@ export default function App() {
     (async () => {
       const s = await loadSettings();
       setLanguage(s.language);
+      setPlainWords(s.plainWords);
       setSettings(s);
       setItems(await loadWatchlist());
       const g = await loadGame();

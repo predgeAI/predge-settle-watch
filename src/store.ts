@@ -140,10 +140,11 @@ export interface Settings {
   language: Lang; // interface language; follows the phone until the user picks one
   interests: Interest[]; // what the Discover feed shows first; missing before 0.4 means everything
   country?: string; // ISO 3166 alpha-2; from the phone's region until the user picks one or "none"
+  plainWords: boolean; // everyday labels instead of dispute / UMA / proposal; on unless turned off
 }
 
 const SETTINGS_KEY = "settle-watch/settings/v1";
-export const DEFAULT_SETTINGS: Settings = { onboarded: false, digest: true, digestHour: DEFAULT_DIGEST_HOUR, cluster: "devnet", language: "en", interests: [...INTERESTS] };
+export const DEFAULT_SETTINGS: Settings = { onboarded: false, digest: true, digestHour: DEFAULT_DIGEST_HOUR, cluster: "devnet", language: "en", interests: [...INTERESTS], plainWords: true };
 
 /**
  * Stored JSON -> Settings. Older versions stored fewer fields, so every field has a default.
@@ -161,6 +162,7 @@ export function normalizeSettings(raw: unknown, device: { language: () => Lang; 
     language: isLang(s.language) ? s.language : device.language(),
     interests: sanitizeInterests(s.interests),
     country: "country" in s ? sanitizeCountry(s.country) : device.country(),
+    plainWords: s.plainWords !== false,
   };
 }
 

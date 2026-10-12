@@ -5,7 +5,7 @@ import { Platform } from "react-native";
 import { fetchSettlementRisk } from "./api";
 import { verifyRecord } from "./verify";
 import { BACKGROUND_TASK } from "./config";
-import { setLanguage, t, tk, tn } from "./i18n";
+import { setLanguage, setPlainWords, t, tk, tn } from "./i18n";
 import {
   changesLast24h,
   describeChanges,
@@ -93,7 +93,9 @@ export async function pollItem(item: WatchItem): Promise<{ item: WatchItem; chan
 /** Polls the whole watchlist, persists it and raises one notification per changed market. */
 export async function pollAll(): Promise<{ items: WatchItem[]; changed: number }> {
   // The background task starts without the UI, so it reads the chosen language itself.
-  setLanguage((await loadSettings()).language);
+  const settings = await loadSettings();
+  setLanguage(settings.language);
+  setPlainWords(settings.plainWords);
   const items = await loadWatchlist();
   const out: WatchItem[] = [];
   let changed = 0;

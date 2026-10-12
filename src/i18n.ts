@@ -1,6 +1,7 @@
 // Interface languages. English is the source of truth: every other dictionary must have exactly its keys.
 // Only text the app writes itself lives here. Market data, server text and on-chain memos are never translated.
 import { useSyncExternalStore } from "react";
+import { PLAIN } from "./i18nPlain";
 
 export type Lang = "en" | "es" | "pt" | "zh" | "ko" | "ru";
 
@@ -281,7 +282,19 @@ export const en = {
   "home.noAttention": "Nothing needs attention.",
   "widget.empty": "Tap to add a market to watch.",
   "home.more": " . +{n} more",
-  "home.dayStreak": "DAY STREAK",
+  "onb.plain.body": "People bet on real events. Sometimes the result gets challenged and changed. Settle Watch warns you if that happens to yours.",
+  "onb.plain.example": "Show me an example",
+  "onb.plain.skip": "Skip",
+  "ex.walk.kicker": "REAL EXAMPLE",
+  "ex.walk.s1": "This is a bet: will this happen, yes or no?",
+  "ex.walk.s2": "After the game, someone said the answer.",
+  "ex.walk.s3": "Someone else disagreed. Now it is challenged, so it is not final.",
+  "ex.walk.s4": "Settle Watch tells you when this happens, and checks the data on your phone.",
+  "ex.walk.said": "SOMEONE SAID: YES",
+  "ex.walk.watch": "Watch this market",
+  "home.exampleLink": "How it works, with an example",
+  "settings.plainWords": "Plain words",
+  "settings.plainWordsHint": "Everyday words like \"challenged\" and \"final\". Turn off to see the technical terms (dispute, UMA vote, proposal). The checks always show the technical names.",
   "home.streakDays.one": "DAY STREAK",
   "home.streakDays.other": "DAY STREAK",
   "onb.feed.title": "What do you follow?",
@@ -1058,7 +1071,19 @@ const es: Dict = {
   "home.noAttention": "Nada requiere atención.",
   "widget.empty": "Toca para añadir un mercado.",
   "home.more": " . +{n} más",
-  "home.dayStreak": "DÍAS DE RACHA",
+  "onb.plain.body": "La gente apuesta sobre hechos reales. A veces el resultado se disputa y cambia. Settle Watch te avisa si le pasa a los tuyos.",
+  "onb.plain.example": "Muéstrame un ejemplo",
+  "onb.plain.skip": "Omitir",
+  "ex.walk.kicker": "EJEMPLO REAL",
+  "ex.walk.s1": "Esto es una apuesta: ¿pasará esto, sí o no?",
+  "ex.walk.s2": "Después del partido, alguien dio la respuesta.",
+  "ex.walk.s3": "Otra persona no estuvo de acuerdo. Ahora está en disputa, así que no es final.",
+  "ex.walk.s4": "Settle Watch te avisa cuando pasa esto y revisa los datos en tu teléfono.",
+  "ex.walk.said": "ALGUIEN DIJO: SÍ",
+  "ex.walk.watch": "Seguir este mercado",
+  "home.exampleLink": "Cómo funciona, con un ejemplo",
+  "settings.plainWords": "Palabras sencillas",
+  "settings.plainWordsHint": "Palabras de todos los días como \"en disputa\" y \"final\". Desactívalo para ver los términos técnicos (disputa UMA, votación UMA, propuesta). Las comprobaciones siempre muestran los nombres técnicos.",
   "home.streakDays.one": "DÍA DE RACHA",
   "home.streakDays.other": "DÍAS DE RACHA",
   "onb.feed.title": "¿Qué sigues?",
@@ -1816,7 +1841,19 @@ const pt: Dict = {
   "home.noAttention": "Nada precisa de atenção.",
   "widget.empty": "Toque para adicionar um mercado.",
   "home.more": " . +{n}",
-  "home.dayStreak": "DIAS SEGUIDOS",
+  "onb.plain.body": "As pessoas apostam em fatos reais. Às vezes o resultado é contestado e muda. O Settle Watch avisa você se isso acontecer com os seus.",
+  "onb.plain.example": "Mostre um exemplo",
+  "onb.plain.skip": "Pular",
+  "ex.walk.kicker": "EXEMPLO REAL",
+  "ex.walk.s1": "Isto é uma aposta: isso vai acontecer, sim ou não?",
+  "ex.walk.s2": "Depois do jogo, alguém disse a resposta.",
+  "ex.walk.s3": "Outra pessoa discordou. Agora está contestado, então não é final.",
+  "ex.walk.s4": "O Settle Watch avisa quando isso acontece e confere os dados no seu celular.",
+  "ex.walk.said": "ALGUÉM DISSE: SIM",
+  "ex.walk.watch": "Acompanhar este mercado",
+  "home.exampleLink": "Como funciona, com um exemplo",
+  "settings.plainWords": "Palavras simples",
+  "settings.plainWordsHint": "Palavras do dia a dia como \"contestado\" e \"final\". Desligue para ver os termos técnicos (disputa UMA, votação UMA, proposta). As verificações sempre mostram os nomes técnicos.",
   "home.streakDays.one": "DIA SEGUIDO",
   "home.streakDays.other": "DIAS SEGUIDOS",
   "onb.feed.title": "O que você acompanha?",
@@ -2574,7 +2611,19 @@ const zh: Dict = {
   "home.noAttention": "暂无需要留意的。",
   "widget.empty": "点按添加要关注的市场。",
   "home.more": " . 另有 {n} 条",
-  "home.dayStreak": "天连续打卡",
+  "onb.plain.body": "人们会对真实事件下注。有时结果会被质疑并改变。如果你的市场发生这种情况，Settle Watch 会提醒你。",
+  "onb.plain.example": "给我看个例子",
+  "onb.plain.skip": "跳过",
+  "ex.walk.kicker": "真实例子",
+  "ex.walk.s1": "这是一个下注：这件事会发生吗，是还是否？",
+  "ex.walk.s2": "比赛结束后，有人给出了答案。",
+  "ex.walk.s3": "另一个人不同意。现在它被质疑了，所以还没有定。",
+  "ex.walk.s4": "发生这种情况时 Settle Watch 会告诉你，并在你的手机上核对数据。",
+  "ex.walk.said": "有人说：是",
+  "ex.walk.watch": "关注这个市场",
+  "home.exampleLink": "用一个例子看看它怎么运作",
+  "settings.plainWords": "通俗说法",
+  "settings.plainWordsHint": "使用“被质疑”“已定”这样的日常说法。关闭后显示专业术语（争议、UMA 投票、提议）。核对页面始终显示专业名称。",
   "home.streakDays.one": "天连续打卡",
   "home.streakDays.other": "天连续打卡",
   "onb.feed.title": "你关注什么？",
@@ -3332,7 +3381,19 @@ const ko: Dict = {
   "home.noAttention": "살펴볼 것이 없어요.",
   "widget.empty": "눌러서 지켜볼 마켓을 추가하세요.",
   "home.more": " . 외 {n}건",
-  "home.dayStreak": "일 연속",
+  "onb.plain.body": "사람들은 실제 일에 돈을 걸어요. 가끔 결과에 이의가 제기되고 바뀌기도 해요. 내 시장에 그런 일이 생기면 Settle Watch가 알려줘요.",
+  "onb.plain.example": "예시 보기",
+  "onb.plain.skip": "건너뛰기",
+  "ex.walk.kicker": "실제 예시",
+  "ex.walk.s1": "이건 내기예요: 이 일이 일어날까요, 예 또는 아니오?",
+  "ex.walk.s2": "경기가 끝난 뒤 누군가 답을 말했어요.",
+  "ex.walk.s3": "다른 사람이 동의하지 않았어요. 이제 이의가 제기돼서 아직 확정이 아니에요.",
+  "ex.walk.s4": "이런 일이 생기면 Settle Watch가 알려주고, 내 폰에서 데이터를 확인해요.",
+  "ex.walk.said": "누군가 말함: 예",
+  "ex.walk.watch": "이 시장 지켜보기",
+  "home.exampleLink": "예시로 보는 사용법",
+  "settings.plainWords": "쉬운 말",
+  "settings.plainWordsHint": "\"이의 제기\", \"확정\" 같은 일상적인 말을 써요. 끄면 전문 용어(분쟁, UMA 투표, 제안)가 보여요. 확인 화면은 항상 전문 용어를 보여줘요.",
   "home.streakDays.one": "일 연속",
   "home.streakDays.other": "일 연속",
   "onb.feed.title": "무엇을 보시나요?",
@@ -4123,7 +4184,19 @@ export const ru: Dict & PluralExtras = {
   "home.noAttention": "Ничего не требует внимания.",
   "widget.empty": "Нажми, чтобы добавить рынок.",
   "home.more": " . ещё +{n}",
-  "home.dayStreak": "ДНЕЙ ПОДРЯД",
+  "onb.plain.body": "Люди делают ставки на реальные события. Иногда результат оспаривают и меняют. Settle Watch предупредит, если это случится с твоими.",
+  "onb.plain.example": "Покажи пример",
+  "onb.plain.skip": "Пропустить",
+  "ex.walk.kicker": "НАСТОЯЩИЙ ПРИМЕР",
+  "ex.walk.s1": "Это ставка: случится это или нет, да или нет?",
+  "ex.walk.s2": "После матча кто-то назвал ответ.",
+  "ex.walk.s3": "Кто-то другой не согласился. Теперь результат оспаривают, и он не окончательный.",
+  "ex.walk.s4": "Settle Watch скажет, когда такое случится, и проверит данные на твоём телефоне.",
+  "ex.walk.said": "КТО-ТО СКАЗАЛ: ДА",
+  "ex.walk.watch": "Следить за этим рынком",
+  "home.exampleLink": "Как это работает, на примере",
+  "settings.plainWords": "Простые слова",
+  "settings.plainWordsHint": "Обычные слова вроде «оспаривают» и «итог». Выключи, чтобы видеть термины (спор UMA, голосование UMA, предложение). В проверках всегда технические названия.",
   "home.streakDays.one": "ДЕНЬ ПОДРЯД",
   "home.streakDays.other": "ДНЯ ПОДРЯД",
   "home.streakDays.few": "ДНЯ ПОДРЯД",
@@ -4664,6 +4737,21 @@ export function setLanguage(l: Lang): void {
   for (const fn of listeners) fn();
 }
 
+// "Plain words": everyday labels (src/i18nPlain.ts) on top of the dictionaries. On by default.
+let plain = true;
+
+export function getPlainWords(): boolean {
+  return plain;
+}
+
+export function setPlainWords(on: boolean): void {
+  if (on === plain) return;
+  plain = on;
+  for (const fn of listeners) fn();
+}
+
+const snapshot = () => `${current}|${plain ? 1 : 0}`;
+
 function subscribe(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -4671,7 +4759,8 @@ function subscribe(fn: () => void): () => void {
 
 /** Re-renders the calling component when the language changes. */
 export function useLang(): Lang {
-  return useSyncExternalStore(subscribe, getLanguage, getLanguage);
+  useSyncExternalStore(subscribe, snapshot, snapshot); // also re-renders when plain words are switched
+  return current;
 }
 
 /** Device default: Spanish, Portuguese, Chinese, Korean or Russian when the phone uses them, else English. */
@@ -4689,7 +4778,7 @@ export function detectLanguage(): Lang {
 export type Vars = Record<string, string | number>;
 
 export function t(key: Key, vars?: Vars): string {
-  const s = DICTS[current][key] ?? en[key] ?? key;
+  const s = (plain ? PLAIN[current][key] : undefined) ?? DICTS[current][key] ?? en[key] ?? key;
   return vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : s;
 }
 
