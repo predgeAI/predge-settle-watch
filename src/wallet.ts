@@ -83,7 +83,7 @@ function toBase58(base64Address: string): string {
   return new PublicKey(Buffer.from(base64Address, "base64")).toBase58();
 }
 
-async function authorizeSession(wallet: Web3MobileWallet, existing: StoredWallet | null, cluster: Cluster) {
+export async function authorizeSession(wallet: Web3MobileWallet, existing: StoredWallet | null, cluster: Cluster) {
   // An auth token is bound to a chain: only reuse it for the same cluster.
   if (existing?.authToken && (existing.cluster ?? "devnet") === cluster) {
     try {
@@ -154,7 +154,7 @@ export interface PendingReceipt {
 }
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-function base58(bytes: Uint8Array): string {
+export function base58(bytes: Uint8Array): string {
   const digits = [0];
   for (const b of bytes) {
     let carry = b;

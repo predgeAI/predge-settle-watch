@@ -76,6 +76,7 @@ import { LEAGUE_ENABLED } from "./src/league/config";
 import { LeagueCard, LeagueModal } from "./src/league/LeagueEntry";
 import { DailyDisputeCard, DailyDisputeModal } from "./src/dailyDispute/DailyDispute";
 import Intro from "./src/Intro";
+import { EvidencePackCard, SkrBalance } from "./src/skr";
 import { Text } from "./src/Text";
 import { detectLanguage, en, fmtDec, fmtNum, LANGS, setLanguage, t, tn, useLang, type Key } from "./src/i18n";
 
@@ -870,6 +871,7 @@ export default function App() {
                   <Text style={styles.mono}>
                     {short(wallet.address, 6)}
                     <Text style={styles.dim}>  {balance === null ? "" : `${balance.toFixed(4)} SOL`}</Text>
+                    <SkrBalance address={wallet.address} style={styles.dim} />
                   </Text>
                 </Pressable>
               ) : (
@@ -1180,6 +1182,7 @@ export default function App() {
                     </Pressable>
                   ))}
                 </PixelBox>
+                <EvidencePackCard item={detail} wallet={wallet} disabled={!!busy} onUnlocked={(ref) => award("pack_open", { ref })} />
 
                 <PixelBox style={styles.cardGap} inner={styles.cardPad}>
                   <Text style={styles.cardTitle}>{t("detail.timeline")}</Text>

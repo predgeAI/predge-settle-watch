@@ -3,7 +3,7 @@
 // Everything is local to the phone. No server, no tokens, no money.
 import { en, t, tn, type Key } from "./i18n";
 
-export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play";
+export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play" | "pack_open";
 
 export const XP: Record<ActionKind | "clock_in", number> = {
   clock_in: 10,
@@ -15,6 +15,7 @@ export const XP: Record<ActionKind | "clock_in", number> = {
   puzzle_win: 15,
   puzzle_play: 5,
   rule_play: 5,
+  pack_open: 30,
 };
 
 /** English labels, kept for reference; screens use actionLabel() for the current language. */
@@ -28,6 +29,7 @@ export const ACTION_LABEL: Record<ActionKind | "clock_in", string> = {
   puzzle_win: en["xp.puzzle_win"],
   puzzle_play: en["xp.puzzle_play"],
   rule_play: en["xp.rule_play"],
+  pack_open: en["xp.pack_open"],
 };
 export const actionLabel = (k: ActionKind | "clock_in") => t(`xp.${k}` as Key);
 
@@ -49,6 +51,7 @@ export const BADGES = [
   { id: "early_dispute", name: en["badge.early_dispute.name"], hint: en["badge.early_dispute.hint"] },
   { id: "watch_5", name: en["badge.watch_5.name"], hint: en["badge.watch_5.hint"] },
   { id: "puzzles", name: en["badge.puzzles.name"], hint: en["badge.puzzles.hint"] },
+  { id: "pack_opener", name: en["badge.pack_opener.name"], hint: en["badge.pack_opener.hint"] },
 ] as const;
 export type BadgeId = (typeof BADGES)[number]["id"];
 export const badgeName = (id: BadgeId) => t(`badge.${id}.name` as Key);
@@ -283,6 +286,7 @@ export function unlockBadges(s: GameState, ctx: BadgeCtx, now: Date = new Date()
   if (!has("early_dispute") && ctx.earlyDisputed) want.push("early_dispute");
   if (!has("watch_5") && ctx.watching >= 5) want.push("watch_5");
   if (!has("puzzles") && count("puzzle_win") >= 3) want.push("puzzles");
+  if (!has("pack_opener") && count("pack_open") > 0) want.push("pack_opener");
   if (!want.length) return { state: s, unlocked: [] };
   const badges = { ...s.badges };
   for (const id of want) badges[id] = now.toISOString();
