@@ -72,6 +72,8 @@ export function friendlyWalletError(e: unknown): string {
     return t("wallet.errExpired");
   }
   if (/insufficient|0x1|debit an account/i.test(m)) return t("wallet.errFee");
+  if (/returned no valid signature/i.test(m)) return t("wallet.errNoSig");
+  if (/returned no account/i.test(m)) return t("wallet.errNoAccount");
   return m.slice(0, 200);
 }
 
