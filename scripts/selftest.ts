@@ -561,4 +561,12 @@ t("SKR pack unlock awards XP once per market and the Pack opener badge", () => {
   assert.equal(b.gained, 0);
   assert.deepEqual(b.badges, []);
 });
+import { boardRank, rankRows } from "../src/league/logic";
+t("league: the board list and the This week line use one rank", () => {
+  const row = (nickname: string, weeklyXp: number, rank: number, you = false) => ({ nickname, avatar: "a00", weeklyXp, rank, you });
+  assert.equal(boardRank([row("me", 0, 2, true)], 2), 1);
+  assert.deepEqual(rankRows([row("a", 10, 1), row("b", 30, 3), row("c", 10, 2)]).map((r) => r.rank), [1, 2, 2]);
+  assert.equal(boardRank([row("a", 50, 1), row("me", 20, 1, true)], 1), 2);
+  assert.equal(boardRank([row("a", 50, 1)], 37), 37);
+});
 console.log(`${n} checks passed`);

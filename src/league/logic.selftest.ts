@@ -1,6 +1,6 @@
 // Run with: npx tsx src/league/logic.selftest.ts
 import assert from "node:assert/strict";
-import { AVATAR_IDS, avatarMap, clanShareText, EMBLEM_IDS, emblemMap, friendlyError, inviteCodeFromUrl, inviteShareText, medalFor, passedLine, shortCountdown, xpKey } from "./logic";
+import { AVATAR_IDS, boardRank, rankRows, avatarMap, clanShareText, EMBLEM_IDS, emblemMap, friendlyError, inviteCodeFromUrl, inviteShareText, medalFor, passedLine, shortCountdown, xpKey } from "./logic";
 
 // avatars and emblems: fixed sets, deterministic, 8x8
 assert.equal(AVATAR_IDS.length, 16);
@@ -44,4 +44,11 @@ assert.equal(passedLine([]), null);
 assert.equal(passedLine(["Bob"]), "You passed Bob!");
 assert.equal(shortCountdown(0), "resetting");
 assert.equal(friendlyError("nope", "Custom"), "Custom");
+// ranks: one rule for the board list and the "This week" line
+const row = (nickname: string, weeklyXp: number, rank: number, you = false) => ({ nickname, avatar: "a00", weeklyXp, rank, you });
+assert.equal(boardRank([row("me", 0, 2, true)], 2), 1, "a solo player is #1 on their own board");
+assert.deepEqual(rankRows([row("a", 10, 1), row("b", 30, 3), row("c", 10, 2)]).map((r) => [r.nickname, r.rank]), [["b", 1], ["a", 2], ["c", 2]]);
+assert.equal(boardRank([row("a", 50, 1), row("me", 20, 1, true)], 1), 2, "server rank on a row never disagrees with the list order");
+assert.equal(boardRank([row("a", 50, 1)], 37), 37, "not on the board: keep the server rank");
+assert.equal(boardRank([], null), null);
 console.log("league selftest ok");

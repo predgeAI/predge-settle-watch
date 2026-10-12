@@ -42,7 +42,9 @@ export function MeTab(p: MeTabProps) {
       {/* Wallet: one compact row */}
       <PixelBox style={styles.cardGap} inner={[styles.cardPad, wallet ? { gap: 10 } : styles.rowBetween]}>
         <View style={wallet ? undefined : { flex: 1 }}>
-          <Text style={styles.cardLabel}>{t("wallet.label", { net })}</Text>
+          <Text style={styles.cardLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {t("wallet.label", { net })}
+          </Text>
           {wallet ? (
             <Pressable onPress={() => Clipboard.setStringAsync(wallet.address)} accessibilityLabel={t("wallet.copy")}>
               <Text style={styles.mono}>
