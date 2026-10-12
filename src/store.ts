@@ -3,6 +3,7 @@ import type { SettlementRisk } from "./api";
 import type { Verification } from "./verify";
 import { DEFAULT_DIGEST_HOUR, MAX_WATCHLIST, type Cluster } from "./config";
 import { detectLanguage, isLang, t, tn, type Lang } from "./i18n";
+import { deviceCountry, INTERESTS, sanitizeCountry, sanitizeInterests, type Interest } from "./discover/interests";
 
 export interface Snapshot {
   risk_level: string;
@@ -137,31 +138,49 @@ export interface Settings {
   lastDigestDay?: string; // YYYY-MM-DD, local
   cluster: Cluster; // where receipts are anchored
   language: Lang; // interface language; follows the phone until the user picks one
+  interests: Interest[]; // what the Discover feed shows first; missing before 0.4 means everything
+  country?: string; // ISO 3166 alpha-2; from the phone's region until the user picks one or "none"
 }
 
 const SETTINGS_KEY = "settle-watch/settings/v1";
-export const DEFAULT_SETTINGS: Settings = { onboarded: false, digest: true, digestHour: DEFAULT_DIGEST_HOUR, cluster: "devnet", language: "en" };
+export const DEFAULT_SETTINGS: Settings = { onboarded: false, digest: true, digestHour: DEFAULT_DIGEST_HOUR, cluster: "devnet", language: "en", interests: [...INTERESTS] };
+
+/**
+ * Stored JSON -> Settings. Older versions stored fewer fields, so every field has a default.
+ * `country` absent means "never chosen" (use the phone's region); stored null means the user picked none.
+ */
+export function normalizeSettings(raw: unknown, device: { language: () => Lang; country: () => string | undefined } = { language: detectLanguage, country: deviceCountry }): Settings {
+  const s = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof Settings, unknown>>;
+  const hour = s.digestHour;
+  return {
+    onboarded: s.onboarded === true,
+    digest: s.digest !== false,
+    digestHour: typeof hour === "number" && Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : DEFAULT_SETTINGS.digestHour,
+    lastDigestDay: typeof s.lastDigestDay === "string" ? s.lastDigestDay : undefined,
+    cluster: s.cluster === "mainnet-beta" ? "mainnet-beta" : "devnet",
+    language: isLang(s.language) ? s.language : device.language(),
+    interests: sanitizeInterests(s.interests),
+    country: "country" in s ? sanitizeCountry(s.country) : device.country(),
+  };
+}
+
+/** Settings -> JSON. A cleared country is kept as null so it does not fall back to the phone's region. */
+export function serializeSettings(s: Settings): string {
+  return JSON.stringify({ ...s, country: s.country ?? null });
+}
 
 export async function loadSettings(): Promise<Settings> {
   try {
     const raw = await AsyncStorage.getItem(SETTINGS_KEY);
-    const s = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
-    return {
-      onboarded: s.onboarded === true,
-      digest: s.digest !== false,
-      digestHour: Number.isInteger(s.digestHour) && s.digestHour! >= 0 && s.digestHour! <= 23 ? s.digestHour! : DEFAULT_SETTINGS.digestHour,
-      lastDigestDay: typeof s.lastDigestDay === "string" ? s.lastDigestDay : undefined,
-      cluster: s.cluster === "mainnet-beta" ? "mainnet-beta" : "devnet",
-      language: isLang(s.language) ? s.language : detectLanguage(),
-    };
+    return normalizeSettings(raw ? JSON.parse(raw) : {});
   } catch {
-    return { ...DEFAULT_SETTINGS, language: detectLanguage() };
+    return normalizeSettings({});
   }
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
   const next = { ...(await loadSettings()), ...patch };
-  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+  await AsyncStorage.setItem(SETTINGS_KEY, serializeSettings(next));
   return next;
 }
 

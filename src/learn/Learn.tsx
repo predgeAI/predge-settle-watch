@@ -11,6 +11,7 @@ import * as haptic from "../haptic";
 import { XP, type GameState } from "../game";
 import { closeTour, goDiscover, openTour, setDiscoverHandler, tourDone, useTourOpen } from "./tour";
 import { explain, QBadge, Term } from "./Term";
+import { useFeed } from "../discover/interests";
 
 // ---------------------------------------------------------------------------
 // Pixel illustrations, built from plain Views
@@ -31,9 +32,10 @@ function Bar({ label, price, share, color }: { label: string; price: string; sha
 
 /** A market card with YES and NO price bars. */
 function MarketIllo() {
+  const local = !!useFeed().prefs.country;
   return (
     <PixelBox border={C.line} bg={C.surfaceHi} lift="#0d1710" inner={{ padding: 12, width: 250, gap: 8 }}>
-      <Text style={st.illoQ}>{t("learn.s1.q")}</Text>
+      <Text style={st.illoQ}>{t(local ? "learn.s1.qLocal" : "learn.s1.q")}</Text>
       <Bar label={t("learn.yes")} price="70¢" share={70} color={C.green} />
       <Bar label={t("learn.no")} price="30¢" share={30} color={C.orange} />
     </PixelBox>
@@ -126,6 +128,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
   const [page, setPage] = useState(0);
   const ref = useRef<ScrollView>(null);
   const last = SLIDES.length - 1;
+  const localExample = !!useFeed().prefs.country; // everyday example "in your city" once a country is set
 
   const go = (n: number) => {
     const k = Math.max(0, Math.min(last, n));
@@ -163,7 +166,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
               </View>
               <Text style={st.step}>{t("learn.step", { n: i + 1, total: SLIDES.length })}</Text>
               <Text style={st.title}>{t(`learn.s${s.n}.title` as Key)}</Text>
-              <Text style={st.body}>{t(`learn.s${s.n}.body` as Key)}</Text>
+              <Text style={st.body}>{t(s.n === 1 && localExample ? "learn.s1.bodyLocal" : (`learn.s${s.n}.body` as Key))}</Text>
             </ScrollView>
           ))}
         </ScrollView>

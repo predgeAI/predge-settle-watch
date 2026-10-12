@@ -14,6 +14,7 @@ import { ago, hh, short, styles, TabHeader, TabScroll } from "./shared";
 import { normalizeAddress } from "../positions/api";
 import { positionsErrorText } from "../positions/sync";
 import type { PositionsState } from "../positions/store";
+import { FeedPicker } from "../discover/FeedPicker";
 
 export interface MeTabProps {
   active: boolean;
@@ -143,6 +144,10 @@ export function MeTab(p: MeTabProps) {
               </PixelBox>
             </Press>
           ))}
+        </View>
+        <Text style={styles.body}>{t("settings.feed")}</Text>
+        <View style={{ marginTop: 4, marginBottom: 12 }}>
+          <FeedPicker prefs={{ interests: settings.interests, country: settings.country }} onChange={(f) => updateSettings({ interests: f.interests, country: f.country })} />
         </View>
         <View style={styles.rowBetween}>
           <Text style={[styles.body, { flex: 1 }]}>{t("settings.digest")}</Text>

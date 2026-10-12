@@ -1100,6 +1100,168 @@ t("evidence pack: unsigned envelope fields are tagged, signed ones compared", ()
   assert.ok(Object.values(unsigned).every((x) => x === "unsigned"));
 });
 
+// ---- Feed interests, country boost, settings migration, streak plurals ----
+import { countryFromLocale, disputeScore, forYou, hasWord, isCryptoOrTech, leadsWithCryptoTech, mentionsCountry, MIN_FEED, rankFeed, sanitizeInterests, topicsOf, toggleInterest, INTERESTS as FEED_INTERESTS } from "../src/discover/interests";
+import { normalizeSettings, serializeSettings } from "../src/store";
+import type { DiscoverMarket } from "../src/discover/api";
+{
+  const mk = (id: string, question: string, extra: Partial<DiscoverMarket> = {}): DiscoverMarket => ({ id, question, slug: id, volume24hr: 0, ...extra });
+  const feed = [
+    mk("1", "Will the Los Angeles Chargers win the 2027 NFL league championship?"),
+    mk("2", "Will the price of Bitcoin be above $86,000 on October 12?"),
+    mk("3", "Will the Fed decrease interest rates by 25 bps after the October 2026 meeting?"),
+    mk("4", "Will Flamengo win the Copa Libertadores?"),
+    mk("5", "Will Lula's party win the Senate vote?"),
+    mk("6", "Will the US confirm that aliens exist before 2027?"),
+    mk("7", "LoL: BNK FEARX vs JD Gaming", { tags: ["Esports", "Sports"] }),
+    mk("8", "Will Solana launch a new phone before 2027?"),
+    mk("9", "Will Taylor Swift release a new album in 2026?"),
+  ];
+  const ids = (r: { market: DiscoverMarket }[]) => r.map((x) => x.market.id);
+
+  t("feed: market parsing keeps category and tag labels", () => {
+    const [m] = parseMarkets([{ id: "7", question: "LoL final?", slug: "l", tags: [{ label: "Esports" }, { label: "Sports" }, "x".repeat(50)], category: "Games" }]);
+    assert.deepEqual(m.tags, ["Esports", "Sports"]);
+    assert.equal(m.category, "Games");
+    assert.equal(parseMarkets([{ id: "8", question: "Q?", slug: "q" }])[0].tags, undefined);
+  });
+  t("feed: topics come from tags and whole-word keywords", () => {
+    assert.ok(topicsOf(feed[6]).has("sports"));
+    assert.ok(topicsOf(feed[1]).has("crypto"));
+    assert.ok(topicsOf(feed[2]).has("world"));
+    assert.ok(topicsOf(feed[4]).has("politics"));
+    assert.ok(hasWord("will btc go up", "btc"));
+    assert.ok(!hasWord("solar power", "sol"));
+    assert.ok(!hasWord("the ukraine", "uk"));
+    assert.ok(hasWord("são paulo derby", "são paulo"));
+  });
+
+  t("feed: interest filtering keeps only chosen topics when enough match", () => {
+    const more = [mk("11", "Will Arsenal win the Premier League?"), mk("12", "NBA Finals: Lakers vs Celtics"), mk("13", "Wimbledon winner?")];
+    const sportsOnly = rankFeed([...feed, ...more], { interests: ["sports"] });
+    for (const r of sportsOnly) assert.ok(topicsOf(r.market).has("sports"), r.market.question);
+    assert.deepEqual(ids(sportsOnly), ["1", "4", "7", "11", "12", "13"]);
+    assert.ok(sportsOnly.length >= MIN_FEED);
+    // Everything chosen keeps every market, including ones with no known topic.
+    assert.equal(rankFeed(feed, { interests: [...FEED_INTERESTS] }).length, feed.length);
+  });
+
+  t("feed: fill-up rule never leaves fewer than 5 when the feed has them", () => {
+    const r = rankFeed(feed, { interests: ["crypto"] });
+    assert.equal(r.length, feed.length);
+    assert.deepEqual(r.filter((x) => x.matched).map((x) => x.market.id).sort(), ["2", "8"]);
+    assert.ok(r.slice(0, 2).every((x) => x.matched));
+    assert.equal(rankFeed(feed, { interests: [] }).length, feed.length);
+    assert.equal(rankFeed([], { interests: ["sports"] }).length, 0);
+  });
+
+  t("feed: country keywords boost local markets to the top", () => {
+    assert.ok(mentionsCountry(feed[3], "BR"));
+    assert.ok(mentionsCountry(feed[4], "BR"));
+    assert.ok(!mentionsCountry(feed[0], "BR"));
+    assert.ok(mentionsCountry(mk("x", "Will Putin meet anyone?"), "RU"));
+    assert.ok(mentionsCountry(mk("y", "Seoul housing prices up?"), "KR"));
+    assert.ok(mentionsCountry(mk("z", "Strait question", { tags: ["United States"] }), "US"));
+    const r = rankFeed(feed, { interests: [...FEED_INTERESTS], country: "BR" });
+    assert.deepEqual(ids(r).slice(0, 2).sort(), ["4", "5"]);
+    // Without the country interest there is no boost.
+    const topicsOnly = { interests: ["sports", "politics", "crypto", "world"] as typeof FEED_INTERESTS };
+    assert.deepEqual(ids(rankFeed(feed, { ...topicsOnly, country: "BR" })), ids(rankFeed(feed, topicsOnly)));
+    assert.ok(!mentionsCountry(feed[3], "ZZ"));
+    assert.ok(!mentionsCountry(feed[3], undefined));
+  });
+
+  t("feed: wording-resolved markets above price-threshold markets, deterministic", () => {
+    assert.equal(disputeScore("Will the price of Bitcoin be above $86,000 on October 12?"), -1);
+    assert.equal(disputeScore("Will SOL be above $200 on Friday?"), -1);
+    assert.equal(disputeScore("Will Apple announce a foldable iPhone?"), 1);
+    assert.equal(disputeScore("Will the files be declassified by end of year?"), 1);
+    assert.equal(disputeScore("Will Arsenal win on Sunday?"), 0);
+    const r = ids(rankFeed(feed, { interests: ["crypto"] }));
+    assert.deepEqual(r.slice(0, 2), ["8", "2"]); // launch before price
+    assert.deepEqual(ids(rankFeed(feed, { interests: [...FEED_INTERESTS] })), ids(rankFeed(feed, { interests: [...FEED_INTERESTS] })));
+  });
+
+  t("feed: English phone in the US leads with crypto and tech", () => {
+    assert.ok(leadsWithCryptoTech({ interests: [...FEED_INTERESTS], country: "US" }, "en"));
+    assert.ok(leadsWithCryptoTech({ interests: [...FEED_INTERESTS] }, "en"));
+    assert.ok(!leadsWithCryptoTech({ interests: [...FEED_INTERESTS], country: "BR" }, "en"));
+    assert.ok(!leadsWithCryptoTech({ interests: [...FEED_INTERESTS], country: "US" }, "ru"));
+    assert.ok(!leadsWithCryptoTech({ interests: ["sports"], country: "US" }, "en"));
+    assert.ok(isCryptoOrTech(mk("a", "Will OpenAI release GPT-6 in 2026?")));
+    const withAi = [...feed, mk("10", "Will OpenAI release GPT-6 in 2026?")];
+    const top = rankFeed(withAi, { interests: ["sports", "politics", "crypto", "world"] }, { cryptoTechFirst: true });
+    assert.deepEqual(ids(top).slice(0, 3), ["8", "10", "2"]); // crypto/tech first; wording before price inside the lead
+    // With "country" on, US markets (here the NFL one) still come first.
+    assert.equal(ids(rankFeed(withAi, { interests: [...FEED_INTERESTS], country: "US" }, { cryptoTechFirst: true }))[0], "1");
+  });
+
+  t("feed: For you picks matches only and skips the example markets", () => {
+    const r = rankFeed(feed, { interests: ["crypto"] });
+    assert.deepEqual(forYou(r, 2).map((m) => m.id), ["8", "2"]);
+    assert.deepEqual(forYou(r, 2, ["8"]).map((m) => m.id), ["2"]);
+    assert.equal(forYou(rankFeed([], { interests: ["crypto"] })).length, 0);
+  });
+
+  t("feed: interests toggle in a fixed order and sanitize", () => {
+    assert.deepEqual(toggleInterest(["crypto"], "sports"), ["sports", "crypto"]);
+    assert.deepEqual(toggleInterest(["sports", "crypto"], "sports"), ["crypto"]);
+    assert.deepEqual(sanitizeInterests(undefined), [...FEED_INTERESTS]);
+    assert.deepEqual(sanitizeInterests(["world", "nope", "sports", "world"]), ["sports", "world"]);
+    assert.deepEqual(sanitizeInterests([]), []);
+  });
+
+  t("locale -> country", () => {
+    assert.equal(countryFromLocale("pt-BR"), "BR");
+    assert.equal(countryFromLocale("en_US"), "US");
+    assert.equal(countryFromLocale("zh-Hans-CN"), "CN");
+    assert.equal(countryFromLocale("ru-RU"), "RU");
+    assert.equal(countryFromLocale("es"), undefined);
+    assert.equal(countryFromLocale("es-419"), undefined);
+    assert.equal(countryFromLocale(""), undefined);
+    assert.equal(countryFromLocale(undefined), undefined);
+  });
+
+  t("settings: old stored settings load with interests and country defaults", () => {
+    const device = { language: () => "pt" as const, country: () => "BR" };
+    const old = normalizeSettings({ onboarded: true, digest: false, digestHour: 9, cluster: "mainnet-beta", language: "ru" }, device);
+    assert.equal(old.onboarded, true);
+    assert.equal(old.digest, false);
+    assert.equal(old.digestHour, 9);
+    assert.equal(old.cluster, "mainnet-beta");
+    assert.equal(old.language, "ru");
+    assert.deepEqual(old.interests, [...FEED_INTERESTS]);
+    assert.equal(old.country, "BR");
+    const empty = normalizeSettings(null, device);
+    assert.equal(empty.language, "pt");
+    assert.equal(empty.onboarded, false);
+    // A cleared country stays cleared; a bad one is dropped.
+    const cleared = normalizeSettings(JSON.parse(serializeSettings({ ...old, country: undefined })), device);
+    assert.equal(cleared.country, undefined);
+    assert.equal(normalizeSettings({ country: "brazil" }, device).country, undefined);
+    const kept = normalizeSettings(JSON.parse(serializeSettings({ ...old, interests: ["crypto"], country: "KR" })), device);
+    assert.deepEqual(kept.interests, ["crypto"]);
+    assert.equal(kept.country, "KR");
+    assert.equal(normalizeSettings({ digestHour: 30 }, device).digestHour, normalizeSettings({}, device).digestHour);
+  });
+
+  t("streak label agrees with the number", () => {
+    const cases: [string, number, string][] = [
+      ["ru", 1, "ДЕНЬ ПОДРЯД"], ["ru", 2, "ДНЯ ПОДРЯД"], ["ru", 4, "ДНЯ ПОДРЯД"], ["ru", 5, "ДНЕЙ ПОДРЯД"], ["ru", 11, "ДНЕЙ ПОДРЯД"],
+      ["ru", 21, "ДЕНЬ ПОДРЯД"], ["ru", 0, "ДНЕЙ ПОДРЯД"], ["es", 1, "DÍA DE RACHA"], ["es", 3, "DÍAS DE RACHA"], ["pt", 1, "DIA SEGUIDO"],
+      ["pt", 0, "DIAS SEGUIDOS"], ["en", 1, "DAY STREAK"], ["en", 7, "DAY STREAK"],
+    ];
+    try {
+      for (const [l, n, want] of cases) {
+        setLang(l as "ru");
+        assert.equal(tnRu("home.streakDays", n), want, `${l} ${n}`);
+      }
+    } finally {
+      setLang("en");
+    }
+  });
+}
+
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),
   (e) => {

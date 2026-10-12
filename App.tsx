@@ -65,6 +65,7 @@ import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, LevelBadge, LiveMascot, PixelBar, PixelBox, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
 import type { Mood } from "./src/sprites";
 import Onboarding from "./src/Onboarding";
+import { setFeedPrefs, setFeedPrefsSaver, type FeedPrefs } from "./src/discover/interests";
 import { FLAGS } from "./src/features";
 import { RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
 import { GlossaryModal } from "./src/glossary/Glossary";
@@ -218,6 +219,15 @@ export default function App() {
     setLanguage(next.language);
     setSettings(next);
   }, []);
+
+  // Feed interests and country: Discover, "For you" and the tour read them from the shared feed state.
+  useEffect(() => {
+    if (settings) setFeedPrefs({ interests: settings.interests, country: settings.country });
+  }, [settings]);
+  useEffect(() => {
+    setFeedPrefsSaver((p) => updateSettings({ interests: p.interests, country: p.country }));
+    return () => setFeedPrefsSaver(null);
+  }, [updateSettings]);
 
   const refreshAll = useCallback(async () => {
     if (pollingRef.current) return;
@@ -509,8 +519,8 @@ export default function App() {
   }, [settings?.onboarded, syncPositions]);
 
   const finishOnboarding = useCallback(
-    async (addExamples: boolean, clockedIn = false) => {
-      await updateSettings({ onboarded: true });
+    async (addExamples: boolean, clockedIn = false, feed?: FeedPrefs) => {
+      await updateSettings(feed ? { onboarded: true, interests: feed.interests, country: feed.country } : { onboarded: true });
       if (clockedIn) doClockIn();
       await setupNotifications();
       setBgOk(await registerBackgroundPolling());
@@ -815,7 +825,7 @@ export default function App() {
       </SafeAreaView>
     );
   } else if (!settings.onboarded) {
-    content = <Onboarding onDone={finishOnboarding} />;
+    content = <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onDone={finishOnboarding} />;
   } else {
     content = (
       <SafeAreaView style={styles.root}>
