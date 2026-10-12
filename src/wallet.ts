@@ -67,6 +67,9 @@ export function friendlyWalletError(e: unknown): string {
     return "The phone could not reach the Solana network. Check the connection and try again.";
   }
   if (/declined|rejected|cancel/i.test(m)) return "The wallet request was declined, so no receipt was made.";
+  if (/blockhash not found|block height exceeded|expired|simulation failed/i.test(m)) {
+    return "The approval took too long, so the network dropped the receipt. Nothing was charged. Tap Anchor again and approve within a minute.";
+  }
   if (/insufficient|0x1|debit an account/i.test(m)) return "The wallet needs a little SOL for the network fee.";
   return m.slice(0, 200);
 }
@@ -187,7 +190,8 @@ export async function anchorPack(
   });
   let signature: string;
   if (signed.kind === "signed") {
-    signature = await withRetry(() => connection.sendRawTransaction(signed.raw, { skipPreflight: false, maxRetries: 3 }), 4, 500);
+    // skipPreflight: the public devnet RPC is load balanced and a lagging node can wrongly say "Blockhash not found".
+    signature = await withRetry(() => connection.sendRawTransaction(signed.raw, { skipPreflight: true, maxRetries: 5 }), 4, 500);
   } else {
     signature = signed.signature;
   }
@@ -198,6 +202,15 @@ export async function anchorPack(
     // persistence is best effort
   }
   const confirmed = await confirmByPolling(connection, signature, 30_000);
+  if (!confirmed) {
+    // Not seen on chain. If the blockhash has expired the transaction can never land, so say so instead of showing a receipt.
+    try {
+      const h = await connection.getBlockHeight("confirmed");
+      if (h > fresh.lastValidBlockHeight) throw new Error("block height exceeded");
+    } catch (e) {
+      if ((e as Error).message.includes("block height exceeded")) throw e;
+    }
+  }
   return { signature, wallet: signed.wallet, confirmed };
 }
 

@@ -219,6 +219,16 @@
    "........",
    "...XX...",
    "...XX..."
+  ],
+  "league": [
+   "..XX..XX",
+   "..XX..XX",
+   "XXXXXXXX",
+   "XXXXXXXX",
+   ".XXXXXX.",
+   "..XXXX..",
+   "...XX...",
+   ".XXXXXX."
   ]
  }
 }

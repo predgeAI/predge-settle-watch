@@ -481,7 +481,7 @@ export default function App() {
       await refreshBalance(wallet, cluster);
     } catch (e) {
       await Clipboard.setStringAsync(wallet.address);
-      Alert.alert("Devnet faucet", `Airdrop failed (${(e as Error).message}). Your address is copied: paste it at faucet.solana.com.`);
+      Alert.alert("Devnet faucet", `The devnet faucet is busy right now. Your address is copied: paste it at faucet.solana.com to get devnet SOL.`);
     } finally {
       setBusy(null);
     }
