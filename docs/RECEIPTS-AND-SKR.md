@@ -1,6 +1,6 @@
 # Receipts and SKR
 
-Settle Watch builds two kinds of Solana transaction. Both start from a record that passed every check in `verifyRecord` ([src/verify.ts](../src/verify.ts)). Both carry the same hash: `packHash = sha256(attestation.canonical)` in lowercase hex, which is the sha256 of the exact bytes Predge signed.
+Settle Watch builds two kinds of Solana transaction. Both start from a record that `verifyRecord` ([src/verify.ts](../src/verify.ts)) verified and whose signed time is still at most 24 h old when the user taps (`usableForReceipt`). Both carry the same hash: `packHash = sha256(attestation.canonical)` in lowercase hex, which is the sha256 of the exact bytes Predge signed.
 
 ## 1. Watch receipt (devnet or mainnet)
 
@@ -39,7 +39,9 @@ Fee payer: the wallet account. Cost: the network fee only (5,000 lamports per si
 predge-settle-watch v1 watch market=5186278 risk=caution pack=sha256:ac60de602638422c376a17920fc76523f8d65f74c48c5e79ba97d0ece2d390a3 kid=13fa3d18a369e6c7
 ```
 
-On chain the transaction also holds two ComputeBudget instructions. The wallet added them when it signed.
+On chain the transaction also holds two ComputeBudget instructions (`SetComputeUnitLimit` 200,000 and `SetComputeUnitPrice` 100,000 micro-lamports). The wallet added them when it signed.
+
+**Checks inside the wallet session** (`anchorPack`): the account the wallet authorizes must equal the connected address. After `signTransactions`, `checkReceiptTx` ([src/txcheck.ts](../src/txcheck.ts)) decodes the signed bytes and requires the connected address as fee payer, one signer, no lookup tables, and exactly our memo instruction (same program, accounts and bytes). See [What the wallet may add](#what-the-wallet-may-add).
 
 ## 2. SKR evidence pack unlock (mainnet only)
 
@@ -81,7 +83,7 @@ ATAs are derived with `findProgramAddressSync([owner, tokenProgram, mint], ATA_P
 3. The user confirms in an in-app dialog.
 4. A fresh blockhash is fetched. Then the wallet opens with `authorize` or `reauthorize` for `solana:mainnet`.
 5. The account the wallet returns must equal the connected address.
-6. `signTransactions`. The signed bytes are saved as a pending unlock right away.
+6. `signTransactions`. `checkUnlockTx` ([src/skr/spl.ts](../src/skr/spl.ts)) decodes the signed bytes: the instructions `buildUnlockTx` made must be there byte for byte and in order, and the one token instruction must be `TransferChecked` of exactly 1 SKR from the payer's associated account to the treasury's. Only then are the signed bytes saved as a pending unlock.
 7. `landTransaction` sends and re-sends every 2 s until confirmed or the blockhash expires.
 8. Only after confirmation is the unlock saved and the pack shown.
 
@@ -94,16 +96,27 @@ Instructions on chain: `CreateIdempotent` for the treasury `8gTLrkxZ...Nh8S` (it
 predge-settle-watch v1 pack market=5186278 pack=sha256:b6ca4e780a71b837c6788781f7cc5c3f6ac05b426ba16e67fa42a311831daa2c
 ```
 
-The wallet added two ComputeBudget instructions and two Lighthouse assertion instructions (`L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95`).
+The wallet added two ComputeBudget instructions (`SetComputeUnitLimit` 640,000 and `SetComputeUnitPrice` 100,000 micro-lamports, so 64,000 lamports of priority fee) and two Lighthouse assertion instructions (`L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95`), after our three.
 
-**What the pack contains.** The pack is built from what the phone already holds: the verified record (pack hash, UMA state, disputes, clarifications, current proposal, on-chain resolution, recommendation, data basis, checked time) and the local timeline of changes. The unlock is stored on the phone. See the limitations in [THREAT-MODEL.md](THREAT-MODEL.md#known-limitations).
+**What the pack contains.** The pack is built from what the phone already holds: the verified record (pack hash, UMA state, disputes, clarifications, current proposal, on-chain resolution, recommendation, data basis, checked time) and the local timeline of changes. Values that check 6 does not bind are compared with the signed payload: a value that differs is tagged "differs from signed record", and source and data basis, which are not in the signed payload, are tagged "not signed". The unlock is stored on the phone.
+
+## What the wallet may add
+
+Code: `checkWalletTx` in [src/txcheck.ts](../src/txcheck.ts). Wallets add instructions of their own when they sign. The app accepts only these two programs on top of its own instructions:
+
+| Program | Id | Rule |
+|---|---|---|
+| ComputeBudget | `ComputeBudget111111111111111111111111111111` | no accounts; `RequestHeapFrame`, `SetComputeUnitLimit`, `SetComputeUnitPrice`, `SetLoadedAccountsDataSizeLimit` only; priority fee (units x price) at most 1,000,000 lamports (0.001 SOL) |
+| Lighthouse | `L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95` | assertions only, accepted as is |
+
+Everything else is refused, including any System program or Token instruction the app did not build, a second copy of one of ours, a changed memo, a different fee payer, a second required signer and address lookup tables. A refused transaction is not saved and not sent, and the user sees "The wallet changed the transaction in a way this app does not accept, so nothing was sent." Both example transactions above pass this check in `npm test` (the bytes are in [scripts/wallet-tx-fixtures.json](../scripts/wallet-tx-fixtures.json)). See the limitations in [THREAT-MODEL.md](THREAT-MODEL.md#known-limitations).
 
 ## Sending: why the app sends, not the wallet
 
 `anchorPack` and `payForPack` share one pattern ([src/wallet.ts](../src/wallet.ts)):
 
 - **No network call inside the wallet session.** Android can block the app's network while a wallet is in front. The blockhash and its `lastValidBlockHeight` are fetched first.
-- **Sign only, then send from the app.** Android can freeze a wallet that is no longer in front before it broadcasts. If the wallet refuses `signTransactions` for a reason other than the user declining, the app falls back to `signAndSendTransactions` with `minContextSlot`, then polls for confirmation.
+- **Sign only, then send from the app.** Android can freeze a wallet that is no longer in front before it broadcasts. If the wallet refuses `signTransactions` for a reason other than the user declining, the app falls back to `signAndSendTransactions` with `minContextSlot`, then polls for confirmation. In that fallback the wallet sends, so the app cannot check the transaction first. A transaction that fails the check above never triggers the fallback.
 - **Re-send loop.** `landTransaction` calls `sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 })` every 2 s and polls `getSignatureStatuses` (with history). Every 5 s it compares the block height with `lastValidBlockHeight`. Past it, one last status check decides between `confirmed` and `expired`. A status with `err` stops the loop as rejected. Default limit 90 s.
 - **Resume.** The pending entry holds the signature, the base64 signed transaction and `lastValidBlockHeight`. On the next start, `resumePending` (receipts) or `resumePendingUnlock` (SKR) runs the same loop for up to 60 s. `confirmed` records the receipt or unlock, `expired` drops it and tells the user nothing was charged, `unknown` keeps it for the next start.
 - **Signature format.** A signature must match `^[1-9A-HJ-NP-Za-km-z]{80,90}$` before it is stored or turned into an explorer link.

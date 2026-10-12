@@ -20,8 +20,8 @@ Out of scope:
 ## Design summary
 
 - The app holds no private keys and no API keys. It receives a public address and an MWA auth token.
-- Records from `https://api.predge.io` are trusted only after on-device ed25519 verification against the pinned key `13fa3d18a369e6c7`.
-- The app builds two transactions: a memo receipt, and a 1 SKR `TransferChecked` plus memo on mainnet. All amounts, mints and addresses are constants, and memo fields are validated before signing.
+- Records from `https://api.predge.io` are trusted only after on-device ed25519 verification against the pinned key `13fa3d18a369e6c7`, and only while their signed time is at most 24 h old.
+- The app builds two transactions: a memo receipt, and a 1 SKR `TransferChecked` plus memo on mainnet. All amounts, mints and addresses are constants, and memo fields are validated before signing. The transaction the wallet returns is decoded and checked before it is sent; a wallet may add only ComputeBudget and Lighthouse instructions.
 - Release signing keys are kept outside the repository and read from local Gradle properties.
 
 Full model, trust assumptions and known limitations: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
