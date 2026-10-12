@@ -31,7 +31,7 @@ Full model, trust assumptions and known limitations: [docs/THREAT-MODEL.md](docs
 The Clock In security module flagged known advisories in `tar`, `@xmldom/xmldom`, `image-size`, `postcss`, `uuid` and `stream-json`, all pulled in through Expo, React Native tooling and the Solana and wallet adapter packages.
 
 - Updated through `overrides` in `package.json`: `@xmldom/xmldom` 0.8.15, `postcss` 8.5.29, `image-size` 2.0.4, `uuid` 11.1.1, `stream-json` 3.7.0. Type check, the 103 self-tests, `expo prebuild` and the release build pass.
-- `tar` stays on 6.2.1: the fixed 7.x line breaks `expo prebuild` (the Expo CLI uses the 6.x API to unpack the native template). It only runs on the developer machine when generating `android/`, on Expo's own template archive.
+- `tar` is now 7.5.22 through `overrides`. Expo CLI 0.22 imported it as a default export, which the 7.x line no longer has, so `patches/@expo+cli+0.22.28.patch` (applied by `patch-package` on install) imports it as a module. `expo prebuild` and the release build pass. `tar` only runs on the developer machine when generating `android/`.
 - None of these packages ship in the app. The release APK built with and without the overrides is byte-identical (sha256 `b826dff4…`, the same file as the v0.3.9 release asset), so they are build and tooling dependencies only.
 
 ## Client-integration leads reviewed (12 Oct 2026)

@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "verify:live": "tsx scripts/verify-live.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/selftest.ts"
+    "test": "tsx scripts/selftest.ts",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@babel/core": "7.29.7",
     "@types/react": "18.3.31",
+    "patch-package": "8.0.1",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   },
@@ -56,6 +58,7 @@
     "postcss": "8.5.29",
     "image-size": "2.0.4",
     "uuid": "11.1.1",
-    "stream-json": "3.7.0"
+    "stream-json": "3.7.0",
+    "tar": "^7.5.21"
   }
 }
