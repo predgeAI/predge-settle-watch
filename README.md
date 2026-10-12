@@ -57,7 +57,7 @@ Screenshots are from builds 0.3.1 to 0.3.5. The current build places the same sc
 - **Share card**: a 1080 x 1350 receipt image with the pack hash, the transaction signature and a QR code of the explorer link. The QR encoder is written in this repo and tested against ISO 18004 reference matrices.
 - **Receipts**: memo transactions on devnet (default) or mainnet. See [docs/RECEIPTS-AND-SKR.md](docs/RECEIPTS-AND-SKR.md).
 - **SKR evidence pack**: pay 1 SKR on mainnet to unlock the full record and local timeline for one market.
-- **5 languages**: English, Spanish, Portuguese (Brazil), Simplified Chinese, Korean. The widget follows the app language.
+- **6 languages**: English, Spanish, Portuguese (Brazil), Simplified Chinese, Korean, Russian. The widget follows the app language.
 - **Notifications**: one alert per changed market, a daily digest at the hour you choose, and a test alert marked [TEST]. Checks run every 60 s while the app is open and about every 15 min in the background, also after a reboot.
 - In-app pixel dialogs instead of system alerts, haptics, reduced-motion support.
 

@@ -726,6 +726,105 @@ t("tour XP: +10 once via the game award system", () => {
   assert.equal(applyAction(a.state, "learn", { ref: TOUR_REF }, at("2026-10-13")).gained, 0);
 });
 
+// ---- Russian ----
+import { detectLanguage, fmtDec as fmtDecRu, fmtNum as fmtNumRu, LANGS as LANGS_RU, pixelFontOk as pixelOkRu, pluralForm, ru as ruDict, t as tRu, tn as tnRu } from "../src/i18n";
+{
+  const placeholders = (s: string) => [...new Set(s.match(/\{\w+\}/g) ?? [])].sort();
+  const enAll = enDict as Record<string, string>;
+  const ruAll = ruDict as Record<string, string>;
+  const pluralBases = Object.keys(enAll).filter((k) => k.endsWith(".one")).map((k) => k.slice(0, -4));
+  t("ru: every English key has a non-empty Russian value", () => {
+    for (const k of Object.keys(enAll)) assert.ok(typeof ruAll[k] === "string" && ruAll[k].trim() !== "", k);
+  });
+  t("ru: extra keys are only .few/.many plural forms, one pair per plural key", () => {
+    for (const k of Object.keys(ruAll)) {
+      if (k in enAll) continue;
+      const m = /^(.*)\.(few|many)$/.exec(k);
+      assert.ok(m && pluralBases.includes(m[1]), k);
+    }
+    for (const b of pluralBases) assert.ok(`${b}.few` in ruAll && `${b}.many` in ruAll, b);
+  });
+  t("ru: placeholders match English", () => {
+    for (const k of Object.keys(enAll)) {
+      const want = placeholders(enAll[k]);
+      // Russian "one" also covers 21, 31, 101..., so a `.one` string may name {n} where English says "a" or "new".
+      const got = placeholders(ruAll[k]).filter((p) => !(k.endsWith(".one") && p === "{n}" && !want.includes("{n}")));
+      assert.deepEqual(got, want, k);
+    }
+    for (const b of pluralBases)
+      for (const f of ["few", "many"]) assert.deepEqual(placeholders(ruAll[`${b}.${f}`]), placeholders(enAll[`${b}.other`]), `${b}.${f}`);
+  });
+  t("ru: plural categories", () => {
+    const cases: [number, string][] = [
+      [0, "many"], [1, "one"], [2, "few"], [4, "few"], [5, "many"], [11, "many"], [12, "many"], [14, "many"],
+      [20, "many"], [21, "one"], [22, "few"], [25, "many"], [101, "one"], [111, "many"], [112, "many"], [122, "few"], [1.5, "other"],
+    ];
+    for (const [n, f] of cases) assert.equal(pluralForm("ru", n), f, String(n));
+    assert.equal(pluralForm("en", 1), "one");
+    assert.equal(pluralForm("en", 21), "other");
+    assert.equal(pluralForm("es", 2), "other");
+  });
+  t("ru: tn picks one/few/many, other languages keep one/other", () => {
+    setLang("ru");
+    try {
+      assert.equal(tnRu("home.noChanges", 1), "Статус не менялся: 1 рынок под наблюдением.");
+      assert.equal(tnRu("home.noChanges", 2), "Статус не менялся: 2 рынка под наблюдением.");
+      assert.equal(tnRu("home.noChanges", 5), "Статус не менялся: 5 рынков под наблюдением.");
+      assert.equal(tnRu("home.noChanges", 21), "Статус не менялся: 21 рынок под наблюдением.");
+      assert.equal(tnRu("home.noChanges", 22), "Статус не менялся: 22 рынка под наблюдением.");
+      assert.equal(tnRu("home.noChanges", 25), "Статус не менялся: 25 рынков под наблюдением.");
+      assert.equal(tnRu("home.noChanges", 11), "Статус не менялся: 11 рынков под наблюдением.");
+      assert.equal(tnRu("recap.receipts", 3), "3 квитанции");
+      assert.equal(tnRu("change.dispute", 21), "21 новый спор UMA по предложенному ответу");
+      assert.equal(tnRu("digest.changed", 5, { changed: 2 }), "Settle Watch за день: статус сменился у 2 из 5 рынков");
+    } finally {
+      setLang("en");
+    }
+    assert.equal(tnRu("home.noChanges", 1), "No status changes across your 1 market.");
+    assert.equal(tnRu("home.noChanges", 21), "No status changes across your 21 markets.");
+    setLang("es");
+    try {
+      // Spanish has no .few/.many keys, so 2 falls back to .other.
+      assert.equal(tnRu("recap.receipts", 2), tRu("recap.receipts.other", { n: 2 }));
+    } finally {
+      setLang("en");
+    }
+  });
+  t("ru: numbers, picker, font, status words", () => {
+    setLang("ru");
+    try {
+      assert.equal(fmtNumRu(2543), "2\u00a0543");
+      assert.equal(fmtNumRu(3005), "3\u00a0005");
+      assert.equal(fmtDecRu("33.5"), "33,5");
+      assert.equal(tRu("learn.s4.stat"), "853 из 2\u00a0543");
+      assert.equal(tRu("learn.s4.pct"), "33,5%");
+      assert.deepEqual(["caution", "watch", "ok", "resolved"].map((k) => tRu(`status.${k}.word` as "status.ok.word")), ["ОСТОРОЖНО", "ВНИМАНИЕ", "ТИХО", "РЕШЁН"]);
+      const one = { key: "a", addedAt: "2026-10-01T00:00:00Z", timeline: [], anchors: [], last: { risk_level: "caution" } } as unknown as WatchItem;
+      assert.deepEqual(buildWidgetSummary([one], NEW_GAME).tiles.map((x) => x.label), ["ОСТОРОЖНО", "ВНИМАНИЕ", "ТИХО", "РЕШЁН"]);
+    } finally {
+      setLang("en");
+    }
+    assert.equal(fmtNumRu(2543), "2,543");
+    assert.deepEqual(LANGS_RU[LANGS_RU.length - 1], { id: "ru", name: "Русский" });
+    assert.ok(pixelOkRu("ru"));
+    assert.ok(!pixelOkRu("zh"));
+    assert.ok(pixelSafe("СЕГОДНЯ Ёлка ёж"));
+    const realDtf = Intl.DateTimeFormat;
+    const fakeLocale = (locale: string) =>
+      ((() => ({ resolvedOptions: () => ({ locale }) })) as unknown as typeof Intl.DateTimeFormat);
+    try {
+      Intl.DateTimeFormat = fakeLocale("ru-RU");
+      assert.equal(detectLanguage(), "ru");
+      Intl.DateTimeFormat = fakeLocale("ko-KR");
+      assert.equal(detectLanguage(), "ko");
+      Intl.DateTimeFormat = fakeLocale("uk-UA");
+      assert.equal(detectLanguage(), "en");
+    } finally {
+      Intl.DateTimeFormat = realDtf;
+    }
+  });
+}
+
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),
   (e) => {
