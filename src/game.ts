@@ -56,6 +56,7 @@ export const BADGES = [
   { id: "watch_5", name: en["badge.watch_5.name"], hint: en["badge.watch_5.hint"] },
   { id: "puzzles", name: en["badge.puzzles.name"], hint: en["badge.puzzles.hint"] },
   { id: "pack_opener", name: en["badge.pack_opener.name"], hint: en["badge.pack_opener.hint"] },
+  { id: "skr_holder", name: en["badge.skr_holder.name"], hint: en["badge.skr_holder.hint"] },
 ] as const;
 export type BadgeId = (typeof BADGES)[number]["id"];
 export const badgeName = (id: BadgeId) => t(`badge.${id}.name` as Key);
@@ -130,7 +131,11 @@ export interface ClockInResult {
   badges: BadgeId[];
 }
 
-export function clockIn(s: GameState, now: Date = new Date()): ClockInResult {
+/**
+ * Daily clock-in. `boost` (SKR holder perk) turns the base XP into the local XP the phone credits.
+ * The XP listeners, and so the League, see exactly the base clock-in, as if there were no boost.
+ */
+export function clockIn(s: GameState, now: Date = new Date(), opts: { boost?: (baseXp: number) => number; skrHolder?: boolean } = {}): ClockInResult {
   const day = dayOf(now);
   if (s.lastClockIn === day) return { state: s, already: true, gained: 0, usedFreeMiss: false, lostStreak: false, badges: [] };
   let streak = 1;
@@ -155,7 +160,9 @@ export function clockIn(s: GameState, now: Date = new Date()): ClockInResult {
     } else if (gap > 2) lostStreak = s.streak > 1;
   }
   const bonus = Math.min(streak, 7) * 2;
-  const gained = XP.clock_in + bonus;
+  const baseGained = XP.clock_in + bonus;
+  const boosted = opts.boost ? opts.boost(baseGained) : baseGained;
+  const gained = Number.isFinite(boosted) && boosted > baseGained ? Math.round(boosted) : baseGained;
   const base: GameState = {
     ...s,
     streak,
@@ -165,9 +172,21 @@ export function clockIn(s: GameState, now: Date = new Date()): ClockInResult {
     savedDays: savedDays.slice(-30),
     freeMissWeek,
   };
-  const r = credit(base, "clock_in", gained, now);
-  const b = unlockBadges(r.state, { watching: 0 }, now);
-  return { state: b.state, already: false, gained, usedFreeMiss, lostStreak, levelUp: r.levelUp, badges: b.unlocked };
+  const r = credit(base, "clock_in", baseGained, now);
+  let st = r.state;
+  let levelUp = r.levelUp;
+  if (gained > baseGained) {
+    // The extra is local only: added after the listeners ran, on the same clock-in event.
+    const before = levelOf(st.xp).index;
+    const events = st.events.slice();
+    const last = events[events.length - 1];
+    events[events.length - 1] = { ...last, xp: last.xp + gained - baseGained };
+    st = { ...st, xp: st.xp + gained - baseGained, events };
+    const after = levelOf(st.xp).index;
+    if (after > before) levelUp = LEVELS[after].name;
+  }
+  const b = unlockBadges(st, { watching: 0, skrHolder: opts.skrHolder }, now);
+  return { state: b.state, already: false, gained, usedFreeMiss, lostStreak, levelUp, badges: b.unlocked };
 }
 
 /** True when today's clock-in is still open. */
@@ -277,6 +296,7 @@ interface BadgeCtx {
   earlyDisputed?: boolean;
   justDid?: ActionKind;
   gained?: boolean;
+  skrHolder?: boolean; // the connected wallet holds at least the Holder tier of SKR
 }
 
 export function unlockBadges(s: GameState, ctx: BadgeCtx, now: Date = new Date()): { state: GameState; unlocked: BadgeId[] } {
@@ -291,6 +311,7 @@ export function unlockBadges(s: GameState, ctx: BadgeCtx, now: Date = new Date()
   if (!has("watch_5") && ctx.watching >= 5) want.push("watch_5");
   if (!has("puzzles") && count("puzzle_win") >= 3) want.push("puzzles");
   if (!has("pack_opener") && count("pack_open") > 0) want.push("pack_opener");
+  if (!has("skr_holder") && ctx.skrHolder) want.push("skr_holder");
   if (!want.length) return { state: s, unlocked: [] };
   const badges = { ...s.badges };
   for (const id of want) badges[id] = now.toISOString();

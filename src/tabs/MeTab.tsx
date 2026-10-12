@@ -7,7 +7,7 @@ import { CLUSTERS, PINNED_KID, type Cluster } from "../config";
 import type { Settings, StoredWallet } from "../store";
 import { C } from "../theme";
 import { Button, PixelBox, Press } from "../ui";
-import { SkrBalance } from "../skr";
+import { SkrBalance, SkrPerksCard } from "../skr";
 import { Text } from "../Text";
 import { fmtDec, fmtNum, LANGS, t, type Lang } from "../i18n";
 import { ago, hh, short, styles, TabHeader, TabScroll } from "./shared";
@@ -123,6 +123,8 @@ export function MeTab(p: MeTabProps) {
           </View>
         )}
       </PixelBox>
+
+      {wallet ? <SkrPerksCard /> : null}
 
       <PositionsCard
         positions={p.positions}

@@ -1360,6 +1360,121 @@ import { readFileSync, readdirSync } from "node:fs";
     assert.equal(normalizeSettings(JSON.parse(serializeSettings({ ...normalizeSettings({}, device), plainWords: false })), device).plainWords, false);
   });
 }
+// ---- SKR holder perks: tiers, slots, clock-in multiplier, cache, League report ----
+import {
+  boostClockIn,
+  canAddMarket,
+  fromCache,
+  fromRead,
+  holdsAtLeast,
+  nextTier,
+  PERK_CACHE_MAX_AGE_MS,
+  sanitizePerkCache,
+  tierFor,
+  watchlistLimit,
+  WATCHLIST_STORE_CAP,
+} from "../src/skr/perks";
+import { MAX_WATCHLIST as BASE_LIMIT } from "../src/config";
+import { xpKey as perkXpKey } from "../src/league/logic";
+import { setLanguage as setPerkLang } from "../src/i18n";
+const skr = (whole: number, frac = "") => String(whole) + (frac || "").padEnd(6, "0");
+t("skr perks: tier thresholds at 10, 100 and 1000 SKR", () => {
+  assert.equal(tierFor("0"), null);
+  assert.equal(tierFor(skr(9, "999999")), null);
+  assert.equal(tierFor(skr(10)), "holder");
+  assert.equal(tierFor(skr(99, "999999")), "holder");
+  assert.equal(tierFor(skr(100)), "supporter");
+  assert.equal(tierFor(skr(999, "999999")), "supporter");
+  assert.equal(tierFor(skr(1000)), "guardian");
+  assert.equal(tierFor("00000" + skr(1000)), "guardian");
+  assert.equal(tierFor("123456789012345678901234567890"), "guardian");
+  assert.equal(tierFor("-10000000"), null);
+  assert.equal(tierFor("1e9"), null);
+  assert.equal(tierFor(null), null);
+  assert.equal(holdsAtLeast(skr(10), 10), true);
+  assert.equal(holdsAtLeast("9999999", 10), false);
+  assert.deepEqual(nextTier(null), { id: "holder", min: 10 });
+  assert.deepEqual(nextTier("holder"), { id: "supporter", min: 100 });
+  assert.deepEqual(nextTier("supporter"), { id: "guardian", min: 1000 });
+  assert.equal(nextTier("guardian"), null);
+});
+t("skr perks: watchlist slots +10/+25/+50, lost perks keep markets but block adding", () => {
+  setPerkLang("en");
+  assert.equal(watchlistLimit(null), BASE_LIMIT);
+  assert.equal(watchlistLimit("holder"), BASE_LIMIT + 10);
+  assert.equal(watchlistLimit("supporter"), BASE_LIMIT + 25);
+  assert.equal(watchlistLimit("guardian"), BASE_LIMIT + 50);
+  assert.equal(WATCHLIST_STORE_CAP, watchlistLimit("guardian"));
+  assert.equal(canAddMarket(BASE_LIMIT - 1, null).ok, true);
+  assert.equal(canAddMarket(BASE_LIMIT, "holder").ok, true);
+  const full = canAddMarket(BASE_LIMIT, null);
+  assert.equal(full.ok, false);
+  if (!full.ok) assert.match(full.body, /10 SKR/);
+  // A Guardian with 90 markets disconnects: the 90 stay, adding is refused with the over-limit message.
+  const over = canAddMarket(BASE_LIMIT + 40, null);
+  assert.equal(over.ok, false);
+  if (!over.ok) {
+    assert.equal(over.title, "Watchlist above the limit");
+    assert.match(over.body, new RegExp(`Markets watched: ${BASE_LIMIT + 40}\\. The limit is now ${BASE_LIMIT}`));
+  }
+  assert.equal(canAddMarket(BASE_LIMIT + 50, "guardian").ok, false);
+});
+t("skr perks: clock-in multiplier x1.1/x1.25/x1.5 rounds to whole XP", () => {
+  assert.equal(boostClockIn(12, null), 12);
+  assert.equal(boostClockIn(12, "holder"), 13); // 13.2
+  assert.equal(boostClockIn(15, "holder"), 17); // 16.5 rounds up
+  assert.equal(boostClockIn(24, "holder"), 26); // 26.4
+  assert.equal(boostClockIn(14, "supporter"), 18); // 17.5 rounds up
+  assert.equal(boostClockIn(12, "supporter"), 15);
+  assert.equal(boostClockIn(13, "guardian"), 20); // 19.5
+  assert.equal(boostClockIn(24, "guardian"), 36);
+  assert.equal(boostClockIn(0, "guardian"), 0);
+  const plain = clockIn(NEW_GAME, at("2026-10-21"));
+  const boosted = clockIn(NEW_GAME, at("2026-10-21"), { boost: (x) => boostClockIn(x, "guardian"), skrHolder: true });
+  assert.equal(plain.gained, 12);
+  assert.equal(boosted.gained, 18);
+  assert.equal(boosted.state.xp, 18);
+  assert.equal(boosted.state.events[boosted.state.events.length - 1].xp, 18);
+  assert.deepEqual(boosted.badges, ["skr_holder"]);
+  assert.deepEqual(plain.badges, []);
+  // Other actions are never boosted.
+  assert.equal(applyAction(boosted.state, "verify", { ref: "1" }, at("2026-10-21")).gained, XP.verify);
+});
+t("skr perks: League gets the same clock-in report with or without the multiplier", () => {
+  const seen: { kind: string; xp: number; key: string }[] = [];
+  const off = onXpAwarded((e) => seen.push({ kind: e.kind, xp: e.xp, key: perkXpKey(e) }));
+  const start = { ...NEW_GAME, xp: 40, streak: 3, best: 3, lastClockIn: "2026-10-21", clockIns: ["2026-10-21"] };
+  clockIn(start, at("2026-10-22"));
+  clockIn(start, at("2026-10-22"), { boost: (x) => boostClockIn(x, "guardian"), skrHolder: true });
+  clockIn(start, at("2026-10-22"), { boost: (x) => x * 100 });
+  off();
+  assert.equal(seen.length, 3);
+  assert.deepEqual(seen[1], seen[0]);
+  assert.deepEqual(seen[2], seen[0]);
+  assert.equal(seen[0].kind, "clock_in");
+  assert.equal(seen[0].xp, XP.clock_in + 4 * 2);
+  assert.equal(reportsToLeague("clock_in"), true);
+});
+t("skr perks: saved tier stands in for 24 h when the balance cannot be read, then no tier", () => {
+  const addr = "8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S";
+  const t0 = new Date("2026-10-12T10:00:00Z");
+  const r = fromRead(addr, skr(150), t0);
+  assert.equal(r.state.tier, "supporter");
+  assert.equal(r.state.source, "live");
+  const cache = sanitizePerkCache(JSON.parse(JSON.stringify(r.cache)));
+  assert.ok(cache);
+  assert.equal(fromCache(addr, cache, new Date(t0.getTime() + 3600_000)).tier, "supporter");
+  assert.equal(fromCache(addr, cache, new Date(t0.getTime() + 3600_000)).source, "cache");
+  assert.equal(fromCache(addr, cache, new Date(t0.getTime() + PERK_CACHE_MAX_AGE_MS)).tier, "supporter");
+  assert.equal(fromCache(addr, cache, new Date(t0.getTime() + PERK_CACHE_MAX_AGE_MS + 1)).tier, null);
+  assert.equal(fromCache(addr, cache, new Date(t0.getTime() - 60_000)).tier, null); // saved in the future
+  assert.equal(fromCache("11111111111111111111111111111111", cache, t0).tier, null); // other wallet
+  assert.equal(fromCache(null, cache, t0).tier, null); // disconnected
+  // The stored tier is never trusted: it is derived again from the stored balance.
+  assert.equal(sanitizePerkCache({ ...r.cache, total: "5", tier: "guardian" })?.tier, null);
+  assert.equal(sanitizePerkCache({ ...r.cache, total: "abc" }), null);
+  assert.equal(sanitizePerkCache({ ...r.cache, at: "never" }), null);
+});
 
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),
