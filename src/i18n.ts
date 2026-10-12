@@ -307,6 +307,8 @@ export const en = {
   "wallet.errFee": "The wallet needs a little SOL for the network fee.",
   "wallet.errNoSig": "The wallet returned no valid signature.",
   "wallet.errNoAccount": "The wallet returned no account.",
+  "wallet.errOtherAccount": "The wallet approved a different account than the connected one. Disconnect, then connect the account you want to use.",
+  "wallet.errTxChanged": "The wallet changed the transaction in a way this app does not accept, so nothing was sent.",
   "faucet.title": "Devnet faucet",
   "faucet.body": "The devnet faucet is busy right now. Your address is copied: paste it at faucet.solana.com to get devnet SOL.",
 
@@ -993,6 +995,8 @@ const es: Dict = {
   "wallet.errFee": "La wallet necesita un poco de SOL para la comisión de red.",
   "wallet.errNoSig": "La wallet no devolvió una firma válida.",
   "wallet.errNoAccount": "La wallet no devolvió ninguna cuenta.",
+  "wallet.errOtherAccount": "La billetera aprobó una cuenta distinta a la conectada. Desconéctala y conecta la cuenta que quieres usar.",
+  "wallet.errTxChanged": "La billetera cambió la transacción de una forma que esta app no acepta, así que no se envió nada.",
   "faucet.title": "Faucet de devnet",
   "faucet.body": "El faucet de devnet está ocupado ahora mismo. Copiamos tu dirección: pégala en faucet.solana.com para conseguir SOL de devnet.",
 
@@ -1666,6 +1670,8 @@ const pt: Dict = {
   "wallet.errFee": "A carteira precisa de um pouco de SOL para a taxa da rede.",
   "wallet.errNoSig": "A carteira não retornou uma assinatura válida.",
   "wallet.errNoAccount": "A carteira não retornou nenhuma conta.",
+  "wallet.errOtherAccount": "A carteira aprovou uma conta diferente da conectada. Desconecte e conecte a conta que você quer usar.",
+  "wallet.errTxChanged": "A carteira alterou a transação de um jeito que este app não aceita, então nada foi enviado.",
   "faucet.title": "Faucet da devnet",
   "faucet.body": "O faucet da devnet está ocupado agora. Seu endereço foi copiado: cole em faucet.solana.com para pegar SOL de devnet.",
 
@@ -2339,6 +2345,8 @@ const zh: Dict = {
   "wallet.errFee": "钱包需要少量 SOL 支付网络手续费。",
   "wallet.errNoSig": "钱包没有返回有效的签名。",
   "wallet.errNoAccount": "钱包没有返回任何账户。",
+  "wallet.errOtherAccount": "钱包批准的账户与已连接的账户不同。请断开连接，然后连接你要使用的账户。",
+  "wallet.errTxChanged": "钱包以本应用不接受的方式修改了交易，因此没有发送任何内容。",
   "faucet.title": "Devnet 水龙头",
   "faucet.body": "Devnet 水龙头当前繁忙。你的地址已复制：粘贴到 faucet.solana.com 即可领取 devnet SOL。",
 
@@ -3012,6 +3020,8 @@ const ko: Dict = {
   "wallet.errFee": "네트워크 수수료로 지갑에 SOL이 조금 필요해요.",
   "wallet.errNoSig": "지갑이 유효한 서명을 반환하지 않았어요.",
   "wallet.errNoAccount": "지갑이 계정을 반환하지 않았어요.",
+  "wallet.errOtherAccount": "지갑이 연결된 계정과 다른 계정을 승인했습니다. 연결을 끊고 사용할 계정을 연결하세요.",
+  "wallet.errTxChanged": "지갑이 이 앱이 허용하지 않는 방식으로 트랜잭션을 바꿔서 아무것도 보내지 않았어요.",
   "faucet.title": "Devnet faucet",
   "faucet.body": "지금 devnet faucet이 바빠요. 주소를 복사해 두었어요. faucet.solana.com에 붙여 넣고 devnet SOL을 받으세요.",
 

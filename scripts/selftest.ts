@@ -807,6 +807,111 @@ t("share card: the checks line uses the real count", () => {
   assert.equal(receiptCardInput({ ...base, checks: { ok: 7, total: 8 } }, "#e2703a").text.checks, "7/8 checks on my phone");
 });
 
+// ---- wallet transactions: what the wallet may add ----
+import { PublicKey as TxKey, SystemProgram as TxSystem, Transaction as TxTransaction, TransactionInstruction as TxIx } from "@solana/web3.js";
+import { Buffer as TxBuffer } from "buffer";
+import { checkReceiptTx, COMPUTE_BUDGET_PROGRAM_ID, decodeTransaction, LIGHTHOUSE_PROGRAM_ID, memoIx, priorityFeeLamports, TxCheckError } from "../src/txcheck";
+import { checkUnlockTx } from "../src/skr/spl";
+import { memoText } from "../src/wallet";
+import txFixtures from "./wallet-tx-fixtures.json";
+const SKR_TX = txFixtures.skrPaymentMainnet;
+const RCPT_TX = txFixtures.watchReceiptDevnet;
+const b64 = (s: string) => Uint8Array.from(TxBuffer.from(s, "base64"));
+const skrParams = {
+  payer: new TxKey(SKR_TX.payer),
+  treasury: new TxKey(SKR_TX.treasury),
+  marketId: SKR_TX.marketId,
+  packHash: SKR_TX.packHash,
+  createTreasuryAta: SKR_TX.createTreasuryAta,
+};
+const rcptMemo = memoText({ action: "watch", marketId: RCPT_TX.marketId, riskLevel: RCPT_TX.riskLevel, packHash: RCPT_TX.packHash });
+const reason = (fn: () => unknown) => {
+  try {
+    fn();
+    return "accepted";
+  } catch (e) {
+    return e instanceof TxCheckError ? e.reason : "other:" + String(e);
+  }
+};
+t("wallet tx: the real mainnet SKR payment decodes to our 3 instructions plus ComputeBudget and Lighthouse", () => {
+  const d = decodeTransaction(b64(SKR_TX.tx));
+  assert.equal(d.feePayer, SKR_TX.payer);
+  assert.deepEqual(d.instructions.map((i) => i.programId), [
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+    COMPUTE_BUDGET_PROGRAM_ID,
+    COMPUTE_BUDGET_PROGRAM_ID,
+    LIGHTHOUSE_PROGRAM_ID,
+    LIGHTHOUSE_PROGRAM_ID,
+  ]);
+  // The wallet set 640,000 compute units at 100,000 micro-lamports: 64,000 lamports of priority fee.
+  assert.equal(priorityFeeLamports(d.instructions.filter((i) => i.programId === COMPUTE_BUDGET_PROGRAM_ID), 5), 64_000);
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), skrParams)), "accepted");
+});
+t("wallet tx: the real devnet watch receipt decodes to our memo plus ComputeBudget", () => {
+  const d = decodeTransaction(b64(RCPT_TX.tx));
+  assert.deepEqual(d.instructions.map((i) => i.programId), ["MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr", COMPUTE_BUDGET_PROGRAM_ID, COMPUTE_BUDGET_PROGRAM_ID]);
+  assert.equal(TxBuffer.from(d.instructions[0].data).toString("utf8"), rcptMemo);
+  assert.equal(reason(() => checkReceiptTx(b64(RCPT_TX.tx), new TxKey(RCPT_TX.payer), rcptMemo)), "accepted");
+});
+t("wallet tx: wrong payer, changed memo, wrong pack parameters are rejected", () => {
+  const other = new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC");
+  assert.equal(reason(() => checkReceiptTx(b64(RCPT_TX.tx), other, rcptMemo)), "fee payer");
+  assert.equal(reason(() => checkReceiptTx(b64(RCPT_TX.tx), new TxKey(RCPT_TX.payer), rcptMemo.replace("caution", "ok"))), "instructions");
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), { ...skrParams, createTreasuryAta: false })), "instructions");
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), { ...skrParams, treasury: other })), "instructions");
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), { ...skrParams, packHash: "0".repeat(64) })), "instructions");
+  assert.equal(reason(() => checkReceiptTx(Uint8Array.from([1, 2, 3]), other, rcptMemo)), "unreadable");
+});
+// Rebuilds a transaction the way a misbehaving wallet might return it.
+const payerKey = new TxKey(RCPT_TX.payer);
+const serialize = (ixs: TxIx[], feePayer = payerKey) =>
+  Uint8Array.from(
+    new TxTransaction({ feePayer, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 0 })
+      .add(...ixs)
+      .serialize({ requireAllSignatures: false, verifySignatures: false })
+  );
+const cuLimit = (n: number) => new TxIx({ programId: new TxKey(COMPUTE_BUDGET_PROGRAM_ID), keys: [], data: TxBuffer.from([2, n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]) });
+const cuPrice = (micro: number) => {
+  const d = TxBuffer.alloc(9);
+  d[0] = 3;
+  d.writeBigUInt64LE(BigInt(micro), 1);
+  return new TxIx({ programId: new TxKey(COMPUTE_BUDGET_PROGRAM_ID), keys: [], data: d });
+};
+const lighthouse = new TxIx({ programId: new TxKey(LIGHTHOUSE_PROGRAM_ID), keys: [{ pubkey: payerKey, isSigner: false, isWritable: false }], data: TxBuffer.from([1, 2, 3]) });
+t("wallet tx: ComputeBudget and Lighthouse may be added, transfers and other programs may not", () => {
+  const memo = memoIx(payerKey, rcptMemo);
+  assert.equal(reason(() => checkReceiptTx(serialize([memo]), payerKey, rcptMemo)), "accepted");
+  assert.equal(reason(() => checkReceiptTx(serialize([cuLimit(200_000), cuPrice(100_000), memo, lighthouse]), payerKey, rcptMemo)), "accepted");
+  const drain = TxSystem.transfer({ fromPubkey: payerKey, toPubkey: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), lamports: 1 });
+  assert.equal(reason(() => checkReceiptTx(serialize([memo, drain]), payerKey, rcptMemo)), "instructions");
+  const unknown = new TxIx({ programId: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), keys: [], data: TxBuffer.from([0]) });
+  assert.equal(reason(() => checkReceiptTx(serialize([memo, unknown]), payerKey, rcptMemo)), "instructions");
+  assert.equal(reason(() => checkReceiptTx(serialize([memo, memo]), payerKey, rcptMemo)), "instructions");
+  assert.equal(reason(() => checkReceiptTx(serialize([cuLimit(200_000)]), payerKey, rcptMemo)), "instructions");
+  // Priority fee: 1,400,000 units at 1,000,000 micro-lamports is 1.4M lamports, over the 0.001 SOL cap.
+  assert.equal(reason(() => checkReceiptTx(serialize([cuLimit(1_400_000), cuPrice(1_000_000), memo]), payerKey, rcptMemo)), "priority fee too high");
+  assert.equal(reason(() => checkReceiptTx(serialize([cuPrice(10_000_000), memo]), payerKey, rcptMemo)), "priority fee too high");
+  const legacyUnits = new TxIx({ programId: new TxKey(COMPUTE_BUDGET_PROGRAM_ID), keys: [], data: TxBuffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0]) });
+  assert.equal(reason(() => checkReceiptTx(serialize([legacyUnits, memo]), payerKey, rcptMemo)), "unknown compute budget instruction");
+  // A second signer the wallet added.
+  const cosigned = new TxIx({ ...memo, keys: [...memo.keys] });
+  const extraSigner = new TxIx({ programId: new TxKey(LIGHTHOUSE_PROGRAM_ID), keys: [{ pubkey: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), isSigner: true, isWritable: false }], data: TxBuffer.from([1]) });
+  assert.equal(reason(() => checkReceiptTx(serialize([cosigned, extraSigner]), payerKey, rcptMemo)), "extra signer");
+});
+t("wallet tx: SKR payment rejects added transfers and a changed amount", () => {
+  const built = buildUnlockTx({ ...skrParams, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 0 });
+  const ixs = built.instructions;
+  const pay = new TxKey(SKR_TX.payer);
+  assert.equal(reason(() => checkUnlockTx(serialize([...ixs, cuPrice(1000), lighthouse], pay), skrParams)), "accepted");
+  const two = new TxIx({ ...ixs[1], keys: [...ixs[1].keys], data: transferCheckedData(2_000_000, 6) });
+  assert.equal(reason(() => checkUnlockTx(serialize([ixs[0], two, ixs[2]], pay), skrParams)), "instructions");
+  const drain = TxSystem.transfer({ fromPubkey: pay, toPubkey: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), lamports: 5000 });
+  assert.equal(reason(() => checkUnlockTx(serialize([...ixs, drain], pay), skrParams)), "instructions");
+  assert.equal(reason(() => checkUnlockTx(serialize([...ixs, ixs[1]], pay), skrParams)), "instructions");
+});
+
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),
   (e) => {
