@@ -1,5 +1,6 @@
 // Rule Detective: spot the risky phrase in a real market's written rules.
 // Educational only. The hints describe common trouble spots, not what happened in any real dispute.
+import { en, t, type Key } from "../i18n";
 export type PhraseKind = "time" | "range" | "source" | "name";
 
 export interface Case {
@@ -9,19 +10,23 @@ export interface Case {
   phrases: { t: string; kind: PhraseKind }[];
 }
 
+// English text lives in the i18n dictionary; these constants keep it available to the selftest.
 export const KIND_LABEL: Record<PhraseKind, string> = {
-  time: "A date or time",
-  range: "A threshold",
-  source: "A source or definition",
-  name: "A name or label",
+  time: en["rd.kind.time"],
+  range: en["rd.kind.range"],
+  source: en["rd.kind.source"],
+  name: en["rd.kind.name"],
 };
 
 export const KIND_HINT: Record<PhraseKind, string> = {
-  time: "If an event is moved, which day or window counts? Check the exact time and the time zone.",
-  range: "Words like “or more” decide close calls. Read whether the line itself counts.",
-  source: "The rules point to one source or one way of counting. If it is unclear, people can read the same news differently.",
-  name: "Names and labels must match exactly. A short name, a rename or a quoted label can cause confusion.",
+  time: en["rd.hint.time"],
+  range: en["rd.hint.range"],
+  source: en["rd.hint.source"],
+  name: en["rd.hint.name"],
 };
+
+export const kindLabel = (k: PhraseKind) => t(`rd.kind.${k}` as Key);
+export const kindHint = (k: PhraseKind) => t(`rd.hint.${k}` as Key);
 
 export interface Segment {
   text: string;
