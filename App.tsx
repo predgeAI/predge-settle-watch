@@ -83,6 +83,9 @@ import { PlayTab } from "./src/tabs/PlayTab";
 import { DiscoverTab } from "./src/tabs/DiscoverTab";
 import { MeTab } from "./src/tabs/MeTab";
 import { TabBar, type TabId } from "./src/tabs/TabBar";
+import { fetchPositions, normalizeAddress, PositionsError } from "./src/positions/api";
+import { applyHeld, clearHeld, planSync, positionsErrorText } from "./src/positions/sync";
+import { loadPositionsState, savePositionsState, type PositionsState } from "./src/positions/store";
 
 // Use the phone's language for the intro until the saved choice loads.
 setLanguage(detectLanguage());
@@ -178,6 +181,11 @@ export default function App() {
   const [clockPlay, setClockPlay] = useState(0);
   // Bottom tabs. Always opens on TODAY; the choice is not saved.
   const [tab, setTab] = useState<TabId>("today");
+  // "Watch my positions": a Polymarket wallet address kept on this phone, synced on foreground and on demand.
+  const [positions, setPositions] = useState<PositionsState>({});
+  const [posBusy, setPosBusy] = useState(false);
+  const syncingRef = useRef(false);
+  const lastAutoSyncRef = useRef(0);
   const reduced = useReducedMotion();
   const shake = useShake();
   const lang = useLang();
@@ -326,7 +334,7 @@ export default function App() {
   }, [refreshAll]);
 
   const addMarket = useCallback(
-    async (raw: string, opts: { quiet?: boolean } = {}): Promise<boolean> => {
+    async (raw: string, opts: { quiet?: boolean; source?: "positions" } = {}): Promise<boolean> => {
       const key = parseMarketInput(raw);
       if (!key) {
         if (!opts.quiet) showDialog(t("add.notMarketTitle"), t("add.notMarketBody"));
@@ -362,11 +370,14 @@ export default function App() {
           lastPolledAt: now,
           timeline: [{ at: now, text: t("timeline.watching", { rec: r.recommendation }), verified: v.verified, kind: "info" }],
           anchors: [],
+          ...(opts.source ? { source: opts.source } : {}),
         };
         if (r.context) setContext(r.context);
         const nextList = [item, ...(await loadWatchlist())];
         await persist(nextList);
         itemsRef.current = nextList;
+        // Positions sync adds many markets at once: it keeps the user's typed input and earns its own XP once.
+        if (opts.source) return true;
         setInput("");
         award("add_market", { ref: r.market.market_id });
         if (v.verified) award("verify", { ref: r.market.market_id });
@@ -381,6 +392,108 @@ export default function App() {
     },
     [persist, award]
   );
+
+  /**
+   * Reads the wallet's open positions (Polymarket Data API, see src/positions/api.ts), adds markets
+   * not yet watched (quietly, one at a time, at most 50) and marks held and closed positions.
+   * Closed positions are never removed. `manual` shows the result or the error in a dialog.
+   */
+  const syncPositions = useCallback(
+    async (opts: { manual?: boolean; address?: string } = {}) => {
+      if (syncingRef.current) return;
+      const state = await loadPositionsState();
+      const address = opts.address ?? state.address;
+      if (!address) return;
+      syncingRef.current = true;
+      setPosBusy(true);
+      try {
+        const open = await fetchPositions(address);
+        const plan = planSync(open, await loadWatchlist(), MAX_WATCHLIST, 50);
+        let failed = 0;
+        for (const pos of plan.toAdd) if (!(await addMarket(pos.conditionId, { quiet: true, source: "positions" }))) failed++;
+        // A foreground poll merges its results over the list when it ends, so wait for it before marking.
+        for (let i = 0; i < 60 && pollingRef.current; i++) await new Promise((res) => setTimeout(res, 500));
+        const now = new Date().toISOString();
+        let closed = 0;
+        let added = 0;
+        const acquired = !pollingRef.current;
+        if (acquired) pollingRef.current = true;
+        try {
+          const list = await loadWatchlist();
+          const marked = applyHeld(list, open, now);
+          closed = marked.closed;
+          added = plan.toAdd.filter((p) => marked.items.some((i) => i.key === p.conditionId)).length;
+          if (marked.changed) await persist(marked.items);
+        } finally {
+          if (acquired) pollingRef.current = false;
+        }
+        const next: PositionsState = { address, lastSyncAt: now, found: plan.found, added, failed, overflow: plan.overflow };
+        await savePositionsState(next);
+        setPositions(next);
+        award("positions_sync", { ref: "first" });
+        if (opts.manual) {
+          const notes = [plan.overflow ? t("pos.fullNote", { n: plan.overflow }) : "", failed ? t("pos.failedNote", { n: failed }) : ""].filter(Boolean);
+          showDialog(t("pos.doneTitle"), [t("pos.doneBody", { found: plan.found, added, closed }), ...notes].join("\n\n"));
+        }
+      } catch (e) {
+        const kind = e instanceof PositionsError ? e.kind : "other";
+        const next: PositionsState = { ...state, address, lastError: kind, lastErrorAt: new Date().toISOString() };
+        await savePositionsState(next).catch(() => undefined);
+        setPositions(next);
+        if (opts.manual) showDialog(t("pos.failTitle"), positionsErrorText(kind));
+      } finally {
+        syncingRef.current = false;
+        setPosBusy(false);
+      }
+    },
+    [addMarket, persist, award]
+  );
+
+  const onSavePositions = useCallback(
+    async (raw: string) => {
+      const address = normalizeAddress(raw);
+      if (!address) return showDialog(t("pos.badTitle"), t("pos.badBody"));
+      const next: PositionsState = { address };
+      await savePositionsState(next);
+      setPositions(next);
+      showDialog(t("pos.apiTitle"), t("pos.apiBody"));
+      syncPositions({ manual: true, address });
+    },
+    [syncPositions]
+  );
+
+  const onForgetPositions = useCallback(() => {
+    showDialog(t("pos.forgetTitle"), t("pos.forgetBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("pos.forget"),
+        style: "destructive",
+        onPress: async () => {
+          await savePositionsState({});
+          setPositions({});
+          await persist(clearHeld(await loadWatchlist()));
+        },
+      },
+    ]);
+  }, [persist]);
+
+  // Positions sync runs when the app opens or comes to the foreground (at most every 5 minutes), never in the background task.
+  useEffect(() => {
+    if (!settings?.onboarded) return;
+    const auto = () => {
+      if (Date.now() - lastAutoSyncRef.current < 5 * 60_000) return;
+      lastAutoSyncRef.current = Date.now();
+      syncPositions().catch(() => undefined);
+    };
+    loadPositionsState().then((s) => {
+      setPositions(s);
+      auto();
+    });
+    const sub = AppState.addEventListener("change", (st) => {
+      if (st === "active") auto();
+    });
+    return () => sub.remove();
+  }, [settings?.onboarded, syncPositions]);
 
   const finishOnboarding = useCallback(
     async (addExamples: boolean, clockedIn = false) => {
@@ -717,6 +830,8 @@ export default function App() {
           onOpenDetail={openDetail}
           onPuzzle={() => setPuzzleOpen(true)}
           add={add}
+          positionsHint={!positions.address}
+          onOpenMe={() => setTab("me")}
         />
         <PlayTab
           active={tab === "play"}
@@ -759,6 +874,11 @@ export default function App() {
           onCheckNow={refreshAll}
           onDigestNow={onDigestNow}
           onTestAlert={onTestAlert}
+          positions={positions}
+          positionsBusy={posBusy}
+          onSavePositions={onSavePositions}
+          onSyncPositions={() => syncPositions({ manual: true })}
+          onForgetPositions={onForgetPositions}
         />
         <TabBar tab={tab} onChange={setTab} />
         {overlays("main")}

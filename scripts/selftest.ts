@@ -569,4 +569,120 @@ t("league: the board list and the This week line use one rank", () => {
   assert.equal(boardRank([row("a", 50, 1), row("me", 20, 1, true)], 1), 2);
   assert.equal(boardRank([row("a", 50, 1)], 37), 37);
 });
-console.log(`${n} checks passed`);
+
+// ---- watch my positions: address, response parsing, dedupe ----
+import positionsFixture from "./positions-fixture.json";
+import { fetchPositions, normalizeAddress, openPositions, parsePositions, positionsUrl, PositionsError } from "../src/positions/api";
+import { applyHeld, byMarket, clearHeld, conditionOf, fmtShares, heldOf, planSync } from "../src/positions/sync";
+
+const CID_A = "0x0389a98934283c9bee606cc9525d5c49f44b65596e669b151369eb03977d06a1";
+const CID_B = "0x451b2ab83c45abe91a283bb26d521f4973c4bbc3f183b38244bd08c6daf9e1e7";
+const CID_R = "0xbb1c34c6b611df6a4138eaa2ec6b887d5635ed372e62d9b91b971f302443c3e2";
+const wi = (key: string, extra: Partial<WatchItem> = {}): WatchItem => ({ key, addedAt: "2026-10-01T00:00:00Z", timeline: [], anchors: [], ...extra });
+
+t("positions: address validation", () => {
+  assert.equal(normalizeAddress(" 0xC69BD5567B40EF4D11922EAA57E1F9BE1C642076 "), "0xc69bd5567b40ef4d11922eaa57e1f9be1c642076");
+  assert.equal(normalizeAddress("0x" + "a".repeat(39)), null);
+  assert.equal(normalizeAddress("0x" + "a".repeat(41)), null);
+  assert.equal(normalizeAddress("0x" + "g".repeat(40)), null);
+  assert.equal(normalizeAddress("c69bd5567b40ef4d11922eaa57e1f9be1c642076"), null);
+  assert.equal(normalizeAddress("0x" + "a".repeat(40) + "&limit=1"), null);
+  assert.equal(normalizeAddress("8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S"), null);
+  assert.equal(normalizeAddress(undefined), null);
+  assert.ok(positionsUrl("0x" + "a".repeat(40)).startsWith("https://data-api.polymarket.com/positions?user=0x"));
+});
+t("positions: fixture parses, bad entries are dropped", () => {
+  const ps = parsePositions(positionsFixture);
+  assert.equal(ps.length, 4);
+  assert.deepEqual(ps.map((p) => p.conditionId), [CID_A, CID_B, CID_R, CID_A]);
+  assert.equal(ps[0].outcome, "BNK FEARX");
+  assert.equal(ps[0].size, 19227.0184);
+  assert.equal(ps[2].redeemable, true);
+  assert.deepEqual(openPositions(ps).map((p) => p.conditionId), [CID_A, CID_B, CID_A]);
+});
+t("positions: response that is not a list is rejected", () => {
+  for (const bad of [null, {}, { error: "x" }, "[]", 1]) assert.throws(() => parsePositions(bad), (e: unknown) => e instanceof PositionsError && e.kind === "shape");
+  assert.throws(() => parsePositions(new Array(501).fill({})));
+  assert.deepEqual(parsePositions([]), []);
+  assert.deepEqual(parsePositions([{ conditionId: CID_A, size: "abc" }, { conditionId: CID_A.toUpperCase().replace("0X", "0x"), size: 2, slug: "../x" }]).map((p) => [p.conditionId, p.slug]), [[CID_A, undefined]]);
+});
+t("positions: one entry per market, the larger outcome wins", () => {
+  const m = byMarket(openPositions(parsePositions(positionsFixture)));
+  assert.equal(m.size, 2);
+  assert.equal(m.get(CID_A)?.outcome, "BNK FEARX");
+});
+t("positions: plan skips watched markets (by key or condition id) and caps to free slots", () => {
+  const open = openPositions(parsePositions(positionsFixture));
+  const fresh = planSync(open, [], 50);
+  assert.deepEqual(fresh.toAdd.map((p) => p.conditionId), [CID_A, CID_B]);
+  assert.equal(fresh.found, 2);
+  const byKey = planSync(open, [wi(CID_A)], 50);
+  assert.deepEqual(byKey.toAdd.map((p) => p.conditionId), [CID_B]);
+  assert.equal(byKey.watched, 1);
+  const bySlug = planSync(open, [wi("some-slug", { last: { market: { condition_id: CID_B.toUpperCase().replace("0X", "0x") } } as WatchItem["last"] })], 50);
+  assert.deepEqual(bySlug.toAdd.map((p) => p.conditionId), [CID_A]);
+  const full = planSync(open, Array.from({ length: 49 }, (_, i) => wi(String(i))), 50);
+  assert.equal(full.toAdd.length, 1);
+  assert.equal(full.overflow, 1);
+  assert.equal(planSync(open, [], 50, 1).toAdd.length, 1);
+  assert.equal(planSync(open, Array.from({ length: 60 }, (_, i) => wi(String(i))), 50).toAdd.length, 0);
+});
+t("positions: held marks, closed positions are marked and never removed", () => {
+  const open = openPositions(parsePositions(positionsFixture));
+  const list = [wi(CID_A, { source: "positions" }), wi(CID_B), wi("5186278")];
+  const a = applyHeld(list, open, "2026-10-12T10:00:00Z");
+  assert.equal(a.changed, true);
+  assert.deepEqual(heldOf(a.items[0]), { outcome: "BNK FEARX", size: 19227.0184, closed: false, at: "2026-10-12T10:00:00Z" });
+  assert.equal(a.items[1].held?.outcome, "JD Gaming");
+  assert.equal(a.items[2].held, undefined);
+  assert.equal(applyHeld(a.items, open, "2026-10-12T11:00:00Z").changed, false);
+  const later = applyHeld(a.items, open.filter((p) => p.conditionId !== CID_B), "2026-10-12T12:00:00Z");
+  assert.equal(later.closed, 1);
+  assert.equal(later.items.length, 3);
+  assert.equal(heldOf(later.items[1])?.closed, true);
+  assert.equal(applyHeld(later.items, [], "2026-10-12T13:00:00Z").closed, 1);
+  const cleared = clearHeld(later.items);
+  assert.ok(cleared.every((i) => i.held === undefined));
+  assert.equal(cleared[0].source, "positions");
+});
+t("positions: stored held marks are checked before drawing", () => {
+  assert.equal(heldOf(wi("x", { held: { outcome: 1, size: 2 } as never })), null);
+  assert.equal(heldOf(wi("x", { held: { outcome: "Yes", size: NaN } as never })), null);
+  assert.equal(conditionOf(wi("5186278")), undefined);
+  assert.equal(fmtShares(19227.0184, (s) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ",")), "19,227");
+  assert.equal(fmtShares(3.888), "3.9");
+  assert.equal(fmtShares(-1), "0");
+});
+
+// fetchPositions with a fake fetch: never throws anything but PositionsError.
+const fakeFetch = (impl: () => Promise<unknown>) => (() => impl()) as never;
+const asyncChecks: Promise<void>[] = [];
+const at2 = (name: string, fn: () => Promise<void>) =>
+  asyncChecks.push(
+    fn().then(() => {
+      n++;
+      console.log(`ok ${n} ${name}`);
+    })
+  );
+const kindOf = async (p: Promise<unknown>) => p.then(() => "ok", (e) => (e instanceof PositionsError ? e.kind : "other:" + String(e)));
+const ADDR = "0x" + "a".repeat(40);
+at2("positions: fetch errors map to kinds", async () => {
+  assert.equal(await kindOf(fetchPositions("nope")), "address");
+  assert.equal(await kindOf(fetchPositions(ADDR, { fetchImpl: fakeFetch(() => Promise.reject(new TypeError("Network request failed"))) })), "network");
+  assert.equal(await kindOf(fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: false, status: 503, json: async () => ({}) })) })), "http");
+  assert.equal(await kindOf(fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("x"); } })) })), "shape");
+  assert.equal(await kindOf(fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: true, status: 200, json: async () => ({ error: "x" }) })) })), "shape");
+  const slow = (_u: string, init: { signal: AbortSignal }) =>
+    new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))));
+  assert.equal(await kindOf(fetchPositions(ADDR, { timeoutMs: 20, fetchImpl: slow as never })), "timeout");
+  const ok = await fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: true, status: 200, json: async () => positionsFixture })) });
+  assert.equal(ok.length, 3);
+});
+
+Promise.all(asyncChecks).then(
+  () => console.log(`${n} checks passed`),
+  (e) => {
+    console.error(e);
+    process.exit(1);
+  }
+);

@@ -8,7 +8,8 @@ import { alpha, C, MONO, PX, STATUS, T } from "../theme";
 import * as haptic from "../haptic";
 import { Button, Chip, PixelBox, Press, Reveal, StatusIcon } from "../ui";
 import { Text } from "../Text";
-import { t, type Key } from "../i18n";
+import { fmtNum, t, type Key } from "../i18n";
+import { fmtShares, heldOf } from "../positions/sync";
 
 export const EXAMPLES: { label: Key; key: string }[] = [
   { label: "ex.disputed", key: "5186278" },
@@ -52,6 +53,7 @@ export function MarketCard({ item, index, onOpen }: { item: WatchItem; index: nu
     }
   }, [level, flash]);
   const changedToday = changesLast24h(item).length > 0;
+  const held = heldOf(item);
   return (
     <Reveal delay={Math.min(index, 6) * 60} style={{ marginTop: 12 }}>
       <Press onPress={onOpen} label={item.question ?? item.key}>
@@ -71,7 +73,13 @@ export function MarketCard({ item, index, onOpen }: { item: WatchItem; index: nu
             {item.question ?? item.key}
           </Text>
           <Text style={[styles.body, { color }]}>{statusLine(item.snapshot)}</Text>
+          {held ? (
+            <Text style={[styles.dim, { marginTop: 4 }]} numberOfLines={2}>
+              {held.closed ? t("card.heldClosed") : t("card.held", { outcome: held.outcome || "?", size: fmtShares(held.size, fmtNum) })}
+            </Text>
+          ) : null}
           <View style={styles.rowWrap}>
+            {held ? <Chip text={held.closed ? t("chip.heldClosed") : t("chip.held")} color={held.closed ? C.dim : C.teal} /> : null}
             {item.verification ? <Chip text={item.verification.verified ? t("chip.verified") : t("chip.notVerified")} color={item.verification.verified ? C.green : C.red} /> : null}
             {changedToday ? <Chip text={t("chip.changedToday")} color={C.orange} /> : null}
             {item.anchors.length ? <Chip text={t("chip.receipts", { n: item.anchors.length })} color={C.purpleSoft} /> : null}

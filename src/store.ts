@@ -31,6 +31,14 @@ export interface TimelineEvent {
   kind?: "change" | "info" | "receipt"; // missing on 0.1.0 events
 }
 
+/** A position the user's Polymarket wallet holds in this market (from "Watch my positions"). */
+export interface HeldInfo {
+  outcome: string;
+  size: number; // shares
+  closed?: boolean; // the position went away; the market stays until the user removes it
+  at: string; // last sync that touched this mark
+}
+
 export interface WatchItem {
   key: string; // identifier passed to the API
   marketId?: string;
@@ -45,6 +53,8 @@ export interface WatchItem {
   lastChangeAt?: string; // when a watched field last changed
   timeline: TimelineEvent[];
   anchors: Anchor[];
+  source?: "positions"; // added by the positions sync; missing on markets the user added
+  held?: HeldInfo; // missing unless a positions sync found this market in the wallet
 }
 
 const KEY = "settle-watch/watchlist/v1";
