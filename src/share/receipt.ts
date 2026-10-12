@@ -1,11 +1,11 @@
 // Turns a confirmed receipt into the card's content and the share message. No React Native imports.
-import { CLUSTERS, EXPLORER_TX, type Cluster } from "../config";
+import { CLUSTERS, EXPLORER_TX, VERIFY_CHECKS, type Cluster } from "../config";
 import { getLanguage, pixelFontOk, t, tk } from "../i18n";
 import type { Anchor, WatchItem } from "../store";
 import type { CardInput } from "./card";
 
-/** A record that verified on the phone passes every check, and verifyRecord runs seven. */
-export const VERIFIED_CHECKS = 7;
+/** Fallback count for a receipt whose verification is no longer on screen: every check verifyRecord runs. */
+export const VERIFIED_CHECKS = VERIFY_CHECKS;
 
 export interface ReceiptShare {
   question: string;

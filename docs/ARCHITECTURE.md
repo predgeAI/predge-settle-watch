@@ -38,7 +38,7 @@ flowchart TB
 ## Data path
 
 1. **Fetch.** `fetchSettlementRisk` ([src/api.ts](../src/api.ts)) calls `GET https://api.predge.io/v1/settlement-risk/:market` with a 20 s timeout and shape-checks the body (`assertSettlementRisk`).
-2. **Verify.** `verifyRecord` ([src/verify.ts](../src/verify.ts)) runs 7 checks: pinned key, key active in `/.well-known/predge-keys.json`, ed25519 algorithm, canonical re-serialization, signature, 11 displayed fields equal the signed payload, and the pack hash `sha256(canonical)`. Details in [THREAT-MODEL.md](THREAT-MODEL.md).
+2. **Verify.** `verifyRecord` ([src/verify.ts](../src/verify.ts)) runs 8 checks: pinned key, key active in `/.well-known/predge-keys.json` (`unknown`, not passed, when the list is unreachable; tolerated only if a fetch in the last 7 days listed the key), ed25519 algorithm, canonical re-serialization, signature, 11 displayed fields equal the signed payload, the pack hash `sha256(canonical)`, and freshness (signed `issued_at` at most 24 h old and at most 10 min ahead of the phone clock). Details in [THREAT-MODEL.md](THREAT-MODEL.md).
 3. **Detect changes.** `snapshotOf` and `describeChanges` ([src/store.ts](../src/store.ts)) compare the new record with the last snapshot: more disputes, sent to a UMA vote, a new clarification, a new `uma_state`, paused or unpaused, settled on chain, and a new `risk_level` when nothing else changed. Each change becomes a timeline line.
 4. **Alert.** `pollAll` ([src/watcher.ts](../src/watcher.ts)) sends one notification per changed market on the high-importance `settlement-alerts` channel, marked "Verified on device" or "NOT verified". Then it updates the widget and maybe sends the daily digest.
 5. **Store.** Watchlist (max 50), settings, wallet session, receipts, pending transactions and game state live in AsyncStorage and are sanitized on load.
@@ -60,7 +60,7 @@ flowchart TB
 | League sign-in | `signInWithWallet` | none | none (MWA `signMessages`) |
 | Devnet faucet | `requestDevnetAirdrop` | devnet | none (RPC `requestAirdrop`, 0.5 SOL) |
 
-Formats, account lists and the send loop are in [RECEIPTS-AND-SKR.md](RECEIPTS-AND-SKR.md).
+Before a signed receipt or payment is saved or sent, the app decodes the transaction the wallet returned and refuses anything but its own instructions plus ComputeBudget and Lighthouse instructions ([src/txcheck.ts](../src/txcheck.ts)). Formats, account lists, this check and the send loop are in [RECEIPTS-AND-SKR.md](RECEIPTS-AND-SKR.md).
 
 RPC: one `Connection` per cluster, HTTP only (no websocket subscriptions, so nothing hangs while the wallet is in front), commitment `confirmed`, 12 s timeout per request, retries with backoff for reads (`withRetry`).
 
@@ -85,7 +85,8 @@ Expiration Time: <ISO time>
 ```
 
 - The nonce is fetched before the wallet opens and the signature is sent to `/api/auth/verify` after it closes. No network call happens inside the wallet session.
-- XP: every local XP award goes through `onXpAwarded` in [src/game.ts](../src/game.ts). [src/league/reporter.ts](../src/league/reporter.ts) reports the action name and an idempotency key to `/api/xp`, with retries that reuse the key. The server decides the points and applies caps.
+- Before the wallet opens, `checkSignInMessage` ([src/league/logic.ts](../src/league/logic.ts)) refuses a message whose domain is not the `LEAGUE_API` host, whose second line is not the connected wallet, whose `URI` points elsewhere, that lacks `Chain ID` or `Nonce`, whose `Issued At` is more than 10 min from the phone clock, or whose `Expiration Time` has passed.
+- XP: every local XP award goes through `onXpAwarded` in [src/game.ts](../src/game.ts). [src/league/reporter.ts](../src/league/reporter.ts) reports the action name and an idempotency key to `/api/xp`, with retries that reuse the key. The server decides the points and applies caps. `pack_open` is not reported: the server's action table does not have it, so it stays local XP (`LOCAL_ONLY_XP` in [src/league/logic.ts](../src/league/logic.ts)).
 - Invites: `settlewatch://invite/<CODE>` or `https://.../i/<CODE>` deep links.
 
 ## Android integration (config plugins)

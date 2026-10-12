@@ -2,6 +2,8 @@ import { transact } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 import { PublicKey } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { APP_IDENTITY, CLUSTERS, DEFAULT_CLUSTER } from "../config";
+import { LEAGUE_API } from "./config";
+import { checkSignInMessage, leagueHost } from "./logic";
 import { loadWallet } from "../store";
 import { api, LeagueError, saveSession, type Session } from "./api";
 import { t } from "../i18n";
@@ -49,6 +51,9 @@ export async function signInWithWallet(): Promise<Session> {
       authToken = first.authToken;
     }
     const { message } = await api.nonce(address);
+    // Refuse a message that is not for this League, this wallet and now, before the wallet ever sees it.
+    const bad = checkSignInMessage(message, { domain: leagueHost(LEAGUE_API), address, now: Date.now() });
+    if (bad) throw new LeagueError("bad_message", t("lg.err.badMessage"), 0);
     const signed = await transact(async (wallet) => {
       const auth = await authorizeFor(wallet, authToken, chain);
       const acct = auth.accounts[0];

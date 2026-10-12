@@ -66,9 +66,9 @@ Screenshots are from builds 0.3.1 to 0.3.5. The current build places the same sc
 **Mobile Wallet Adapter** ([src/wallet.ts](src/wallet.ts), [src/skr/chain.ts](src/skr/chain.ts), [src/league/auth.ts](src/league/auth.ts))
 - `authorize`, `reauthorize`, `deauthorize`. An auth token is reused only on the cluster it was issued for.
 - No network call inside a wallet session. The app fetches a blockhash first, opens the wallet only to sign, then sends from the app. Android can freeze a wallet in the background before it broadcasts, so this is more reliable.
-- `signTransactions`, then app-side send: `landTransaction` re-sends the signed bytes every 2 s (`skipPreflight`, `maxRetries: 0`) until the signature is confirmed or the blockhash expires. If a wallet refuses sign-only, the app falls back to `signAndSendTransactions` with `minContextSlot`.
+- `signTransactions`, then a check of the returned bytes (only our instructions plus wallet-added ComputeBudget and Lighthouse instructions; same fee payer), then app-side send: `landTransaction` re-sends the signed bytes every 2 s (`skipPreflight`, `maxRetries: 0`) until the signature is confirmed or the blockhash expires. If a wallet refuses sign-only, the app falls back to `signAndSendTransactions` with `minContextSlot`.
 - The signed transaction is saved before it is sent. If Android kills the app behind the wallet, `resumePending` finishes it on the next start. It never records a receipt the chain does not have.
-- `signMessages` over a SIWS-style message (domain, nonce, issued at, expiry) to sign in to the League. No fee.
+- `signMessages` over a SIWS-style message (domain, nonce, issued at, expiry) to sign in to the League. The app checks the domain, wallet, nonce and times before the wallet opens. No fee.
 - Config plugins: `with-activity-config` keeps the activity alive across configuration changes so a wallet session is not dropped; `with-mwa-queries` adds the `solana-wallet` intent query for Android 11+.
 
 **On-chain actions**
@@ -102,7 +102,7 @@ flowchart LR
   KEYS["/.well-known/predge-keys.json"]
   subgraph Phone["Settle Watch on Android"]
     W["watcher.ts<br/>60 s poll, background task,<br/>alerts, digest, widget"]
-    V["verify.ts<br/>pinned key, canonical bytes,<br/>signature, field binding"]
+    V["verify.ts<br/>pinned key, canonical bytes,<br/>signature, field binding, freshness"]
     MWA["wallet.ts and skr/<br/>Mobile Wallet Adapter"]
   end
   WALLET["Wallet app<br/>(Seed Vault on Seeker)"]
@@ -139,7 +139,7 @@ Requirements: Node 20, JDK 17, Android SDK 35 (build-tools 35.0.0, NDK 26.1.1090
 
 ```bash
 npm ci
-npm test                      # 71 offline checks
+npm test                      # 94 offline checks
 npx expo prebuild --platform android
 cd android
 ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
@@ -148,7 +148,7 @@ cd android
 
 Release signing: set `SETTLEWATCH_UPLOAD_STORE_FILE`, `SETTLEWATCH_UPLOAD_STORE_PASSWORD`, `SETTLEWATCH_UPLOAD_KEY_ALIAS` and `SETTLEWATCH_UPLOAD_KEY_PASSWORD` as Gradle properties, for example in `~/.gradle/gradle.properties`. They are never committed. Without them the build falls back to the debug key, and that APK does not match `assetlinks.json`.
 
-`npm test` runs [scripts/selftest.ts](scripts/selftest.ts): input parsing and lookalike hosts, API shape checks, canonical JSON, streak and XP rules, puzzle data, widget summary, the QR encoder against reference matrices, the share card, SKR instruction bytes and account order, and League ranking.
+`npm test` runs [scripts/selftest.ts](scripts/selftest.ts): input parsing and lookalike hosts, API shape checks, canonical JSON, streak and XP rules, puzzle data, widget summary, the QR encoder against reference matrices, the share card, SKR instruction bytes and account order, record freshness and the key-list fallback on a live signed record, the check of wallet-returned transactions on the real devnet receipt and mainnet payment, evidence pack field tags, the League sign-in message check, and League ranking.
 
 `npx tsx scripts/verify-live.ts 5186278 4585694 601819` runs the app's own verifier against live signed records and confirms that the tamper test fails.
 

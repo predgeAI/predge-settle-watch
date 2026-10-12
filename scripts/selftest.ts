@@ -450,7 +450,7 @@ t("card: receipt card carries the exact numbers and the explorer link", () => {
     { signature: SIG, packHash: "f".repeat(64), riskLevel: "caution", at: "2026-10-12T09:30:00.000Z", cluster: "devnet" }
   );
   const input = receiptCardInput(r, "#e2703a");
-  assert.equal(input.text.checks, "7/7 checks on my phone");
+  assert.equal(input.text.checks, "8/8 checks on my phone");
   assert.equal(input.statusWord, "CAUTION");
   assert.equal(input.networkLabel, "Devnet");
   assert.equal(input.explorerUrl, `https://explorer.solana.com/tx/${SIG}?cluster=devnet`);
@@ -824,6 +824,281 @@ import { detectLanguage, fmtDec as fmtDecRu, fmtNum as fmtNumRu, LANGS as LANGS_
     }
   });
 }
+// ---- verification: freshness and the key list ----
+import { CLOCK_SKEW_MS, freshnessCheck, KEY_LIST_GRACE_MS, MAX_RECORD_AGE_MS, resetKeyListMemory, usableForReceipt, verifyRecord, VERIFY_CHECKS, type KeyListCache, type KeyListStore } from "../src/verify";
+import { PINNED_PUBLIC_KEY_HEX } from "../src/config";
+import { VERIFIED_CHECKS } from "../src/share/receipt";
+import recordFixture from "./record-fixture.json";
+const REC = recordFixture as unknown as import("../src/api").SettlementRisk;
+const SIGNED_AT = Date.parse("2026-10-12T13:15:17.617Z"); // issued_at inside the signed payload of the fixture
+const memStore = (init: KeyListCache | null = null) => {
+  let v = init;
+  const st: KeyListStore & { value: () => KeyListCache | null } = { get: async () => v, set: async (x) => void (v = x), value: () => v };
+  return st;
+};
+const listed = async () => [PINNED_PUBLIC_KEY_HEX];
+const down = async () => null;
+t("freshness: 24 h window, 10 min clock skew, signed time required", () => {
+  const p = { issued_at: "2026-10-12T12:00:00Z", checked_at: "2026-10-01T00:00:00Z" };
+  const at = Date.parse(p.issued_at);
+  assert.equal(freshnessCheck(p, at + 60_000).ok, true);
+  assert.equal(freshnessCheck(p, at + 60_000).detail, "signed 1 min ago");
+  assert.equal(freshnessCheck(p, at + MAX_RECORD_AGE_MS).ok, true);
+  const stale = freshnessCheck(p, at + MAX_RECORD_AGE_MS + 1);
+  assert.equal(stale.ok, false);
+  assert.equal(stale.detail, "stale: signed 24 h ago");
+  assert.equal(freshnessCheck(p, at - CLOCK_SKEW_MS).ok, true);
+  assert.equal(freshnessCheck(p, at - CLOCK_SKEW_MS - 1).ok, false);
+  assert.match(freshnessCheck(p, at - CLOCK_SKEW_MS - 60_000).detail ?? "", /in the future/);
+  // issued_at wins over checked_at; checked_at is the fallback.
+  assert.equal(freshnessCheck({ checked_at: p.issued_at }, at + 60_000).ok, true);
+  assert.equal(freshnessCheck({}, at).detail, "no signed timestamp");
+  assert.equal(freshnessCheck({ issued_at: "yesterday" }, at).ok, false);
+});
+at2("verify: a live signed record passes all 8 checks while fresh", async () => {
+  resetKeyListMemory();
+  const v = await verifyRecord(REC, { now: SIGNED_AT + 3_600_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(v.checks.length, VERIFY_CHECKS);
+  assert.equal(VERIFY_CHECKS, 8);
+  assert.equal(VERIFIED_CHECKS, VERIFY_CHECKS);
+  assert.ok(v.checks.every((c) => c.ok && c.status === "pass"), JSON.stringify(v.checks));
+  assert.equal(v.verified, true);
+  assert.equal(v.signedAt, "2026-10-12T13:15:17.617Z");
+  assert.equal(usableForReceipt(v, SIGNED_AT + 3_600_000), true);
+  assert.equal(usableForReceipt(v, SIGNED_AT + MAX_RECORD_AGE_MS + 1), false, "a saved verification goes stale");
+  assert.equal(usableForReceipt({ ...v, signedAt: undefined }, SIGNED_AT), false, "verifications from before 0.3.9 cannot back a receipt");
+  const tampered = await verifyRecord(REC, { tamper: true, now: SIGNED_AT + 3_600_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(tampered.verified, false);
+});
+at2("verify: a stale record is shown but not verified", async () => {
+  resetKeyListMemory();
+  const v = await verifyRecord(REC, { now: SIGNED_AT + MAX_RECORD_AGE_MS + 3_600_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(v.verified, false);
+  assert.equal(v.packHash !== null, true);
+  const fresh = v.checks[7];
+  assert.equal(fresh.label, "Record was signed in the last 24 hours");
+  assert.equal(fresh.status, "fail");
+  assert.equal(fresh.detail, "stale: signed 25 h ago");
+  assert.equal(v.checks.filter((c) => c.ok).length, 7);
+  const future = await verifyRecord(REC, { now: SIGNED_AT - CLOCK_SKEW_MS - 60_000, fetchKeys: listed, keyStore: memStore() });
+  assert.equal(future.verified, false);
+});
+at2("verify: unreachable key list is unknown, never passed; verified only with a good list from the last 7 days", async () => {
+  const now = SIGNED_AT + 3_600_000;
+  // A successful fetch is remembered with its time.
+  resetKeyListMemory();
+  const store = memStore();
+  await verifyRecord(REC, { now, fetchKeys: listed, keyStore: store });
+  assert.equal(store.value()?.at, now);
+  // List down, good copy 2 days old: check 2 is unknown, the record still counts as verified.
+  resetKeyListMemory();
+  const cached = memStore({ at: now - 2 * 24 * 3_600_000, activeKeys: [PINNED_PUBLIC_KEY_HEX] });
+  const a = await verifyRecord(REC, { now, fetchKeys: down, keyStore: cached });
+  assert.equal(a.checks[1].ok, false);
+  assert.equal(a.checks[1].status, "unknown");
+  assert.equal(a.checks[1].detail, "key list not reachable, pinned key used; last good list 48 h ago");
+  assert.equal(a.verified, true);
+  assert.equal(a.checks.filter((c) => c.ok).length, 7);
+  // List down, no good copy: unknown and not verified.
+  resetKeyListMemory();
+  const b = await verifyRecord(REC, { now, fetchKeys: down, keyStore: memStore() });
+  assert.equal(b.checks[1].status, "unknown");
+  assert.equal(b.checks[1].detail, "key list not reachable, pinned key used; no good list in the last 7 days");
+  assert.equal(b.verified, false);
+  // Good copy older than 7 days, or one that did not list the key: not verified.
+  resetKeyListMemory();
+  const old = await verifyRecord(REC, { now, fetchKeys: down, keyStore: memStore({ at: now - KEY_LIST_GRACE_MS - 1, activeKeys: [PINNED_PUBLIC_KEY_HEX] }) });
+  assert.equal(old.verified, false);
+  resetKeyListMemory();
+  const other = await verifyRecord(REC, { now, fetchKeys: down, keyStore: memStore({ at: now - 60_000, activeKeys: ["ab".repeat(32)] }) });
+  assert.equal(other.verified, false);
+  // A fetched list without the key fails outright and is not stored as good.
+  resetKeyListMemory();
+  const revokedStore = memStore();
+  const revoked = await verifyRecord(REC, { now, fetchKeys: async () => ["ab".repeat(32)], keyStore: revokedStore });
+  assert.equal(revoked.checks[1].status, "fail");
+  assert.equal(revoked.verified, false);
+  assert.equal(revokedStore.value(), null);
+  // A throwing fetch is treated like an unreachable list.
+  resetKeyListMemory();
+  const threw = await verifyRecord(REC, { now, fetchKeys: async () => { throw new Error("offline"); }, keyStore: memStore() });
+  assert.equal(threw.checks[1].status, "unknown");
+  resetKeyListMemory();
+});
+t("share card: the checks line uses the real count", () => {
+  setLang("en");
+  const base = { question: "Q", riskLevel: "caution", packHash: "f".repeat(64), signature: SIG, at: "2026-10-12T09:30:00.000Z" };
+  assert.equal(receiptCardInput(base, "#e2703a").text.checks, "8/8 checks on my phone");
+  assert.equal(receiptCardInput({ ...base, checks: { ok: 7, total: 8 } }, "#e2703a").text.checks, "7/8 checks on my phone");
+});
+
+// ---- wallet transactions: what the wallet may add ----
+import { PublicKey as TxKey, SystemProgram as TxSystem, Transaction as TxTransaction, TransactionInstruction as TxIx } from "@solana/web3.js";
+import { Buffer as TxBuffer } from "buffer";
+import { checkReceiptTx, COMPUTE_BUDGET_PROGRAM_ID, decodeTransaction, LIGHTHOUSE_PROGRAM_ID, memoIx, priorityFeeLamports, TxCheckError } from "../src/txcheck";
+import { checkUnlockTx } from "../src/skr/spl";
+import { memoText } from "../src/wallet";
+import txFixtures from "./wallet-tx-fixtures.json";
+const SKR_TX = txFixtures.skrPaymentMainnet;
+const RCPT_TX = txFixtures.watchReceiptDevnet;
+const b64 = (s: string) => Uint8Array.from(TxBuffer.from(s, "base64"));
+const skrParams = {
+  payer: new TxKey(SKR_TX.payer),
+  treasury: new TxKey(SKR_TX.treasury),
+  marketId: SKR_TX.marketId,
+  packHash: SKR_TX.packHash,
+  createTreasuryAta: SKR_TX.createTreasuryAta,
+};
+const rcptMemo = memoText({ action: "watch", marketId: RCPT_TX.marketId, riskLevel: RCPT_TX.riskLevel, packHash: RCPT_TX.packHash });
+const reason = (fn: () => unknown) => {
+  try {
+    fn();
+    return "accepted";
+  } catch (e) {
+    return e instanceof TxCheckError ? e.reason : "other:" + String(e);
+  }
+};
+t("wallet tx: the real mainnet SKR payment decodes to our 3 instructions plus ComputeBudget and Lighthouse", () => {
+  const d = decodeTransaction(b64(SKR_TX.tx));
+  assert.equal(d.feePayer, SKR_TX.payer);
+  assert.deepEqual(d.instructions.map((i) => i.programId), [
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+    COMPUTE_BUDGET_PROGRAM_ID,
+    COMPUTE_BUDGET_PROGRAM_ID,
+    LIGHTHOUSE_PROGRAM_ID,
+    LIGHTHOUSE_PROGRAM_ID,
+  ]);
+  // The wallet set 640,000 compute units at 100,000 micro-lamports: 64,000 lamports of priority fee.
+  assert.equal(priorityFeeLamports(d.instructions.filter((i) => i.programId === COMPUTE_BUDGET_PROGRAM_ID), 5), 64_000);
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), skrParams)), "accepted");
+});
+t("wallet tx: the real devnet watch receipt decodes to our memo plus ComputeBudget", () => {
+  const d = decodeTransaction(b64(RCPT_TX.tx));
+  assert.deepEqual(d.instructions.map((i) => i.programId), ["MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr", COMPUTE_BUDGET_PROGRAM_ID, COMPUTE_BUDGET_PROGRAM_ID]);
+  assert.equal(TxBuffer.from(d.instructions[0].data).toString("utf8"), rcptMemo);
+  assert.equal(reason(() => checkReceiptTx(b64(RCPT_TX.tx), new TxKey(RCPT_TX.payer), rcptMemo)), "accepted");
+});
+t("wallet tx: wrong payer, changed memo, wrong pack parameters are rejected", () => {
+  const other = new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC");
+  assert.equal(reason(() => checkReceiptTx(b64(RCPT_TX.tx), other, rcptMemo)), "fee payer");
+  assert.equal(reason(() => checkReceiptTx(b64(RCPT_TX.tx), new TxKey(RCPT_TX.payer), rcptMemo.replace("caution", "ok"))), "instructions");
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), { ...skrParams, createTreasuryAta: false })), "instructions");
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), { ...skrParams, treasury: other })), "instructions");
+  assert.equal(reason(() => checkUnlockTx(b64(SKR_TX.tx), { ...skrParams, packHash: "0".repeat(64) })), "instructions");
+  assert.equal(reason(() => checkReceiptTx(Uint8Array.from([1, 2, 3]), other, rcptMemo)), "unreadable");
+});
+// Rebuilds a transaction the way a misbehaving wallet might return it.
+const payerKey = new TxKey(RCPT_TX.payer);
+const serialize = (ixs: TxIx[], feePayer = payerKey) =>
+  Uint8Array.from(
+    new TxTransaction({ feePayer, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 0 })
+      .add(...ixs)
+      .serialize({ requireAllSignatures: false, verifySignatures: false })
+  );
+const cuLimit = (n: number) => new TxIx({ programId: new TxKey(COMPUTE_BUDGET_PROGRAM_ID), keys: [], data: TxBuffer.from([2, n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]) });
+const cuPrice = (micro: number) => {
+  const d = TxBuffer.alloc(9);
+  d[0] = 3;
+  d.writeBigUInt64LE(BigInt(micro), 1);
+  return new TxIx({ programId: new TxKey(COMPUTE_BUDGET_PROGRAM_ID), keys: [], data: d });
+};
+const lighthouse = new TxIx({ programId: new TxKey(LIGHTHOUSE_PROGRAM_ID), keys: [{ pubkey: payerKey, isSigner: false, isWritable: false }], data: TxBuffer.from([1, 2, 3]) });
+t("wallet tx: ComputeBudget and Lighthouse may be added, transfers and other programs may not", () => {
+  const memo = memoIx(payerKey, rcptMemo);
+  assert.equal(reason(() => checkReceiptTx(serialize([memo]), payerKey, rcptMemo)), "accepted");
+  assert.equal(reason(() => checkReceiptTx(serialize([cuLimit(200_000), cuPrice(100_000), memo, lighthouse]), payerKey, rcptMemo)), "accepted");
+  const drain = TxSystem.transfer({ fromPubkey: payerKey, toPubkey: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), lamports: 1 });
+  assert.equal(reason(() => checkReceiptTx(serialize([memo, drain]), payerKey, rcptMemo)), "instructions");
+  const unknown = new TxIx({ programId: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), keys: [], data: TxBuffer.from([0]) });
+  assert.equal(reason(() => checkReceiptTx(serialize([memo, unknown]), payerKey, rcptMemo)), "instructions");
+  assert.equal(reason(() => checkReceiptTx(serialize([memo, memo]), payerKey, rcptMemo)), "instructions");
+  assert.equal(reason(() => checkReceiptTx(serialize([cuLimit(200_000)]), payerKey, rcptMemo)), "instructions");
+  // Priority fee: 1,400,000 units at 1,000,000 micro-lamports is 1.4M lamports, over the 0.001 SOL cap.
+  assert.equal(reason(() => checkReceiptTx(serialize([cuLimit(1_400_000), cuPrice(1_000_000), memo]), payerKey, rcptMemo)), "priority fee too high");
+  assert.equal(reason(() => checkReceiptTx(serialize([cuPrice(10_000_000), memo]), payerKey, rcptMemo)), "priority fee too high");
+  const legacyUnits = new TxIx({ programId: new TxKey(COMPUTE_BUDGET_PROGRAM_ID), keys: [], data: TxBuffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0]) });
+  assert.equal(reason(() => checkReceiptTx(serialize([legacyUnits, memo]), payerKey, rcptMemo)), "unknown compute budget instruction");
+  // A second signer the wallet added.
+  const cosigned = new TxIx({ ...memo, keys: [...memo.keys] });
+  const extraSigner = new TxIx({ programId: new TxKey(LIGHTHOUSE_PROGRAM_ID), keys: [{ pubkey: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), isSigner: true, isWritable: false }], data: TxBuffer.from([1]) });
+  assert.equal(reason(() => checkReceiptTx(serialize([cosigned, extraSigner]), payerKey, rcptMemo)), "extra signer");
+});
+t("wallet tx: SKR payment rejects added transfers and a changed amount", () => {
+  const built = buildUnlockTx({ ...skrParams, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 0 });
+  const ixs = built.instructions;
+  const pay = new TxKey(SKR_TX.payer);
+  assert.equal(reason(() => checkUnlockTx(serialize([...ixs, cuPrice(1000), lighthouse], pay), skrParams)), "accepted");
+  const two = new TxIx({ ...ixs[1], keys: [...ixs[1].keys], data: transferCheckedData(2_000_000, 6) });
+  assert.equal(reason(() => checkUnlockTx(serialize([ixs[0], two, ixs[2]], pay), skrParams)), "instructions");
+  const drain = TxSystem.transfer({ fromPubkey: pay, toPubkey: new TxKey("3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC"), lamports: 5000 });
+  assert.equal(reason(() => checkUnlockTx(serialize([...ixs, drain], pay), skrParams)), "instructions");
+  assert.equal(reason(() => checkUnlockTx(serialize([...ixs, ixs[1]], pay), skrParams)), "instructions");
+});
+
+// ---- League sign-in message ----
+import { checkSignInMessage, leagueHost, reportsToLeague } from "../src/league/logic";
+import { LEAGUE_API } from "../src/league/config";
+// Same text as buildMessage in the settle-watch-league server (lib/service.ts).
+const siws = (p: { domain?: string; wallet?: string; nonce?: string; issuedAt?: string; expiresAt?: string }) =>
+  [
+    `${p.domain ?? "settle-watch-league.vercel.app"} wants you to sign in with your Solana account:`,
+    p.wallet ?? RCPT_TX.payer,
+    "",
+    "Sign in to the Settle Watch League. This does not send a transaction and costs nothing.",
+    "",
+    `URI: https://${p.domain ?? "settle-watch-league.vercel.app"}`,
+    "Version: 1",
+    "Chain ID: mainnet",
+    `Nonce: ${p.nonce ?? "0123456789abcdef0123456789abcdef"}`,
+    `Issued At: ${p.issuedAt ?? "2026-10-12T10:00:00.000Z"}`,
+    `Expiration Time: ${p.expiresAt ?? "2026-10-12T10:05:00.000Z"}`,
+  ].join("\n");
+t("league: sign-in message must name this League, this wallet and now", () => {
+  const domain = leagueHost(LEAGUE_API);
+  assert.equal(domain, "settle-watch-league.vercel.app");
+  const now = Date.parse("2026-10-12T10:01:00Z");
+  const ok = { domain, address: RCPT_TX.payer, now };
+  assert.equal(checkSignInMessage(siws({}), ok), null);
+  assert.equal(checkSignInMessage(siws({ domain: "evil.example" }), ok), "domain");
+  assert.equal(checkSignInMessage(siws({ domain: "settle-watch-league.vercel.app.evil.io" }), ok), "domain");
+  assert.equal(checkSignInMessage(siws({ wallet: "3sLy3PvzRPFMk1sfnXE9WDJgyc39mZenmjNWtEfpUrBC" }), ok), "address");
+  assert.equal(checkSignInMessage(siws({}).replace("Chain ID: mainnet\n", ""), ok), "chain");
+  assert.equal(checkSignInMessage(siws({ nonce: "" }), ok), "nonce");
+  assert.equal(checkSignInMessage(siws({}).replace(/Issued At: .*\n/, ""), ok), "issued at");
+  assert.equal(checkSignInMessage(siws({ issuedAt: "2026-10-12T09:50:00.000Z", expiresAt: "2026-10-12T10:20:00.000Z" }), ok), "issued at");
+  assert.equal(checkSignInMessage(siws({ issuedAt: "2026-10-12T10:12:00.000Z", expiresAt: "2026-10-12T10:17:00.000Z" }), ok), "issued at");
+  assert.equal(checkSignInMessage(siws({ issuedAt: "2026-10-12T09:52:00.000Z", expiresAt: "2026-10-12T09:57:00.000Z" }), ok), "expiration");
+  assert.equal(checkSignInMessage(siws({}).replace("URI: https://settle-watch-league.vercel.app", "URI: https://evil.example"), ok), "uri");
+  assert.equal(checkSignInMessage(siws({}) + "\nNonce: 1111111111111111", ok), "duplicate field");
+  assert.equal(checkSignInMessage("transfer all funds", ok), "header");
+  assert.equal(checkSignInMessage("x".repeat(1001), ok), "length");
+});
+t("league: pack_open stays local XP and is never reported", () => {
+  assert.equal(reportsToLeague("pack_open"), false);
+  for (const k of ["clock_in", "verify", "tamper", "anchor", "add_market"]) assert.equal(reportsToLeague(k), true);
+});
+
+// ---- evidence pack: which fields are signed ----
+import { packFieldOrigins } from "../src/skr/packFields";
+t("evidence pack: unsigned envelope fields are tagged, signed ones compared", () => {
+  const o = packFieldOrigins(REC);
+  assert.equal(o.checked, "signed");
+  assert.equal(o.history, "signed");
+  assert.equal(o.proposal, "signed");
+  assert.equal(o.resolution, "signed");
+  assert.equal(o.clarLatest, "signed");
+  assert.equal(o.source, "unsigned");
+  assert.equal(o.basis, "unsigned");
+  const forged = { ...REC, checked_at: "2026-10-12T23:59:59Z", disputes: [], current_proposal: { price: "1" } };
+  const f = packFieldOrigins(forged);
+  assert.equal(f.checked, "mismatch");
+  assert.equal(f.history, "mismatch");
+  assert.equal(f.proposal, "mismatch");
+  const unsigned = packFieldOrigins({ ...REC, attestation: null });
+  assert.ok(Object.values(unsigned).every((x) => x === "unsigned"));
+});
 
 Promise.all(asyncChecks).then(
   () => console.log(`${n} checks passed`),

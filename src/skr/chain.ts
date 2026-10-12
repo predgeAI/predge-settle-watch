@@ -1,12 +1,12 @@
 // SKR on Solana mainnet: read-only balance and the 1 SKR evidence pack payment through Mobile Wallet Adapter.
 import { transact } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { TX_SIGNATURE_RE, type Cluster } from "../config";
 import { saveWallet, type StoredWallet } from "../store";
 import { authorizeSession, base58, confirmByPolling, connectionFor, freshBlockhash, landTransaction, withRetry, type LandResult } from "../wallet";
 import { t } from "../i18n";
-import { associatedTokenAddress, buildUnlockTx, coversPrice, SKR_MINT_KEY, treasuryKey } from "./spl";
+import { associatedTokenAddress, buildUnlockTx, checkUnlockTx, coversPrice, SKR_MINT_KEY, treasuryKey } from "./spl";
 import type { PendingUnlock } from "./store";
 
 /** Payments are always on mainnet, whatever the receipt network setting says. */
@@ -110,14 +110,20 @@ export async function payForPack(
       packHash: p.packHash,
       createTreasuryAta: p.createTreasuryAta,
     });
+    let st: Transaction;
     try {
-      const [st] = await wallet.signTransactions({ transactions: [tx] });
-      return { kind: "signed" as const, raw: st.serialize(), sig: st.signature, wallet: next };
+      [st] = await wallet.signTransactions({ transactions: [tx] });
     } catch (e) {
       if (/declined|rejected|cancel/i.test((e as Error).message ?? "")) throw e;
+      // Wallets without signTransactions sign and send themselves; their result cannot be inspected first.
       const [signature] = await wallet.signAndSendTransactions({ transactions: [tx], minContextSlot: fresh.slot });
       return { kind: "sent" as const, signature, wallet: next };
     }
+    const raw = st.serialize();
+    // Exactly our memo and 1 SKR to the treasury, plus only ComputeBudget and Lighthouse instructions.
+    // Anything else stops the payment before it is saved or sent.
+    checkUnlockTx(raw, { payer, treasury, marketId: p.marketId, packHash: p.packHash, createTreasuryAta: p.createTreasuryAta });
+    return { kind: "signed" as const, raw, sig: st.signature, wallet: next };
   });
   let signature: string;
   let raw: Uint8Array | null = null;

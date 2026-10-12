@@ -3,6 +3,7 @@
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { ATA_PROGRAM_ID, MEMO_PROGRAM_ID, SKR_DECIMALS, SKR_MINT, SKR_TREASURY, TOKEN_PROGRAM_ID } from "../config";
+import { checkWalletTx, TxCheckError, type DecodedTx } from "../txcheck";
 
 /** Price of one evidence pack: exactly 1 SKR in base units. Never user input. */
 export const PACK_PRICE_BASE = 1_000_000;
@@ -106,6 +107,35 @@ export function buildUnlockTx(p: {
   if (p.createTreasuryAta) tx.add(createAtaIdempotentIx(p.payer, dest, p.treasury, SKR_MINT_KEY));
   tx.add(transferCheckedIx(source, SKR_MINT_KEY, dest, p.payer, PACK_PRICE_BASE, SKR_DECIMALS));
   tx.add(new TransactionInstruction({ programId: MEMO_PROGRAM, keys: [{ pubkey: p.payer, isSigner: true, isWritable: false }], data: Buffer.from(memo, "utf8") }));
+  return tx;
+}
+
+/**
+ * The SKR payment the wallet returned must be exactly the one buildUnlockTx makes (optional CreateIdempotent,
+ * TransferChecked, memo), plus only ComputeBudget and Lighthouse instructions. On top of that generic rule,
+ * the single token instruction is re-read: TransferChecked of exactly 1 SKR (6 decimals) of SKR_MINT from the
+ * payer's associated account to the treasury's associated account. Throws TxCheckError.
+ */
+export function checkUnlockTx(
+  raw: Uint8Array,
+  p: { payer: PublicKey; treasury: PublicKey; marketId: string; packHash: string; createTreasuryAta: boolean }
+): DecodedTx {
+  const expected = buildUnlockTx({ ...p, blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 0 });
+  const tx = checkWalletTx(raw, { feePayer: p.payer, instructions: expected.instructions });
+  const token = tx.instructions.filter((i) => i.programId === TOKEN_PROGRAM_ID);
+  const want = transferCheckedData(PACK_PRICE_BASE, SKR_DECIMALS);
+  const t = token[0];
+  if (
+    token.length !== 1 ||
+    t.data.length !== want.length ||
+    !t.data.every((x, i) => x === want[i]) ||
+    t.accounts[0] !== associatedTokenAddress(p.payer).toBase58() ||
+    t.accounts[1] !== SKR_MINT ||
+    t.accounts[2] !== associatedTokenAddress(p.treasury).toBase58() ||
+    t.accounts[3] !== p.payer.toBase58()
+  ) {
+    throw new TxCheckError("SKR transfer");
+  }
   return tx;
 }
 

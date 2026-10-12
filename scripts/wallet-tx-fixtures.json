@@ -1,0 +1,23 @@
+{
+  "_note": "Signed transactions exactly as the wallet returned them and the network confirmed them (getTransaction, base64). Used by npm test.",
+  "skrPaymentMainnet": {
+    "signature": "27drBVRJfdbsdKT9hd36hvntTf528MdJUkscNSzAXQ2199bfsWZkXGZNmjHiLnBuQVZcGFbNHdji3FDfoHvcTCvM",
+    "slot": 456049488,
+    "tx": "ATe9MY1HMCFdEBIZj3lm+feYtvuk9IU548n5tIjftiTYcYJjKMXvf2LfFbaYQBUtPvr9zi/cKYJTJ+pv2Yp7hQIBAAgLS4R7cmSF6clpGqJL5f3i6bQtaVGbCAUHPgrBRlXMx080idkI1yopQTXRH4lfx2+vgMU18ptQCzcAzCpBv3lrNAnAmKJYbF3K9mo7dzt6WvqVhSaD0FJhTb/2lU+1hBpJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAByHT7WcHwyEQznZvfRhgeDmdZMDD0M1Tws/I8sLzTE14yXJY9OJInxuz0QKRSODYMLWhOZ2v8QhASOe9jb6fhZAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAAAE3615Yv+x3ZJdCp+15tAM5hlbqLs6kf0H75hgxel7uAVKU1qZKSEGTSTocWDaOHx8NbXdvJK7geQfqEBBBUSNBnxaPgX+QUcSp6Lq/kK+dhC82Qy/VxYndYNzy4rQ2KQG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8Aqc/w8Vs6/x27wKxJlBvdidt8074bogi/8SMNDeAAcs01BwUGAAEECQMKAQEKBAIJAQAKDEBCDwAAAAAABggBAHdwcmVkZ2Utc2V0dGxlLXdhdGNoIHYxIHBhY2sgbWFya2V0PTUxODYyNzggcGFjaz1zaGEyNTY6YjZjYTRlNzgwYTcxYjgzN2M2Nzg4NzgxZjdjYzVjM2Y2YWMwNWI0MjZiYTE2ZTY3ZmE0MmEzMTE4MzFkYWEyYwYABQIAxAkABgAJA6CGAQAAAAAABwEAGgYFAwBbREEAAAAAAAQDAAABAAAAAAAAAAAABwECQAoFBggCdLsYAwAAAAAEAwAABgAAAAAAAAAAAAFLhHtyZIXpyWkaokvl/eLptC1pUZsIBQc+CsFGVczHTwAHAAA=",
+    "payer": "65nkE6twQZijJx2G7ysibwZo5nsbfsmJTKFYkGkMZ6Q6",
+    "treasury": "8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S",
+    "marketId": "5186278",
+    "packHash": "b6ca4e780a71b837c6788781f7cc5c3f6ac05b426ba16e67fa42a311831daa2c",
+    "createTreasuryAta": true
+  },
+  "watchReceiptDevnet": {
+    "signature": "3adw8K21VicxJg9Ekxmq3bzRZrDSAZcN5doXvd1g8NYweDBNAfLUaGJcjKfupVLmGQA77v2K7jRpJdGn3gsAyFyB",
+    "slot": 510256852,
+    "tx": "AYEKhB+Zhz/RpD8s10D0x7d3ez+jkdxBFb0BuEHnxsJ2jWgEMdw5g4Qv4v4bf8ftwxrS2q6tAJ+s14txnVWp0AIBAAIDS4R7cmSF6clpGqJL5f3i6bQtaVGbCAUHPgrBRlXMx08DBkZv5SEXMv/srbpyw5vnvIzlu8X3EmssQ5s6QAAAAAVKU1qZKSEGTSTocWDaOHx8NbXdvJK7geQfqEBBBUSNU5fLnYjpyBXzMyabMFtmsMYTVnBop3udgEmo1lTeY5cDAgEAmgFwcmVkZ2Utc2V0dGxlLXdhdGNoIHYxIHdhdGNoIG1hcmtldD01MTg2Mjc4IHJpc2s9Y2F1dGlvbiBwYWNrPXNoYTI1NjphYzYwZGU2MDI2Mzg0MjJjMzc2YTE3OTIwZmM3NjUyM2Y4ZDY1Zjc0YzQ4YzVlNzliYTk3ZDBlY2UyZDM5MGEzIGtpZD0xM2ZhM2QxOGEzNjllNmM3AQAFAkANAwABAAkDoIYBAAAAAAA=",
+    "payer": "65nkE6twQZijJx2G7ysibwZo5nsbfsmJTKFYkGkMZ6Q6",
+    "action": "watch",
+    "marketId": "5186278",
+    "riskLevel": "caution",
+    "packHash": "ac60de602638422c376a17920fc76523f8d65f74c48c5e79ba97d0ece2d390a3"
+  }
+}

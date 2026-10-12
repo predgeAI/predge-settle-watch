@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
 import { fetchSettlementRisk, parseMarketInput, type SettlementRisk } from "./src/api";
-import { verifyRecord, type Verification } from "./src/verify";
+import { usableForReceipt, verifyRecord, type Check, type Verification } from "./src/verify";
 import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, MAX_WATCHLIST, PINNED_KID, type Cluster } from "./src/config";
 import {
   changesLast24h,
@@ -111,12 +111,21 @@ const checkLabel = (label: string) => {
 function checkDetail(d: string): string {
   const fixed: Record<string, Key> = {
     [en["check.d.unsigned"]]: "check.d.unsigned",
-    [en["check.d.unreachable"]]: "check.d.unreachable",
     [en["check.d.listed"]]: "check.d.listed",
     [en["check.d.notListed"]]: "check.d.notListed",
   };
   if (fixed[d]) return t(fixed[d]);
-  let m = /^mismatch: (.+)$/.exec(d);
+  let m = /^key list not reachable, pinned key used; last good list (\d+) h ago$/.exec(d);
+  if (m) return t("check.d.unreachableCached", { n: m[1] });
+  if (d === "key list not reachable, pinned key used; no good list in the last 7 days") return t("check.d.unreachableNone");
+  m = /^signed (\d+) min ago$/.exec(d);
+  if (m) return t("check.d.age", { n: m[1] });
+  m = /^stale: signed (\d+) h ago$/.exec(d);
+  if (m) return t("check.d.stale", { n: m[1] });
+  m = /^signed (\d+) min in the future, check the phone clock$/.exec(d);
+  if (m) return t("check.d.future", { n: m[1] });
+  if (d === "no signed timestamp") return t("check.d.noTime");
+  m = /^mismatch: (.+)$/.exec(d);
   if (m) return t("check.d.mismatch", { list: m[1] });
   m = /^(\d+) fields$/.exec(d);
   if (m) return t("check.d.fields", { n: m[1] });
@@ -124,6 +133,9 @@ function checkDetail(d: string): string {
   if (m) return t("check.d.bytes", { n: m[1] });
   return d;
 }
+
+/** pass, fail or unknown; verifications saved before 0.3.9 have no status. */
+const statusOf = (c: Check) => c.status ?? (c.ok ? "pass" : "fail");
 
 function RiskBadge({ level }: { level?: string }) {
   return <Chip text={statusLabel(level).toUpperCase()} color={statusColor(level)} />;
@@ -590,7 +602,7 @@ export default function App() {
       if (!wallet) return;
       const v = item.verification;
       const last = item.last;
-      if (!v?.verified || !v.packHash || !last) return;
+      if (!v || !usableForReceipt(v) || !v.packHash || !last) return;
       const packHash = v.packHash;
       const pending: PendingReceipt = {
         key: item.key,
@@ -650,6 +662,8 @@ export default function App() {
       if (!item.verification?.verified || !item.verification.packHash || !item.last) {
         return showDialog(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
       }
+      // A verification saved earlier can go stale; the next poll re-verifies the record.
+      if (!usableForReceipt(item.verification)) return showDialog(t("anchor.notVerified"), t("anchor.staleBody"));
       if (cluster === "mainnet-beta") {
         return showDialog(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
           { text: t("common.cancel"), style: "cancel" },
@@ -949,7 +963,9 @@ export default function App() {
                     {showChecks
                       ? detail.verification?.checks.map((c) => (
                           <View key={c.label} style={styles.checkRow}>
-                            <Text style={{ color: c.ok ? C.green : C.red, width: 36, fontFamily: PX, fontSize: 10 }}>{c.ok ? "OK" : "X"}</Text>
+                            <Text style={{ color: statusOf(c) === "pass" ? C.green : statusOf(c) === "unknown" ? C.orange : C.red, width: 36, fontFamily: PX, fontSize: 10 }}>
+                              {statusOf(c) === "pass" ? "OK" : statusOf(c) === "unknown" ? "?" : "X"}
+                            </Text>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.body}>{checkLabel(c.label)}</Text>
                               {c.detail ? <Text style={[styles.mono, { fontSize: 11, color: C.dim }]}>{checkDetail(c.detail)}</Text> : null}

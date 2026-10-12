@@ -1,13 +1,8 @@
 import { transact, type Web3MobileWallet } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
-import {
-  Connection,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey, Transaction } from "@solana/web3.js";
 import { Buffer } from "buffer";
-import { APP_IDENTITY, CLUSTERS, MEMO_PROGRAM_ID, PINNED_KID, TX_SIGNATURE_RE, type Cluster } from "./config";
+import { APP_IDENTITY, CLUSTERS, PINNED_KID, TX_SIGNATURE_RE, type Cluster } from "./config";
+import { checkReceiptTx, memoIx } from "./txcheck";
 import type { StoredWallet } from "./store";
 import { t } from "./i18n";
 
@@ -76,6 +71,8 @@ export function friendlyWalletError(e: unknown): string {
   if (/insufficient|0x1|debit an account/i.test(m)) return t("wallet.errFee");
   if (/returned no valid signature/i.test(m)) return t("wallet.errNoSig");
   if (/returned no account/i.test(m)) return t("wallet.errNoAccount");
+  if (m === OTHER_ACCOUNT) return t("wallet.errOtherAccount");
+  if (/wallet changed the transaction/i.test(m)) return t("wallet.errTxChanged");
   return m.slice(0, 200);
 }
 
@@ -139,6 +136,9 @@ export function memoText(p: { action: "watch" | "acknowledge"; marketId: string;
   }
   return `predge-settle-watch v1 ${p.action} market=${p.marketId} risk=${p.riskLevel} pack=sha256:${p.packHash} kid=${PINNED_KID}`;
 }
+
+/** Thrown when the wallet authorizes a different account than the connected one. Mapped by friendlyWalletError. */
+export const OTHER_ACCOUNT = "The wallet approved a different account than the connected one";
 
 export interface PendingReceipt {
   key: string; // watchlist key
@@ -246,25 +246,29 @@ export async function anchorPack(
   const fresh = await freshBlockhash(cluster);
   const signed = await transact(async (wallet) => {
     const auth = await authorizeSession(wallet, stored, cluster);
-    const payer = new PublicKey(Buffer.from(auth.accounts[0].address, "base64"));
-    const tx = new Transaction({ feePayer: payer, blockhash: fresh.blockhash, lastValidBlockHeight: fresh.lastValidBlockHeight }).add(
-      new TransactionInstruction({
-        programId: new PublicKey(MEMO_PROGRAM_ID),
-        keys: [{ pubkey: payer, isSigner: true, isWritable: false }],
-        data: Buffer.from(memo, "utf8"),
-      })
-    );
-    const next: StoredWallet = { address: payer.toBase58(), authToken: auth.auth_token, label: auth.accounts[0].label?.slice(0, 64), cluster };
+    const acct = auth.accounts[0];
+    if (!acct) throw new Error("The wallet returned no account");
+    const payer = new PublicKey(Buffer.from(acct.address, "base64"));
+    // The receipt must come from the connected wallet; never sign with a different account.
+    if (payer.toBase58() !== stored.address) throw new Error(OTHER_ACCOUNT);
+    const tx = new Transaction({ feePayer: payer, blockhash: fresh.blockhash, lastValidBlockHeight: fresh.lastValidBlockHeight }).add(memoIx(payer, memo));
+    const next: StoredWallet = { address: payer.toBase58(), authToken: auth.auth_token, label: acct.label?.slice(0, 64), cluster };
     // Preferred: the wallet only signs and the app sends the transaction itself. Android can freeze a
     // wallet that is no longer in front before it has broadcast, so sending ourselves is more reliable.
+    let st: Transaction;
     try {
-      const [st] = await wallet.signTransactions({ transactions: [tx] });
-      return { kind: "signed" as const, raw: st.serialize(), sig: st.signature, wallet: next };
+      [st] = await wallet.signTransactions({ transactions: [tx] });
     } catch (e) {
       if (/declined|rejected|cancel/i.test((e as Error).message ?? "")) throw e;
+      // Wallets without signTransactions sign and send themselves; their result cannot be inspected first.
       const [signature] = await wallet.signAndSendTransactions({ transactions: [tx], minContextSlot: fresh.slot });
       return { kind: "sent" as const, signature, wallet: next };
     }
+    const raw = st.serialize();
+    // Wallets may add ComputeBudget and Lighthouse instructions. Anything else, or a changed memo or
+    // fee payer, stops the receipt before it is saved or sent.
+    checkReceiptTx(raw, payer, memo);
+    return { kind: "signed" as const, raw, sig: st.signature, wallet: next };
   });
   let signature: string;
   let raw: Uint8Array | null = null;
