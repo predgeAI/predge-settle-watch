@@ -2,6 +2,8 @@ package io.predge.settlewatch.haptics
 
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -61,6 +63,7 @@ class RichHapticsModule(context: ReactApplicationContext) : ReactContextBaseJava
       val steps = parse(pattern)
       if (steps.isEmpty()) return
       if (Build.VERSION.SDK_INT >= 31 && playComposition(v, steps)) return
+      if (Build.VERSION.SDK_INT >= 30 && playPredefined(v, steps)) return
       playWaveform(v, steps)
     } catch (e: Throwable) {
       // ignore
@@ -70,6 +73,7 @@ class RichHapticsModule(context: ReactApplicationContext) : ReactContextBaseJava
   @ReactMethod
   fun cancel() {
     try {
+      main.removeCallbacksAndMessages(null)
       vibrator?.cancel()
     } catch (e: Throwable) {
       // ignore
@@ -148,6 +152,36 @@ class RichHapticsModule(context: ReactApplicationContext) : ReactContextBaseJava
     "SLOW_RISE" -> Triple(160, 1f, 1)
     "QUICK_FALL" -> Triple(60, 1f, -1)
     else -> Triple(12, 0.8f, 0)
+  }
+
+  private val main = Handler(Looper.getMainLooper())
+
+  private fun predefinedId(name: String): Int = when (name) {
+    "THUD", "QUICK_FALL" -> VibrationEffect.EFFECT_HEAVY_CLICK
+    "CLICK" -> VibrationEffect.EFFECT_CLICK
+    "SPIN" -> VibrationEffect.EFFECT_DOUBLE_CLICK
+    else -> VibrationEffect.EFFECT_TICK
+  }
+
+  /**
+   * Many phones (for example several Realme and Oppo models) have no composition primitives but do
+   * ship tuned predefined effects. Playing those one after another feels like crisp clicks rather
+   * than a buzzing motor, so prefer them over an amplitude waveform.
+   */
+  @RequiresApi(30)
+  private fun playPredefined(v: Vibrator, steps: List<Step>): Boolean {
+    val ids = intArrayOf(VibrationEffect.EFFECT_TICK, VibrationEffect.EFFECT_CLICK, VibrationEffect.EFFECT_HEAVY_CLICK)
+    val support = v.areAllEffectsSupported(*ids)
+    if (support != Vibrator.VIBRATION_EFFECT_SUPPORT_YES) return false
+    var at = 0L
+    for (s in steps) {
+      at += s.delay.toLong()
+      if (s.scale < 0.25f) continue
+      val effect = VibrationEffect.createPredefined(predefinedId(s.name))
+      main.postDelayed({ try { vibrate(v, effect) } catch (e: Throwable) {} }, at)
+      at += maxOf(30L, shape(s.name).first.toLong())
+    }
+    return true
   }
 
   private fun playWaveform(v: Vibrator, steps: List<Step>) {
