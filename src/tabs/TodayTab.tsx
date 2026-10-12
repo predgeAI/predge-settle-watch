@@ -10,8 +10,11 @@ import { FLAGS } from "../features";
 import { DailyDisputeCard } from "../dailyDispute/DailyDispute";
 import { Text } from "../Text";
 import { t, tn } from "../i18n";
+import { boostClockIn } from "../skr/perks";
+import { usePerks } from "../skr/perksStore";
 import { EmptyWatchlist, HeaderHelp, StatusHelp } from "../learn";
-import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, styles, TabScroll, type AddMarketProps } from "./shared";
+import { ExampleLink, ExampleModal } from "../learn/Example";
+import { AddMarketCard, ago, hh, MarketCard, statusColor, statusLabel, statusWord, styles, TabScroll, type AddMarketProps } from "./shared";
 
 export interface TodayTabProps {
   active: boolean;
@@ -42,10 +45,13 @@ export interface TodayTabProps {
   /** True while no Polymarket wallet is saved: shows a one-line hint that opens ME. */
   positionsHint: boolean;
   onOpenMe: () => void;
+  /** Adds the walkthrough's example market (quietly). */
+  onWatchExample: () => void;
 }
 
 export function TodayTab(p: TodayTabProps) {
   const { level, game, settings, items, today, counts, filter, streak, canIn } = p;
+  const perkTier = usePerks().tier;
   return (
     <TabScroll active={p.active} refreshControl={p.refreshControl}>
       <View style={styles.header}>
@@ -64,6 +70,7 @@ export function TodayTab(p: TodayTabProps) {
         </Text>
         <Text style={[styles.subtitle, { marginTop: 8 }]}>{t("home.subtitle")}</Text>
         <HeaderHelp />
+        <ExampleLink />
         <View style={styles.stepRow}>
           {Array.from({ length: 24 }).map((_, i) => (
             <View key={i} style={[styles.stepBit, { backgroundColor: i % 3 === 0 ? alpha(C.purple, 0.55) : alpha(C.green, 0.35) }]} />
@@ -123,7 +130,7 @@ export function TodayTab(p: TodayTabProps) {
           <Flame size={5} lit={streak > 0} />
           <View style={{ flex: 1 }}>
             <Text style={styles.streakNum}>
-              {streak} <Text style={styles.streakUnit}>{t("home.dayStreak")}</Text>
+              {streak} <Text style={styles.streakUnit}>{tn("home.streakDays", streak)}</Text>
             </Text>
             <Text style={styles.heroDim}>{t("home.freeMiss", { best: game.best })}</Text>
           </View>
@@ -150,7 +157,7 @@ export function TodayTab(p: TodayTabProps) {
           <View style={{ flex: 1 }}>
             <Press onPress={p.onClockIn} disabled={!canIn} haptics={false} label={canIn ? t("home.clockInLabel") : t("home.clockedInLabel")}>
               <PixelBox border={canIn ? C.ink : alpha(C.ink, 0.25)} bg={canIn ? C.ink : alpha(C.ink, 0.1)} lift={canIn ? "#000000" : undefined} inner={{ paddingVertical: 15, alignItems: "center" }}>
-                <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? t("home.clockIn", { xp: XP.clock_in + Math.min(streak + 1, 7) * 2 }) : t("home.clockedIn")}</Text>
+                <Text style={[styles.clockBtnText, !canIn && { color: C.inkSoft }]}>{canIn ? t("home.clockIn", { xp: boostClockIn(XP.clock_in + Math.min(streak + 1, 7) * 2, perkTier) }) : t("home.clockedIn")}</Text>
               </PixelBox>
             </Press>
           </View>
@@ -183,7 +190,7 @@ export function TodayTab(p: TodayTabProps) {
                 <StatusIcon level={r} color={STATUS[r].color} px={2} />
                 <Text style={[styles.glanceNum, { color: STATUS[r].color }]}>{counts[r]}</Text>
                 <Text style={[styles.glanceLabel, { color: STATUS[r].color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                  {statusLabel(r)}
+                  {statusWord(r)}
                 </Text>
               </PixelBox>
             </Press>
@@ -200,6 +207,7 @@ export function TodayTab(p: TodayTabProps) {
 
       {/* Add a market */}
       <AddMarketCard {...p.add} />
+      <ExampleModal onWatch={p.onWatchExample} />
     </TabScroll>
   );
 }

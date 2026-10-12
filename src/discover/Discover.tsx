@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../Text";
-import { fmtDec, fmtNum, t, type Key } from "../i18n";
+import { fmtDec, fmtNum, t, useLang, type Key } from "../i18n";
 import { alpha, C, PX, T } from "../theme";
 import { Button, Chip, LiveMascot, PixelBox, Press, Scanlines } from "../ui";
 import { PixelIcon } from "../sprites";
 import { fetchPopular, fetchSegment, fmtVolume, tierOf, type DiscoverMarket, type Segment, type Tier } from "./api";
+import { changeFeedPrefs, leadsWithCryptoTech, rankFeed, setFeedMarkets, useFeed } from "./interests";
+import { InterestChips } from "./FeedPicker";
 
 const TIER_COLOR: Record<Tier, string> = { low: C.green, mid: C.purpleSoft, high: C.orange };
 const tierLabel = (tier: Tier) => t(`dc.tier.${tier}` as Key);
@@ -86,7 +88,9 @@ export function DiscoverFeed(props: { visible: boolean; watchingIds: string[]; o
     setErr(null);
     setList(null);
     try {
-      setList(await fetchPopular());
+      const got = await fetchPopular();
+      setList(got);
+      setFeedMarkets(got);
     } catch {
       setErr(t("dc.loadFail"));
     }
@@ -94,6 +98,10 @@ export function DiscoverFeed(props: { visible: boolean; watchingIds: string[]; o
   useEffect(() => {
     if (props.visible && list === null && !err) load();
   }, [props.visible, list, err, load]);
+  const { prefs } = useFeed();
+  const lang = useLang();
+  // Personal order: interests and country first; the list is never empty if the feed is not.
+  const ranked = useMemo(() => (list ? rankFeed(list, prefs, { cryptoTechFirst: leadsWithCryptoTech(prefs, lang) }) : null), [list, prefs, lang]);
 
   return (
     <>
@@ -107,6 +115,9 @@ export function DiscoverFeed(props: { visible: boolean; watchingIds: string[]; o
           <LiveMascot mood={err ? "sleep" : "idle"} px={5} />
         </View>
         <Text style={[st.dim, { marginTop: 8 }]}>{t("dc.sub")}</Text>
+        <View style={{ marginTop: 12 }}>
+          <InterestChips prefs={prefs} onChange={changeFeedPrefs} />
+        </View>
       </View>
       {props.children}
       {list === null && !err ? (
@@ -123,7 +134,7 @@ export function DiscoverFeed(props: { visible: boolean; watchingIds: string[]; o
         </PixelBox>
       ) : null}
       {list && list.length === 0 ? <Text style={[st.dim, { marginTop: 20 }]}>{t("dc.none")}</Text> : null}
-      {list?.map((m) => (
+      {ranked?.map(({ market: m }) => (
         <Row key={m.id} m={m} watching={props.watchingIds.includes(m.id)} onWatch={props.onWatch} />
       ))}
     </>

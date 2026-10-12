@@ -11,6 +11,8 @@ import * as haptic from "../haptic";
 import { XP, type GameState } from "../game";
 import { closeTour, goDiscover, openTour, setDiscoverHandler, tourDone, useTourOpen } from "./tour";
 import { explain, QBadge, Term } from "./Term";
+import { useFeed } from "../discover/interests";
+import { setHallWatchHandler } from "./HallOfDisputes";
 
 // ---------------------------------------------------------------------------
 // Pixel illustrations, built from plain Views
@@ -31,9 +33,10 @@ function Bar({ label, price, share, color }: { label: string; price: string; sha
 
 /** A market card with YES and NO price bars. */
 function MarketIllo() {
+  const local = !!useFeed().prefs.country;
   return (
     <PixelBox border={C.line} bg={C.surfaceHi} lift="#0d1710" inner={{ padding: 12, width: 250, gap: 8 }}>
-      <Text style={st.illoQ}>{t("learn.s1.q")}</Text>
+      <Text style={st.illoQ}>{t(local ? "learn.s1.qLocal" : "learn.s1.q")}</Text>
       <Bar label={t("learn.yes")} price="70¢" share={70} color={C.green} />
       <Bar label={t("learn.no")} price="30¢" share={30} color={C.orange} />
     </PixelBox>
@@ -90,6 +93,9 @@ function BallotIllo() {
   );
 }
 
+/** Slide 4 only: one verified case from the Hall of Disputes (src/learn/hall.ts). */
+const SLIDE_NOTE: Partial<Record<number, Key>> = { 4: "learn.s4.case" };
+
 /** A closed treasure chest: settled for good. */
 function ChestIllo() {
   return (
@@ -126,6 +132,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
   const [page, setPage] = useState(0);
   const ref = useRef<ScrollView>(null);
   const last = SLIDES.length - 1;
+  const localExample = !!useFeed().prefs.country; // everyday example "in your city" once a country is set
 
   const go = (n: number) => {
     const k = Math.max(0, Math.min(last, n));
@@ -163,7 +170,8 @@ function Tour({ onFinish }: { onFinish: () => void }) {
               </View>
               <Text style={st.step}>{t("learn.step", { n: i + 1, total: SLIDES.length })}</Text>
               <Text style={st.title}>{t(`learn.s${s.n}.title` as Key)}</Text>
-              <Text style={st.body}>{t(`learn.s${s.n}.body` as Key)}</Text>
+              <Text style={st.body}>{t(s.n === 1 && localExample ? "learn.s1.bodyLocal" : (`learn.s${s.n}.body` as Key))}</Text>
+              {SLIDE_NOTE[s.n] ? <Text style={st.note}>{t(SLIDE_NOTE[s.n] as Key)}</Text> : null}
             </ScrollView>
           ))}
         </ScrollView>
@@ -191,13 +199,20 @@ function Tour({ onFinish }: { onFinish: () => void }) {
  * Mount once, before DialogHost. Shows the tour whenever openTour() is called.
  * `onDone` runs on "Got it" (the app credits the one-time XP); `onDiscover` switches to the DISCOVER tab.
  */
-export function LearnHost({ onDone, onDiscover }: { onDone: () => void; onDiscover: () => void }) {
+export function LearnHost({ onDone, onDiscover, onWatch }: { onDone: () => void; onDiscover: () => void; onWatch?: (marketId: string) => Promise<boolean> }) {
   const open = useTourOpen();
   const discover = useRef(onDiscover);
   discover.current = onDiscover;
+  const watchRef = useRef(onWatch);
+  watchRef.current = onWatch;
   useEffect(() => {
     setDiscoverHandler(() => discover.current());
-    return () => setDiscoverHandler(null);
+    // The Hall of Disputes adds its markets through the app's add path.
+    setHallWatchHandler((id) => (watchRef.current ? watchRef.current(id) : false));
+    return () => {
+      setDiscoverHandler(null);
+      setHallWatchHandler(null);
+    };
   }, []);
   const finish = () => {
     haptic.success();
@@ -292,6 +307,7 @@ const st = StyleSheet.create({
   step: { color: C.greenDeep, fontFamily: PX, fontSize: 8, marginBottom: 10 },
   title: { color: C.text, fontFamily: PX, fontSize: 14, lineHeight: 24, marginBottom: 12 },
   body: { color: C.text, fontSize: 17, lineHeight: 26 },
+  note: { color: C.dim, fontSize: T.body, lineHeight: 21, marginTop: 14 },
   foot: { paddingHorizontal: 24, paddingBottom: 20 },
   dots: { flexDirection: "row", gap: 6, justifyContent: "center", marginBottom: 14 },
   pip: { width: 10, height: 10, backgroundColor: C.line },

@@ -3,7 +3,7 @@
 import { fetchSettlementRisk } from "../api";
 import { t } from "../i18n";
 
-const GAMMA = "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=40";
+const GAMMA = "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=40&include_tag=true";
 const UA = "SettleWatch/0.3 (Android; read-only)";
 
 export interface DiscoverMarket {
@@ -12,6 +12,24 @@ export interface DiscoverMarket {
   slug: string;
   endDate?: string;
   volume24hr: number;
+  category?: string; // when the gamma API sends one
+  tags?: string[]; // tag labels, when the gamma API sends them
+}
+
+/** Category and tag labels from a gamma market or its first event. Short strings only. */
+function labelsOf(r: Record<string, unknown>): { category?: string; tags?: string[] } {
+  const ev = Array.isArray(r.events) && r.events[0] && typeof r.events[0] === "object" ? (r.events[0] as Record<string, unknown>) : {};
+  const cat = [r.category, ev.category].find((c): c is string => typeof c === "string" && c.trim() !== "" && c.length <= 40);
+  const tags: string[] = [];
+  for (const src of [r.tags, ev.tags]) {
+    if (!Array.isArray(src)) continue;
+    for (const tg of src) {
+      const l = typeof tg === "string" ? tg : tg && typeof tg === "object" ? (tg as Record<string, unknown>).label : undefined;
+      if (typeof l === "string" && l.trim() && l.length <= 40 && !tags.includes(l.trim())) tags.push(l.trim());
+      if (tags.length >= 12) break;
+    }
+  }
+  return { ...(cat ? { category: cat.trim() } : {}), ...(tags.length ? { tags } : {}) };
 }
 
 export interface Segment {
@@ -38,7 +56,7 @@ export function parseMarkets(body: unknown): DiscoverMarket[] {
     const slug = typeof r.slug === "string" ? r.slug : "";
     if (!/^\d{1,12}$/.test(id) || !question || question.length > 160 || SKIP.test(question)) continue;
     const v = Number(r.volume24hr ?? 0);
-    out.push({ id, question, slug, endDate: typeof r.endDate === "string" ? r.endDate.slice(0, 10) : undefined, volume24hr: Number.isFinite(v) ? v : 0 });
+    out.push({ id, question, slug, endDate: typeof r.endDate === "string" ? r.endDate.slice(0, 10) : undefined, volume24hr: Number.isFinite(v) ? v : 0, ...labelsOf(r) });
     if (out.length >= 25) break;
   }
   return out;

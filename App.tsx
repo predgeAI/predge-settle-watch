@@ -17,7 +17,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
 import { fetchSettlementRisk, parseMarketInput, type SettlementRisk } from "./src/api";
 import { usableForReceipt, verifyRecord, type Check, type Verification } from "./src/verify";
-import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, MAX_WATCHLIST, PINNED_KID, type Cluster } from "./src/config";
+import { CLUSTERS, EXPLORER_TX, FOREGROUND_POLL_MS, PINNED_KID, type Cluster } from "./src/config";
 import {
   changesLast24h,
   DEFAULT_SETTINGS,
@@ -51,6 +51,7 @@ import {
   LEVELS,
   liveStreak,
   NEW_GAME,
+  unlockBadges,
   weeklyRecap,
   XP,
   type ActionKind,
@@ -58,6 +59,8 @@ import {
   type GameState,
 } from "./src/game";
 import { loadGame, saveGame } from "./src/gameStore";
+import { boostClockIn, canAddMarket, watchlistLimit } from "./src/skr/perks";
+import { getPerks, refreshPerks, setPerksWallet, usePerks } from "./src/skr/perksStore";
 import { scheduleClockInNudge } from "./src/nudge";
 import { updateWidget } from "./src/widget";
 import { alpha, C, PX, STATUS_ORDER, T } from "./src/theme";
@@ -65,6 +68,8 @@ import * as haptic from "./src/haptic";
 import { BadgeIcon, Burst, Button, CelebrationOverlay, Chip, LevelBadge, LiveMascot, PixelBar, PixelBox, Scanlines, StatusIcon, useReducedMotion, useShake, XpToast, type Celebration } from "./src/ui";
 import type { Mood } from "./src/sprites";
 import Onboarding from "./src/Onboarding";
+import { EXAMPLE_MARKET } from "./src/learn/Example";
+import { setFeedPrefs, setFeedPrefsSaver, type FeedPrefs } from "./src/discover/interests";
 import { FLAGS } from "./src/features";
 import { RuleDetectiveModal } from "./src/ruleDetective/RuleDetective";
 import { GlossaryModal } from "./src/glossary/Glossary";
@@ -77,7 +82,7 @@ import { EvidencePackCard } from "./src/skr";
 import { Text } from "./src/Text";
 import { DialogHost, showDialog } from "./src/dialog";
 import { LearnHost, Term, TOUR_REF } from "./src/learn";
-import { detectLanguage, en, setLanguage, t, useLang, type Key } from "./src/i18n";
+import { detectLanguage, en, setLanguage, setPlainWords, t, useLang, type Key } from "./src/i18n";
 import { ago, EXAMPLES, short, statusColor, statusLabel, statusWord, styles } from "./src/tabs/shared";
 import { TodayTab } from "./src/tabs/TodayTab";
 import { PlayTab } from "./src/tabs/PlayTab";
@@ -216,8 +221,18 @@ export default function App() {
   const updateSettings = useCallback(async (patch: Partial<Settings>) => {
     const next = await saveSettings(patch);
     setLanguage(next.language);
+    setPlainWords(next.plainWords);
     setSettings(next);
   }, []);
+
+  // Feed interests and country: Discover, "For you" and the tour read them from the shared feed state.
+  useEffect(() => {
+    if (settings) setFeedPrefs({ interests: settings.interests, country: settings.country });
+  }, [settings]);
+  useEffect(() => {
+    setFeedPrefsSaver((p) => updateSettings({ interests: p.interests, country: p.country }));
+    return () => setFeedPrefsSaver(null);
+  }, [updateSettings]);
 
   const refreshAll = useCallback(async () => {
     if (pollingRef.current) return;
@@ -269,8 +284,25 @@ export default function App() {
     },
     [commitGame]
   );
+  // SKR perks: read-only mainnet balance of the connected wallet. No wallet, no perks.
+  const perks = usePerks();
+  useEffect(() => setPerksWallet(wallet?.address ?? null), [wallet?.address]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (st) => {
+      if (st === "active") refreshPerks().catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, []);
+  useEffect(() => {
+    if (!perks.tier || gameRef.current.badges.skr_holder) return;
+    const b = unlockBadges(gameRef.current, { watching: itemsRef.current.length, skrHolder: true });
+    if (b.unlocked.length) commitGame(b.state, { gained: 0, badges: b.unlocked });
+  }, [perks.tier, commitGame]);
+
   const doClockIn = useCallback(() => {
-    const r = clockIn(gameRef.current);
+    // The multiplier is local XP only; the League still gets the plain clock-in (see clockIn).
+    const tier = getPerks().tier;
+    const r = clockIn(gameRef.current, new Date(), { boost: (x) => boostClockIn(x, tier), skrHolder: !!tier });
     if (r.already) return;
     commitGame(r.state, r);
     setClockPlay((n) => n + 1);
@@ -301,6 +333,7 @@ export default function App() {
     (async () => {
       const s = await loadSettings();
       setLanguage(s.language);
+      setPlainWords(s.plainWords);
       setSettings(s);
       setItems(await loadWatchlist());
       const g = await loadGame();
@@ -354,8 +387,9 @@ export default function App() {
         return false;
       }
       const current = await loadWatchlist();
-      if (current.length >= MAX_WATCHLIST) {
-        showDialog(t("add.fullTitle"), t("add.fullBody", { n: MAX_WATCHLIST }));
+      const room = canAddMarket(current.length, getPerks().tier);
+      if (!room.ok) {
+        showDialog(room.title, room.body);
         return false;
       }
       if (current.some((i) => i.key === key || i.marketId === key)) {
@@ -421,7 +455,7 @@ export default function App() {
       setPosBusy(true);
       try {
         const open = await fetchPositions(address);
-        const plan = planSync(open, await loadWatchlist(), MAX_WATCHLIST, 50);
+        const plan = planSync(open, await loadWatchlist(), watchlistLimit(getPerks().tier), 50);
         let failed = 0;
         for (const pos of plan.toAdd) if (!(await addMarket(pos.conditionId, { quiet: true, source: "positions" }))) failed++;
         // A foreground poll merges its results over the list when it ends, so wait for it before marking.
@@ -509,8 +543,8 @@ export default function App() {
   }, [settings?.onboarded, syncPositions]);
 
   const finishOnboarding = useCallback(
-    async (addExamples: boolean, clockedIn = false) => {
-      await updateSettings({ onboarded: true });
+    async (addExamples: boolean, clockedIn = false, feed?: FeedPrefs) => {
+      await updateSettings(feed ? { onboarded: true, interests: feed.interests, country: feed.country } : { onboarded: true });
       if (clockedIn) doClockIn();
       await setupNotifications();
       setBgOk(await registerBackgroundPolling());
@@ -806,6 +840,7 @@ export default function App() {
     <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={C.green} progressBackgroundColor={C.surfaceHi} />
   );
   const add = { input, setInput, busy, addMarket };
+  const watchExample = () => void addMarket(EXAMPLE_MARKET.key, { quiet: true });
 
   let content: React.ReactNode;
   if (!settings) {
@@ -815,7 +850,7 @@ export default function App() {
       </SafeAreaView>
     );
   } else if (!settings.onboarded) {
-    content = <Onboarding onDone={finishOnboarding} />;
+    content = <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onWatchExample={watchExample} onDone={finishOnboarding} />;
   } else {
     content = (
       <SafeAreaView style={styles.root}>
@@ -847,6 +882,7 @@ export default function App() {
           add={add}
           positionsHint={!positions.address}
           onOpenMe={() => setTab("me")}
+          onWatchExample={watchExample}
         />
         <PlayTab
           active={tab === "play"}
@@ -922,7 +958,7 @@ export default function App() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.statusHead}>
                         <StatusIcon level={detail.last?.risk_level} color={statusColor(detail.last?.risk_level)} px={4} />
-                        <Text style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20, lineHeight: 28, flexShrink: 1 }]}>{statusWord(detail.last?.risk_level)}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={[styles.display, { color: statusColor(detail.last?.risk_level), marginTop: 0, fontSize: 20, lineHeight: 28, flexShrink: 1 }]}>{statusWord(detail.last?.risk_level)}</Text>
                         <Term id="status" />
                       </View>
                     </View>
@@ -1160,7 +1196,7 @@ export default function App() {
       <StatusBar style="light" />
       {content}
       {!introDone ? <Intro onDone={() => setIntroDone(true)} /> : null}
-      <LearnHost onDone={() => award("learn", { ref: TOUR_REF })} onDiscover={() => setTab("discover")} />
+      <LearnHost onDone={() => award("learn", { ref: TOUR_REF })} onDiscover={() => setTab("discover")} onWatch={(id) => addMarket(id)} />
       <DialogHost />
     </View>
   );
