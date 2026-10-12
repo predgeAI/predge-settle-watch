@@ -123,7 +123,7 @@ export function TodayTab(p: TodayTabProps) {
           <Flame size={5} lit={streak > 0} />
           <View style={{ flex: 1 }}>
             <Text style={styles.streakNum}>
-              {streak} <Text style={styles.streakUnit}>{t("home.dayStreak")}</Text>
+              {streak} <Text style={styles.streakUnit}>{tn("home.streakDays", streak)}</Text>
             </Text>
             <Text style={styles.heroDim}>{t("home.freeMiss", { best: game.best })}</Text>
           </View>
