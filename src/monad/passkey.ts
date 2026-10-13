@@ -109,8 +109,12 @@ export function describeError(e: unknown): string {
     switch (e.code) {
       case "PRF_UNAVAILABLE":
         return "This phone's passkey provider does not support the PRF extension. Use Google Password Manager as the passkey provider.";
-      case "PASSKEY_OPERATION_FAILED":
-        return "The passkey prompt was dismissed or failed. Try again.";
+      case "PASSKEY_OPERATION_FAILED": {
+        const c = (e as any).cause;
+        const why = c ? String(c?.message ?? c?.error ?? c).slice(0, 200) : "";
+        console.warn("passkey failed", why, JSON.stringify(c ?? null)?.slice(0, 500));
+        return `The passkey prompt was dismissed or failed. Try again.${why ? `\n\n(${why})` : ""}`;
+      }
       case "CRYPTO_UNAVAILABLE":
         return "Secure random numbers are not available.";
       default:
