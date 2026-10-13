@@ -300,7 +300,15 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
         {p.account ? (
           <>
             <Text style={fst.body}>Signed in with your {kindLabel(p.account.kind)}. No seed phrase, nothing to write down.</Text>
-            <LButton small ghost title="SIGN OUT" onPress={() => void p.account?.signOut()} />
+            <LButton
+              small
+              ghost
+              title="SIGN OUT"
+              onPress={async () => {
+                await p.account?.signOut().catch(() => undefined);
+                signer.setSigner(undefined);
+              }}
+            />
           </>
         ) : (
           <>

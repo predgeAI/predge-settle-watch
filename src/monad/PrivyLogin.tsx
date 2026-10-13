@@ -44,7 +44,7 @@ function usePrivySigner() {
     if (current() && current()?.kind !== "email") return; // another way is signed in; don't take over
     setSigner(providerSigner("email", w.address as Hex, () => w.getProvider(), logout));
   }, [user, wallets, create, logout]);
-  return { user };
+  return { user, logout };
 }
 
 export function PrivySync() {
@@ -53,7 +53,7 @@ export function PrivySync() {
 }
 
 export function PrivyEmailLogin({ onDone }: { onDone: () => void }) {
-  const { user } = usePrivySigner();
+  const { user, logout } = usePrivySigner();
   const { wallets } = useEmbeddedEthereumWallet();
   const { sendCode, loginWithCode } = useLoginWithEmail();
   const [email, setEmail] = useState("");
@@ -64,10 +64,10 @@ export function PrivyEmailLogin({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     if (user && wallets[0]) {
-      setSigner(providerSigner("email", wallets[0].address as Hex, () => wallets[0].getProvider(), async () => undefined));
+      setSigner(providerSigner("email", wallets[0].address as Hex, () => wallets[0].getProvider(), logout));
       onDone();
     }
-  }, [user, wallets, onDone]);
+  }, [user, wallets, onDone, logout]);
 
   const go = async (fn: () => Promise<unknown>) => {
     setBusy(true);
