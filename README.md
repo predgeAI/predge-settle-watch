@@ -1,6 +1,6 @@
 # Settle Watch
 
-## Monad edition (branch `edition/monad`, release `v0.6.1-monad`)
+## Monad edition (branch `edition/monad`, release `v0.6.2-monad`)
 
 **A third of disputed Polymarket markets settle differently than proposed. Settle Watch checks the settlement on your phone and on Monad.**
 
@@ -8,7 +8,7 @@ From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 Polymarket marke
 
 | | |
 |---|---|
-| APK | [v0.6.1-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.1-monad) (Android 7+, arm64) |
+| APK | [v0.6.2-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.2-monad) (Android 7+, arm64) |
 | Package | `io.predge.settlewatch.monad`, installs next to other Settle Watch builds |
 | Chains | Monad mainnet (chain 143) for verdicts and reads, Monad testnet (10143) for Perpl, Agora, Kuru, CRE and default receipts |
 
@@ -18,7 +18,16 @@ From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 Polymarket marke
 2. **Who's exposed**: Nansen holder cost on each side (saved result of a paid call, 12 Oct).
 3. **Act, one tap**: when the guard says don't buy, **Insure against a flip** buys CHANGE dispute notes on Kuru (each pays $1 if the disputed answer flips; test dollars, confirm dialog plus fingerprint). For BTC price markets the action is a Perpl BTC short; otherwise **Alert me when it settles** adds the market to the watchlist.
 4. **Add money**: live quote for USDC from Base to Monad (Aurora intents); data is paid per call with x402 in USDC on Monad.
-5. **Your key**: a mera passkey. Fingerprint, no seed phrase.
+5. **Your key**: three ways, no seed phrase. **Fingerprint** (mera passkey), **Email** (Privy Expo SDK, embedded wallet, one-time code) or **Wallet** (Dynamic React Native SDK, email login with an embedded wallet). Whichever is signed in signs the Kuru notes, the Perpl hedge, receipts and the League.
+
+### How to try it (2 min)
+
+1. Install the APK from the release and open it. Three short screens, then the MONAD tab.
+2. Sign in (step 5): Fingerprint, Email or Wallet.
+3. A new wallet has no test MON for fees. Tap **Get free test MON**: the app copies your address and opens the Monad faucet (faucet.monad.xyz); paste it, then come back. Or ask us at hello@predge.io and we send test MON to the address shown in My wallet. The app never holds a shared key.
+4. With Trump "Ammunition" selected, tap **Insure against a flip**, then Confirm. Test dollars only.
+5. See "You're insured" and the Recorded on Monad link.
+6. Tap **How it works: 9 integrations**.
 
 Then **Only possible on Monad** and **How it works: 9 integrations**, one card per sponsor, each with one live, read-only action and a proof link:
 

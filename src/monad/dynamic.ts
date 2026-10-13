@@ -22,7 +22,14 @@ function signerFor(): Signer | null {
   return {
     kind: "wallet",
     address: wallet.address as Hex,
-    walletClient: (chain) => c.viem.createWalletClient({ wallet, chain }) as any,
+    walletClient: async (chain) => {
+      // Dynamic's embedded wallet sends on its own selected network, not on the viem client's chain.
+      // Switch it, then refuse unless it really is on the requested chain (never fall through to another network).
+      await c.wallets.switchNetwork({ wallet, chainId: chain.id }).catch(() => undefined);
+      const { network } = await c.wallets.getNetwork({ wallet });
+      if (Number(network) !== chain.id) throw new Error(`This wallet is on network ${network}, not ${chain.name}. Nothing was sent.`);
+      return c.viem.createWalletClient({ wallet, chain }) as any;
+    },
     signMessage: async (message) => (await c.wallets.signMessage({ wallet, message })).signedMessage as Hex,
     signOut: async () => {
       await c.auth.logout();
@@ -58,4 +65,17 @@ if (dynamicClient) {
   dynamicClient.auth.on("loggedOut", () => {
     if (current()?.kind === "wallet") setSigner(undefined);
   });
+  // A Dynamic session survives app restarts; pick it up once the SDK has loaded it (unless another way is signed in).
+  let tries = 0;
+  const restore = setInterval(() => {
+    tries++;
+    if (current() || tries > 30) return clearInterval(restore);
+    if (dynamicClient.auth.authenticatedUser) {
+      const s = signerFor();
+      if (s) {
+        setSigner(s);
+        clearInterval(restore);
+      }
+    }
+  }, 1000);
 }
