@@ -1264,7 +1264,7 @@ export default function App() {
             overlay={overlays("puzzle")}
           />
         ) : null}
-        <Scanlines />
+        {IS_MONAD && tab === "monad" ? null : <Scanlines />}
       </SafeAreaView>
     );
   }
