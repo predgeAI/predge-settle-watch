@@ -1,6 +1,6 @@
 # Settle Watch
 
-## Monad edition (branch `edition/monad`, release `v0.6.2-monad`)
+## Monad edition (branch `edition/monad`, release `v0.6.3-monad`)
 
 **A third of disputed Polymarket markets settle differently than proposed. Settle Watch checks the settlement on your phone and on Monad.**
 
@@ -8,7 +8,7 @@ From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 Polymarket marke
 
 | | |
 |---|---|
-| APK | [v0.6.2-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.2-monad) (Android 7+, arm64) |
+| APK | [v0.6.3-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.3-monad) (Android 7+, arm64) |
 | Package | `io.predge.settlewatch.monad`, installs next to other Settle Watch builds |
 | Chains | Monad mainnet (chain 143) for verdicts and reads, Monad testnet (10143) for Perpl, Agora, Kuru, CRE and default receipts |
 
