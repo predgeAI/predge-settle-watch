@@ -90,6 +90,17 @@ Screenshots are from builds 0.3.1 to 0.3.5. The current build places the same sc
 
 Check any receipt yourself: `scripts/verify-receipt.sh <signature> [devnet|mainnet-beta]` prints its memo from a public RPC.
 
+## Monad tab (Metropolis, Agora mobile trading bounty)
+
+Build 0.5.0 adds a fifth tab, **MONAD**, on Monad testnet (chain 10143):
+
+- **Passkey login with mera.** `@category-labs/mera` with `react-native-passkey` (Android Credential Manager). The passkey's WebAuthn PRF output becomes a BIP-44 EVM key (`m/44'/60'/0'/0/0`), held in memory for the session and zeroed on sign-out. Only the credential id is stored. Relying party: `predge.io`. Code: [src/monad/passkey.ts](src/monad/passkey.ts).
+- **AUSD balance.** Wallet AUSD (`0xa9012a05...22dC`, 6 decimals), MON for gas, and the margin held on Perpl. A button calls Agora's public testnet faucet (`requestFunds`, 10,000 test AUSD).
+- **Perpl trade, fully on chain.** Approve and `createAccount` (Perpl's testnet minimum is 100 AUSD), then `execOrder` on Perpl's Exchange (`0x1964C32f...80cc`): an immediate-or-cancel BTC short (perp 16), limit 2% under mark, 2x leverage, sized $25, $50 or $100. Every transaction is simulated before it is signed, and the gas limit is the estimate plus 30% (Monad charges the limit). A close button sends the opposite IOC order. Code: [src/monad/chain.ts](src/monad/chain.ts).
+- **Why a hedge.** If a watched Polymarket crypto-price market (BTC, ETH, SOL) is disputed, the tab names it and offers the short: a dispute can flip the payout, so the price leg is offset while it settles.
+
+No mainnet path exists in this tab. Android needs `delegate_permission/common.get_login_creds` for `io.predge.settlewatch` in `https://predge.io/.well-known/assetlinks.json`.
+
 ## Architecture
 
 ```mermaid
