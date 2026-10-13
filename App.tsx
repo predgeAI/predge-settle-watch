@@ -88,6 +88,7 @@ import { TodayTab } from "./src/tabs/TodayTab";
 import { PlayTab } from "./src/tabs/PlayTab";
 import { DiscoverTab } from "./src/tabs/DiscoverTab";
 import { MeTab } from "./src/tabs/MeTab";
+import { MonadTab } from "./src/tabs/MonadTab";
 import { TabBar, type TabId } from "./src/tabs/TabBar";
 import { fetchPositions, normalizeAddress, PositionsError } from "./src/positions/api";
 import { applyHeld, clearHeld, planSync, positionsErrorText } from "./src/positions/sync";
@@ -906,6 +907,7 @@ export default function App() {
           onWatch={(id) => addMarket(id)}
           add={add}
         />
+        <MonadTab active={tab === "monad"} refreshControl={refreshControl()} items={items} />
         <MeTab
           active={tab === "me"}
           refreshControl={refreshControl()}

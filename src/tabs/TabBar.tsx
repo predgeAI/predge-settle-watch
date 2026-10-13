@@ -8,14 +8,16 @@ import * as haptic from "../haptic";
 import { Text } from "../Text";
 import { t, type Key } from "../i18n";
 
-export type TabId = "today" | "play" | "discover" | "me";
+export type TabId = "today" | "play" | "discover" | "monad" | "me";
 
+const MONAD_M = ["XX....XX", "XXX..XXX", "XXXXXXXX", "XX.XX.XX", "XX....XX", "XX....XX", "XX....XX", "XX....XX"];
 const PERSON = ["...XX...", "..XXXX..", "..XXXX..", "...XX...", "........", ".XXXXXX.", "XXXXXXXX", "XXXXXXXX"];
 
 const TABS: { id: TabId; label: Key; icon: string | string[] }[] = [
   { id: "today", label: "tab.today", icon: "flame" },
   { id: "play", label: "tab.play", icon: "league" },
   { id: "discover", label: "tab.discover", icon: "eye" },
+  { id: "monad", label: "tab.monad", icon: MONAD_M },
   { id: "me", label: "tab.me", icon: PERSON },
 ];
 
