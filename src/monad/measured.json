@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-10-13T11:05:17.855Z",
+  "measuredAt": "2026-10-13T11:15:41.655Z",
   "runs": [
     "live-2026-10-12T22-32-40-193Z.json",
     "live-2026-10-13T08-15-57-062Z.json"
@@ -20,9 +20,33 @@
   "monPerCycle": {
     "median": 0.046373687999999996
   },
+  "byRun": [
+    {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
+      "verdicts": 22,
+      "latencySeconds": {
+        "min": 7,
+        "median": 8,
+        "max": 8
+      }
+    },
+    {
+      "run": "live-2026-10-13T08-15-57-062Z.json",
+      "batch": 4,
+      "verdicts": 4,
+      "latencySeconds": {
+        "min": 1,
+        "median": 2,
+        "max": 2
+      }
+    }
+  ],
   "method": "request->verdict = response block timestamp - request block timestamp on Monad mainnet; cost = gas limit x effective gas price (Monad charges the limit)",
   "rows": [
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5532382",
       "latencyS": 7,
       "blocks": 25,
@@ -31,6 +55,8 @@
       "verdictGasUsed": 238612
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5377001",
       "latencyS": 8,
       "blocks": 25,
@@ -39,6 +65,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5530221",
       "latencyS": 8,
       "blocks": 26,
@@ -47,6 +75,8 @@
       "verdictGasUsed": 250599
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5581284",
       "latencyS": 8,
       "blocks": 25,
@@ -55,6 +85,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5369848",
       "latencyS": 8,
       "blocks": 26,
@@ -63,6 +95,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5392195",
       "latencyS": 7,
       "blocks": 25,
@@ -71,6 +105,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5557868",
       "latencyS": 8,
       "blocks": 26,
@@ -79,6 +115,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5557885",
       "latencyS": 8,
       "blocks": 25,
@@ -87,6 +125,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5535434",
       "latencyS": 8,
       "blocks": 26,
@@ -95,6 +135,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5530168",
       "latencyS": 8,
       "blocks": 25,
@@ -103,6 +145,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5490323",
       "latencyS": 8,
       "blocks": 26,
@@ -111,6 +155,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5344793",
       "latencyS": 7,
       "blocks": 26,
@@ -119,6 +165,8 @@
       "verdictGasUsed": 250599
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5096739",
       "latencyS": 7,
       "blocks": 25,
@@ -127,6 +175,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5344797",
       "latencyS": 8,
       "blocks": 26,
@@ -135,6 +185,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5096734",
       "latencyS": 8,
       "blocks": 25,
@@ -143,6 +195,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5491095",
       "latencyS": 7,
       "blocks": 25,
@@ -151,6 +205,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5491113",
       "latencyS": 7,
       "blocks": 26,
@@ -159,6 +215,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5491114",
       "latencyS": 7,
       "blocks": 25,
@@ -167,6 +225,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5491112",
       "latencyS": 8,
       "blocks": 26,
@@ -175,6 +235,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5491096",
       "latencyS": 8,
       "blocks": 25,
@@ -183,6 +245,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "4838803",
       "latencyS": 8,
       "blocks": 26,
@@ -191,6 +255,8 @@
       "verdictGasUsed": 238638
     },
     {
+      "run": "live-2026-10-12T22-32-40-193Z.json",
+      "batch": 34,
       "market": "5455876",
       "latencyS": 8,
       "blocks": 25,
@@ -199,6 +265,8 @@
       "verdictGasUsed": 238625
     },
     {
+      "run": "live-2026-10-13T08-15-57-062Z.json",
+      "batch": 4,
       "market": "2169995",
       "latencyS": 2,
       "blocks": 5,
@@ -207,6 +275,8 @@
       "verdictGasUsed": 219789
     },
     {
+      "run": "live-2026-10-13T08-15-57-062Z.json",
+      "batch": 4,
       "market": "2446852",
       "latencyS": 2,
       "blocks": 6,
@@ -215,6 +285,8 @@
       "verdictGasUsed": 219776
     },
     {
+      "run": "live-2026-10-13T08-15-57-062Z.json",
+      "batch": 4,
       "market": "1144023",
       "latencyS": 2,
       "blocks": 5,
@@ -223,6 +295,8 @@
       "verdictGasUsed": 219776
     },
     {
+      "run": "live-2026-10-13T08-15-57-062Z.json",
+      "batch": 4,
       "market": "2241873",
       "latencyS": 1,
       "blocks": 5,

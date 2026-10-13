@@ -253,9 +253,9 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
       <View style={[fst.card, { marginTop: 14 }]}>
         <Text style={fst.kicker}>ONLY POSSIBLE ON MONAD</Text>
         <Text style={fst.body}>
-          A verdict lands on Monad {MEASURED.latencySeconds.median} seconds after it is requested and costs {MEASURED.monPerVerdict.median.toFixed(3)} MON. Fast and cheap enough to check every disputed market, every time.
+          A verdict lands on Monad 1 to 2 seconds after it is requested when sent one at a time, and 8 seconds (median) in a 34-market batch. A request plus its verdict costs about 0.046 MON, around $0.001. Fast and cheap enough to check every disputed market, every time.
         </Text>
-        <Small text={`Median of ${MEASURED.verdicts} verdicts we measured on Monad, 12 to 13 Oct`} />
+        <Small text={`${MEASURED.verdicts} verdicts we measured on Monad mainnet, 12 to 13 Oct`} />
       </View>
 
       <View style={{ height: 14 }} />

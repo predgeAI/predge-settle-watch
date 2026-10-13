@@ -35,6 +35,8 @@ async function main() {
       const [rq, rs] = await Promise.all([txInfo(v.request.tx), txInfo(v.response.tx)]);
       if (!rq.ok || !rs.ok) continue;
       rows.push({
+        run: f,
+        batch: (run.verdicts ?? []).length,
         market: v.market_id,
         latencyS: rs.at - rq.at,
         blocks: rs.block - rq.block,
@@ -54,6 +56,10 @@ async function main() {
     blocks: { median: median(rows.map((r) => r.blocks)) },
     monPerVerdict: { median: median(rows.map((r) => r.verdictMon)), max: Math.max(...rows.map((r) => r.verdictMon)) },
     monPerCycle: { median: median(rows.map((r) => r.verdictMon + r.requestMon)) },
+    byRun: files.map((f) => {
+      const rs = rows.filter((r) => r.run === f);
+      return { run: f, batch: rs[0]?.batch ?? 0, verdicts: rs.length, latencySeconds: rs.length ? { min: Math.min(...rs.map((r) => r.latencyS)), median: median(rs.map((r) => r.latencyS)), max: Math.max(...rs.map((r) => r.latencyS)) } : null };
+    }),
     method: "request->verdict = response block timestamp - request block timestamp on Monad mainnet; cost = gas limit x effective gas price (Monad charges the limit)",
     rows,
   };
