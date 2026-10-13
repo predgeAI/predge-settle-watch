@@ -186,7 +186,10 @@ export async function snapshot(address: Hex): Promise<Snapshot> {
   const [mon, ausd, acct, minOpen] = await Promise.all([
     pub.getBalance({ address }),
     pub.readContract({ address: NET.ausd, abi: ERC20, functionName: "balanceOf", args: [address] }),
-    pub.readContract({ address: NET.exchange, abi: EXCHANGE, functionName: "getAccountByAddr", args: [address] }),
+    // Perpl reverts getAccountByAddr for an address with no account yet; that just means "no account".
+    pub
+      .readContract({ address: NET.exchange, abi: EXCHANGE, functionName: "getAccountByAddr", args: [address] })
+      .catch(() => ({ accountId: 0n, balanceCNS: 0n })),
     pub.readContract({ address: NET.exchange, abi: EXCHANGE, functionName: "getMinAccountOpenCNS" }),
   ]);
   let position: Snapshot["position"] = null;
