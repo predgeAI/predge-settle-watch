@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { APP_IDENTITY, CLUSTERS, DEFAULT_CLUSTER } from "../config";
 import { LEAGUE_API, LEAGUE_EVM } from "./config";
-import * as passkey from "../monad/passkey";
+import * as signer from "../monad/signer";
 import { checkSignInMessage, leagueHost } from "./logic";
 import { loadWallet } from "../store";
 import { api, LeagueError, saveSession, type Session } from "./api";
@@ -36,7 +36,7 @@ const toBase58 = (b64: string) => new PublicKey(Buffer.from(b64, "base64")).toBa
  */
 /** Monad edition: the passkey wallet signs the server's challenge with personal_sign. No fee, no transaction. */
 async function signInWithPasskey(): Promise<Session> {
-  const account = passkey.current();
+  const account = signer.current();
   if (!account) throw new LeagueError("no_account", t("lg.err.noAccount"), 0);
   const address = account.address.toLowerCase();
   const { message } = await api.nonce(address);
@@ -44,7 +44,7 @@ async function signInWithPasskey(): Promise<Session> {
   if (bad) throw new LeagueError("bad_message", t("lg.err.badMessage"), 0);
   let signature: string;
   try {
-    signature = await account.signMessage({ message });
+    signature = await account.signMessage(message);
   } catch {
     throw new LeagueError("wallet", t("lg.err.wallet"), 0);
   }

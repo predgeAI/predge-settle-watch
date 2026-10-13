@@ -11,9 +11,11 @@ import { showDialog } from "../dialog";
 import * as haptic from "../haptic";
 import type { WatchItem } from "../store";
 import { TabHeader, TabScroll, short } from "./shared";
-import { btcMarket, closePosition, NET, openPerplAccount, placeShort, planShort, requestTestAusd, snapshot, usd, type Market, type Snapshot } from "../monad/chain";
+import { btcMarket, closePosition, NET, openPerplAccount, placeShort, planShort, requestTestAusd, snapshot, usd, type AnyAccount, type Market, type Snapshot } from "../monad/chain";
 import * as passkey from "../monad/passkey";
 import { IS_MONAD } from "../edition";
+import * as signerMod from "../monad/signer";
+import type { Signer } from "../monad/signer";
 import { IntegrationsModal, L, LButton } from "../monad/IntegrationsScreen";
 import { MonadFlow } from "../monad/Flow";
 
@@ -51,7 +53,11 @@ function cryptoExposure(items: WatchItem[]) {
 }
 
 export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["refreshControl"]; items: WatchItem[]; onWatch?: (id: string) => void }) {
-  const [account, setAccount] = useState<LocalAccount | undefined>(passkey.current());
+  const [pkAccount, setAccount] = useState<LocalAccount | undefined>(passkey.current());
+  // Monad edition: whichever wallet is signed in (passkey, email or wallet) is the one used here.
+  const [sig, setSig] = useState<Signer | undefined>(IS_MONAD ? signerMod.current() : undefined);
+  useEffect(() => (IS_MONAD ? signerMod.onSignerChange(setSig) : undefined), []);
+  const account: AnyAccount | undefined = IS_MONAD ? sig : pkAccount;
   const [hasCred, setHasCred] = useState(false);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [market, setMarket] = useState<Market | null>(null);
@@ -151,7 +157,7 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
         <>
           <TabHeader title="MONAD" sub="Polymarket settlement risk, verified on your phone and on Monad." />
           <MonadFlow
-            account={account}
+            account={sig}
             watching={p.items.map((i) => i.marketId ?? i.key)}
             onWatch={(id) => p.onWatch?.(id)}
             onHedge={() => setWalletOpen(true)}
@@ -206,7 +212,8 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
                 kind="ghost"
                 small
                 onPress={() => {
-                  passkey.signOut();
+                  if (IS_MONAD) void sig?.signOut();
+                  else passkey.signOut();
                   setAccount(undefined);
                   setSnap(null);
                 }}

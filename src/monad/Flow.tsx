@@ -4,7 +4,7 @@
 // fingerprint) test-dollar transactions on Kuru from the passkey wallet.
 import React, { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
-import type { LocalAccount } from "viem";
+import * as Clipboard from "expo-clipboard";
 import { Text } from "../Text";
 import { PX } from "../theme";
 import * as haptic from "../haptic";
@@ -13,7 +13,13 @@ import { fetchSettlementRisk, type SettlementRisk } from "../api";
 import { verifyRecord, type Verification } from "../verify";
 import { AURORA, auroraQuote, DEMO_WALLET, FAMOUS, guardDecision, NANSEN_EXPOSURE, readMainnetVerdict, usd0, type Verdict } from "./integrations";
 import { EXPLORER } from "./networks";
-import { heldNotes, insure, NOTE_MARKET, planInsure } from "./kuru";
+import { heldNotes, insure, MIN_TEST_MON, NOTE_MARKET, planInsure, testMon } from "./kuru";
+import * as signer from "./signer";
+import { kindLabel, type Signer } from "./signer";
+import { signInWithDynamic } from "./dynamic";
+import { PrivyEmailLogin } from "./PrivyLogin";
+
+const FAUCET = "https://faucet.monad.xyz";
 import * as passkey from "./passkey";
 import { L, LButton, useLive } from "./IntegrationsScreen";
 import MEASURED from "./measured.json";
@@ -59,7 +65,7 @@ function Small({ text, url }: { text: string; url?: string }) {
   );
 }
 
-export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void; onHedge: () => void; onHowItWorks: () => void; account: LocalAccount | undefined }) {
+export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void; onHedge: () => void; onHowItWorks: () => void; account: Signer | undefined }) {
   const [market, setMarket] = useState(NOTE_MARKET);
   const f = FAMOUS.find((x) => x.id === market)!;
 
@@ -74,22 +80,31 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
   const quote = useLive(quoteFn, true);
 
   const [held, setHeld] = useState<number | null>(null);
+  const [gas, setGas] = useState<bigint | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [lastTx, setLastTx] = useState<string | null>(null);
-  useEffect(() => {
-    if (p.account && market === NOTE_MARKET) heldNotes(p.account.address).then(setHeld).catch(() => setHeld(null));
-    else setHeld(null);
-  }, [p.account, market, lastTx]);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const refreshWallet = useCallback(() => {
+    if (!p.account) {
+      setHeld(null);
+      setGas(null);
+      return;
+    }
+    heldNotes(p.account.address).then(setHeld).catch(() => setHeld(null));
+    testMon(p.account.address).then(setGas).catch(() => setGas(null));
+  }, [p.account]);
+  useEffect(refreshWallet, [refreshWallet, market, lastTx]);
 
   const r = check.data?.r;
   const verified = !!check.data?.v.verified;
   const guard = r ? guardDecision(r, "Yes") : null;
   const nansen = NANSEN_EXPOSURE.marketId === market ? NANSEN_EXPOSURE : null;
   const watched = p.watching.includes(market);
+  const lowGas = !!p.account && gas !== null && gas < MIN_TEST_MON;
 
-  const signIn = async (): Promise<LocalAccount | null> => {
+  const signInPasskey = async (): Promise<boolean> => {
     try {
-      if (await passkey.storedCredential()) return await passkey.signIn();
+      if (await passkey.storedCredential()) return !!(await passkey.signIn());
       // First time on this phone: use an existing predge.io passkey, or make one.
       const create = await new Promise<boolean | null>((res) =>
         showDialog("Your fingerprint is your wallet", "Use a passkey you already have for predge.io, or create one now. No seed phrase either way.", [
@@ -98,35 +113,60 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
           { text: "Create", onPress: () => res(true) },
         ])
       );
-      if (create === null) return null;
-      return create ? await passkey.createAndSignIn() : await passkey.signIn();
+      if (create === null) return false;
+      return !!(create ? await passkey.createAndSignIn() : await passkey.signIn());
     } catch (e) {
       showDialog("Fingerprint sign-in did not finish", passkey.describeError(e), undefined, { variant: "error" });
-      return null;
+      return false;
     }
   };
 
-  const doInsure = async () => {
+  const signInWallet = async () => {
     try {
+      const s = await signInWithDynamic();
+      if (!s) showDialog("Wallet sign-in did not finish", "Try again.", undefined, { variant: "error" });
+    } catch (e) {
+      showDialog("Wallet sign-in did not finish", passkey.describeError(e), undefined, { variant: "error" });
+    }
+  };
+
+  const getTestMon = async () => {
+    if (!p.account) return;
+    await Clipboard.setStringAsync(p.account.address);
+    showDialog("Get free test MON", "Fees for test dollars are paid in test MON, which is free. Your address is copied: paste it at the Monad faucet, then come back and tap Insure again.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Open faucet", onPress: () => open(FAUCET) },
+    ]);
+  };
+
+  const buy = async () => {
+    const s = signer.current();
+    if (!s) return showDialog("Sign in first", "Pick fingerprint, email or wallet in step 5 below. No seed phrase.");
+    try {
+      if ((await testMon(s.address)) < MIN_TEST_MON) return getTestMon();
       const plan = await planInsure(4);
       showDialog(
         "Insure against a flip?",
         [
+          held ? `You already hold ${held.toFixed(1)} notes. This buys ${plan.notes} more.` : "",
           `Buys ${plan.notes} notes at $${plan.askUsd.toFixed(2)} each, about $${plan.costUsd.toFixed(2)}.`,
           `Each note pays $1 if the answer under dispute flips from ${firstProposal(r!) ?? "the proposal"}.`,
           "",
-          "Uses test dollars, not real money. You confirm with your fingerprint next.",
-        ].join("\n"),
+          `Uses test dollars, not real money.${s.kind === "passkey" ? " You confirm with your fingerprint next." : ""}`,
+        ]
+          .filter((x, i) => i > 0 || x)
+          .join("\n"),
         [
           { text: "Cancel", style: "cancel" },
           {
             text: "Confirm",
             onPress: async () => {
-              const account = await signIn(); // fresh fingerprint for every purchase
-              if (!account) return;
+              if (s.kind === "passkey" && !(await signInPasskey())) return; // fresh fingerprint for every purchase
+              const who = signer.current();
+              if (!who) return;
               setBusy("Starting...");
               try {
-                const hash = await insure(account, plan, setBusy);
+                const hash = await insure(who, plan, setBusy);
                 setLastTx(hash);
                 haptic.success();
                 showDialog("You're insured", `${plan.notes} notes bought. If the answer flips, each pays $1.`, [
@@ -158,8 +198,26 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
         <>
           <Text style={fst.body}>Don't buy YES now: it is in dispute. Insure against a flip instead.</Text>
           <View style={{ height: 10 }} />
-          <LButton title={busy ?? (held ? `INSURED: ${held.toFixed(1)} NOTES · BUY MORE` : "INSURE AGAINST A FLIP")} onPress={doInsure} disabled={!!busy} stretch />
-          {lastTx ? <Small text="Recorded on Monad" url={`${EXPLORER.testnet}/tx/${lastTx}`} /> : null}
+          {busy ? (
+            <LButton title={busy} onPress={() => undefined} disabled stretch />
+          ) : held ? (
+            <>
+              <Text style={fst.big}>You're insured ({held.toFixed(1)} notes).</Text>
+              <View style={fst.row}>
+                {lastTx ? <Small text="Recorded on Monad" url={`${EXPLORER.testnet}/tx/${lastTx}`} /> : null}
+              </View>
+              <View style={{ height: 6 }} />
+              <LButton small ghost title="BUY MORE" onPress={buy} />
+            </>
+          ) : lowGas ? (
+            <>
+              <Text style={fst.small}>Needs a little free test MON for fees first.</Text>
+              <View style={{ height: 6 }} />
+              <LButton title="GET FREE TEST MON" onPress={getTestMon} stretch />
+            </>
+          ) : (
+            <LButton title="INSURE AGAINST A FLIP" onPress={buy} stretch />
+          )}
         </>
       );
     } else if (!guard.allowed && isBtcThreshold(r.market.question)) {
@@ -240,12 +298,24 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
 
       <Step n={5} title="Your key">
         {p.account ? (
-          <Text style={fst.body}>Signed in with your fingerprint. No seed phrase, nothing to write down.</Text>
+          <>
+            <Text style={fst.body}>Signed in with your {kindLabel(p.account.kind)}. No seed phrase, nothing to write down.</Text>
+            <LButton small ghost title="SIGN OUT" onPress={() => void p.account?.signOut()} />
+          </>
         ) : (
           <>
-            <Text style={fst.body}>Your fingerprint is your wallet. No seed phrase.</Text>
+            <Text style={fst.body}>Your fingerprint, email or wallet is your account. No seed phrase.</Text>
             <View style={{ height: 10 }} />
-            <LButton title="SIGN IN WITH FINGERPRINT" onPress={() => void signIn()} stretch />
+            <LButton title="FINGERPRINT" onPress={() => void signInPasskey()} stretch />
+            <View style={{ height: 8 }} />
+            <LButton title="EMAIL" ghost onPress={() => setEmailOpen((o) => !o)} stretch />
+            {emailOpen ? (
+              <View style={{ marginTop: 8 }}>
+                <PrivyEmailLogin onDone={() => setEmailOpen(false)} />
+              </View>
+            ) : null}
+            <View style={{ height: 8 }} />
+            <LButton title="WALLET" ghost onPress={() => void signInWallet()} stretch />
           </>
         )}
       </Step>
@@ -260,6 +330,21 @@ export function MonadFlow(p: { watching: string[]; onWatch: (id: string) => void
 
       <View style={{ height: 14 }} />
       <LButton title="HOW IT WORKS: 9 INTEGRATIONS" ghost onPress={p.onHowItWorks} stretch />
+
+      <View style={[fst.card, { marginTop: 14 }]}>
+        <Text style={fst.kicker}>HOW TO TRY IT (2 MIN)</Text>
+        {[
+          "Sign in (step 5): fingerprint, email or wallet.",
+          "A new wallet needs a little free test MON for fees: tap Get free test MON, paste the copied address at the Monad faucet, come back.",
+          "Pick Trump \"Ammunition\" and tap Insure against a flip. Confirm. Test dollars only.",
+          "See \"You're insured\" and the Recorded on Monad link.",
+          "Tap How it works: 9 integrations.",
+        ].map((x, i) => (
+          <Text key={i} style={[fst.body, { marginTop: 6 }]}>
+            {i + 1}. {x}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }

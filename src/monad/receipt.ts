@@ -4,6 +4,7 @@
 import { createPublicClient, createWalletClient, http, stringToHex, type Hex, type LocalAccount } from "viem";
 import { monadTestnet } from "viem/chains";
 import type { Cluster } from "../config";
+import type { Signer } from "./signer";
 import { monadMainnet } from "./networks";
 
 const NETS = {
@@ -25,12 +26,13 @@ export async function balanceMon(address: Hex, cluster: Cluster): Promise<number
 }
 
 /** Sends the receipt and waits for it to be included. Returns the transaction hash. */
-export async function sendReceipt(account: LocalAccount, text: string, cluster: Cluster): Promise<Hex> {
-  const { pub, wallet } = clientsFor(cluster, account);
+export async function sendReceipt(signer: Signer, text: string, cluster: Cluster): Promise<Hex> {
+  const { pub } = clientsFor(cluster);
+  const wallet = await signer.walletClient(NETS[cluster].chain, NETS[cluster].rpc);
   const data = stringToHex(text);
-  const gas = await pub.estimateGas({ account, to: account.address, value: 0n, data });
+  const gas = await pub.estimateGas({ account: signer.address, to: signer.address, value: 0n, data });
   // Monad charges the gas limit, so keep it close to the estimate.
-  const hash = await wallet!.sendTransaction({ account, chain: NETS[cluster].chain, to: account.address, value: 0n, data, gas: (gas * 12n) / 10n });
+  const hash = await wallet.sendTransaction({ account: wallet.account!, chain: NETS[cluster].chain, to: signer.address, value: 0n, data, gas: (gas * 12n) / 10n });
   const rc = await pub.waitForTransactionReceipt({ hash, timeout: 60_000 });
   if (rc.status !== "success") throw new Error(`Transaction reverted: ${hash}`);
   return hash;

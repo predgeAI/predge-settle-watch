@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
@@ -97,7 +98,11 @@ import { loadPositionsState, savePositionsState, type PositionsState } from "./s
 import { IS_MONAD } from "./src/edition";
 import * as passkey from "./src/monad/passkey";
 import { balanceMon, receiptError, sendReceipt } from "./src/monad/receipt";
-import type { LocalAccount } from "viem";
+import * as signer from "./src/monad/signer";
+import type { Signer } from "./src/monad/signer";
+import { PrivyRoot, PrivySync } from "./src/monad/PrivyLogin";
+import { dynamicClient } from "./src/monad/dynamic";
+import { MonadOnboarding } from "./src/monad/Onboarding";
 
 // Use the phone's language for the intro until the saved choice loads.
 setLanguage(detectLanguage());
@@ -207,7 +212,7 @@ export default function App() {
   const HOME_TAB: TabId = IS_MONAD ? "monad" : "today";
   const [tab, setTab] = useState<TabId>(HOME_TAB);
   // Monad edition: the passkey wallet from the MONAD tab signs receipts.
-  const [monadAccount, setMonadAccount] = useState<LocalAccount | undefined>(IS_MONAD ? passkey.current() : undefined);
+  const [monadAccount, setMonadAccount] = useState<Signer | undefined>(IS_MONAD ? signer.current() : undefined);
   const [monadBalance, setMonadBalance] = useState<number | null>(null);
   // "Watch my positions": a Polymarket wallet address kept on this phone, synced on foreground and on demand.
   const [positions, setPositions] = useState<PositionsState>({});
@@ -576,10 +581,10 @@ export default function App() {
     [persist]
   );
 
-  useEffect(() => (IS_MONAD ? passkey.onAccountChange(setMonadAccount) : undefined), []);
+  useEffect(() => (IS_MONAD ? signer.onSignerChange(setMonadAccount) : undefined), []);
   const refreshMonadBalance = useCallback(async () => {
     if (!IS_MONAD) return;
-    const a = passkey.current();
+    const a = signer.current();
     if (!a) return setMonadBalance(null);
     try {
       setMonadBalance(await balanceMon(a.address, settings?.cluster ?? DEFAULT_SETTINGS.cluster));
@@ -718,7 +723,7 @@ export default function App() {
   /** Monad edition: the receipt is a transaction from the passkey wallet, signed on this phone. */
   const doAnchorMonad = useCallback(
     async (item: WatchItem, action: "watch" | "acknowledge") => {
-      const account = passkey.current();
+      const account = signer.current();
       const v = item.verification;
       const last = item.last;
       if (!account || !v || !usableForReceipt(v) || !v.packHash || !last) return;
@@ -752,7 +757,7 @@ export default function App() {
 
   const onAnchor = useCallback(
     (item: WatchItem, action: "watch" | "acknowledge") => {
-      if (IS_MONAD && !passkey.current()) {
+      if (IS_MONAD && !signer.current()) {
         return showDialog(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }), [
           { text: t("common.cancel"), style: "cancel" },
           {
@@ -889,6 +894,11 @@ export default function App() {
     if (settings && !settings.onboarded) setTab(HOME_TAB);
   }, [settings?.onboarded]);
 
+  // The Monad edition has no animated intro, so the native splash hides once settings load.
+  useEffect(() => {
+    if (IS_MONAD && settings) SplashScreen.hideAsync().catch(() => undefined);
+  }, [settings]);
+
   const lastCheck = items.map((i) => i.lastPolledAt ?? "").sort().pop();
 
 
@@ -923,7 +933,16 @@ export default function App() {
       </SafeAreaView>
     );
   } else if (!settings.onboarded) {
-    content = <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onWatchExample={watchExample} onDone={finishOnboarding} />;
+    content = IS_MONAD ? (
+      <MonadOnboarding
+        onDone={() => {
+          setTab("monad");
+          void finishOnboarding(true);
+        }}
+      />
+    ) : (
+      <Onboarding initialFeed={{ interests: settings.interests, country: settings.country }} onWatchExample={watchExample} onDone={finishOnboarding} />
+    );
   } else {
     content = (
       <SafeAreaView style={styles.root}>
@@ -998,7 +1017,7 @@ export default function App() {
           monadAddress={monadAccount?.address ?? null}
           monadBalance={monadBalance}
           onOpenMonad={() => setTab("monad")}
-          onMonadSignOut={() => passkey.signOut()}
+          onMonadSignOut={() => void signer.current()?.signOut()}
           updateSettings={updateSettings}
           onCheckNow={refreshAll}
           onDigestNow={onDigestNow}
@@ -1269,13 +1288,16 @@ export default function App() {
     );
   }
 
-  return (
+  const root = (
     <View style={styles.root}>
       <StatusBar style="light" />
       {content}
-      {!introDone ? <Intro onDone={() => setIntroDone(true)} /> : null}
+      {IS_MONAD ? <PrivySync /> : null}
+      {IS_MONAD && dynamicClient ? <dynamicClient.reactNative.WebView /> : null}
+      {!introDone && !IS_MONAD ? <Intro onDone={() => setIntroDone(true)} /> : null}
       <LearnHost onDone={() => award("learn", { ref: TOUR_REF })} onDiscover={() => setTab("discover")} onWatch={(id) => addMarket(id)} />
       <DialogHost />
     </View>
   );
+  return IS_MONAD ? <PrivyRoot>{root}</PrivyRoot> : root;
 }

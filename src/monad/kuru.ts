@@ -2,9 +2,9 @@
 // A CHANGE note pays 1 test dollar if the disputed proposal flips, so holding it insures a position
 // against a flip. Steps (all testnet, test dollars): TestUSD faucet -> approve the Kuru MarginAccount ->
 // deposit -> limit buy at the live best ask (fills against the book). Every step is simulated first.
-import { parseAbi, type Hex, type LocalAccount } from "viem";
+import { parseAbi, type Hex } from "viem";
 import { monadTestnet } from "viem/chains";
-import { createWalletClient, http } from "viem";
+import type { Signer } from "./signer";
 import { testnetClient as pub } from "./networks";
 import { KURU } from "./integrations";
 
@@ -43,18 +43,22 @@ export async function heldNotes(address: Hex): Promise<number> {
   return Number(b) / 1e6;
 }
 
-async function send(account: LocalAccount, req: any): Promise<Hex> {
-  const w = createWalletClient({ account, chain: monadTestnet, transport: http("https://testnet-rpc.monad.xyz", { timeout: 20_000 }) });
-  await pub.simulateContract({ ...req, account });
-  const est = await pub.estimateContractGas({ ...req, account });
-  const hash = await w.writeContract({ ...req, account, chain: monadTestnet, gas: (est * 13n) / 10n });
+/** Test MON for fees on Monad testnet (a fresh wallet has none). */
+export const MIN_TEST_MON = 5n * 10n ** 16n; // 0.05
+export const testMon = (address: Hex) => pub.getBalance({ address });
+
+async function send(signer: Signer, req: any): Promise<Hex> {
+  const w = await signer.walletClient(monadTestnet, "https://testnet-rpc.monad.xyz");
+  await pub.simulateContract({ ...req, account: signer.address });
+  const est = await pub.estimateContractGas({ ...req, account: signer.address });
+  const hash = await w.writeContract({ ...req, account: w.account!, chain: monadTestnet, gas: (est * 13n) / 10n });
   const rc = await pub.waitForTransactionReceipt({ hash, timeout: 60_000 });
   if (rc.status !== "success") throw new Error(`Transaction reverted: ${hash}`);
   return hash;
 }
 
 /** Runs the steps; onStep reports progress in plain words. Returns the buy transaction. */
-export async function insure(account: LocalAccount, plan: InsurePlan, onStep: (s: string) => void): Promise<Hex> {
+export async function insure(account: Signer, plan: InsurePlan, onStep: (s: string) => void): Promise<Hex> {
   const cost = BigInt(Math.ceil(plan.notes * plan.askUsd * 1e6)) + 10_000n; // + 0.01 for fees
   const [usd, allowance] = await Promise.all([
     pub.readContract({ address: TEST_USD, abi: USD_ABI, functionName: "balanceOf", args: [account.address] }),
