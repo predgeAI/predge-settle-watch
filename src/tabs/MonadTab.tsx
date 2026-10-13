@@ -14,7 +14,8 @@ import { TabHeader, TabScroll, short } from "./shared";
 import { btcMarket, closePosition, NET, openPerplAccount, placeShort, planShort, requestTestAusd, snapshot, usd, type Market, type Snapshot } from "../monad/chain";
 import * as passkey from "../monad/passkey";
 import { IS_MONAD } from "../edition";
-import { IntegrationsModal, L, LButton, MonadHero } from "../monad/IntegrationsScreen";
+import { IntegrationsModal, L, LButton } from "../monad/IntegrationsScreen";
+import { MonadFlow } from "../monad/Flow";
 
 // The Monad edition draws this tab light, with one accent; the default edition keeps the pixel look.
 const Box: typeof PixelBox = IS_MONAD
@@ -49,7 +50,7 @@ function cryptoExposure(items: WatchItem[]) {
   });
 }
 
-export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["refreshControl"]; items: WatchItem[] }) {
+export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["refreshControl"]; items: WatchItem[]; onWatch?: (id: string) => void }) {
   const [account, setAccount] = useState<LocalAccount | undefined>(passkey.current());
   const [hasCred, setHasCred] = useState(false);
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -61,6 +62,9 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
 
   const exposure = useMemo(() => cryptoExposure(p.items), [p.items]);
   const [integrations, setIntegrations] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(!IS_MONAD);
+  // Sign-in can also happen from the Monad edition's home flow; follow it here.
+  useEffect(() => passkey.onAccountChange(setAccount), []);
 
   useEffect(() => {
     passkey.storedCredential().then((c) => setHasCred(!!c));
@@ -146,16 +150,30 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
       {IS_MONAD ? (
         <>
           <TabHeader title="MONAD" sub="Polymarket settlement risk, verified on your phone and on Monad." />
-          <MonadHero onOpen={() => setIntegrations(true)} />
-          <IntegrationsModal visible={integrations} onClose={() => setIntegrations(false)} onWallet={() => setIntegrations(false)} />
-          <Text style={[st.kicker, { marginTop: 26 }]}>YOUR PASSKEY WALLET · MONAD TESTNET</Text>
-          <Text style={st.fine}>Perpl hedge with AUSD margin from Agora. Test tokens only.</Text>
+          <MonadFlow
+            account={account}
+            watching={p.items.map((i) => i.marketId ?? i.key)}
+            onWatch={(id) => p.onWatch?.(id)}
+            onHedge={() => setWalletOpen(true)}
+            onHowItWorks={() => setIntegrations(true)}
+          />
+          <IntegrationsModal
+            visible={integrations}
+            onClose={() => setIntegrations(false)}
+            onWallet={() => {
+              setIntegrations(false);
+              setWalletOpen(true);
+            }}
+          />
+          <View style={{ height: 12 }} />
+          <LButton title={walletOpen ? "MY WALLET ▾" : "MY WALLET ▸"} ghost onPress={() => setWalletOpen((o) => !o)} stretch />
+          {walletOpen ? <Text style={st.fine}>Perpl hedge with AUSD margin from Agora. Test tokens only.</Text> : null}
         </>
       ) : (
         <TabHeader title="MONAD" sub="Passkey wallet, AUSD and Perpl hedges. Monad testnet." right={<Chip text="TESTNET" color={C.purpleSoft} />} />
       )}
 
-      {!account ? (
+      {!walletOpen ? null : !account ? (
         <Box border={C.purple} bg={C.surface} style={st.card} inner={st.pad}>
           <Text style={st.kicker}>SIGN IN</Text>
           <Text style={st.body}>

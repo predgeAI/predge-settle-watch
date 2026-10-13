@@ -156,8 +156,9 @@ export function checkSignInMessage(message: string, p: { domain: string; address
   if (typeof message !== "string" || !message || message.length > 1000) return "length";
   if (/\r/.test(message)) return "line endings";
   const lines = message.split("\n");
-  const head = /^(\S+) wants you to sign in with your Solana account:$/.exec(lines[0] ?? "");
-  if (!head) return "header";
+  // EVM addresses (the Monad edition's passkey wallet) get the Sign-In-With-Ethereum header instead.
+  const head = /^(\S+) wants you to sign in with your (Solana|Ethereum) account:$/.exec(lines[0] ?? "");
+  if (!head || (head[2] === "Ethereum") !== p.address.startsWith("0x")) return "header";
   if (head[1].toLowerCase() !== p.domain.toLowerCase()) return "domain";
   if (lines[1] !== p.address) return "address";
   const fields = new Map<string, string>();

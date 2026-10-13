@@ -1,6 +1,6 @@
 # Settle Watch
 
-## Monad edition (branch `edition/monad`, release `v0.6.0-monad`)
+## Monad edition (branch `edition/monad`, release `v0.6.1-monad`)
 
 **A third of disputed Polymarket markets settle differently than proposed. Settle Watch checks the settlement on your phone and on Monad.**
 
@@ -8,11 +8,19 @@ From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 Polymarket marke
 
 | | |
 |---|---|
-| APK | [v0.6.0-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.0-monad) (Android 7+, arm64) |
+| APK | [v0.6.1-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.1-monad) (Android 7+, arm64) |
 | Package | `io.predge.settlewatch.monad`, installs next to other Settle Watch builds |
 | Chains | Monad mainnet (chain 143) for verdicts and reads, Monad testnet (10143) for Perpl, Agora, Kuru, CRE and default receipts |
 
-**MONAD tab (opens first).** One sentence, one famous example with its live Monad mainnet verdict, and **Integrations**: one card per sponsor, each with one live, read-only action and a proof link.
+**MONAD tab (opens first): one market, one flow.** One sentence, four real markets to pick from (Trump "Ammunition" is selected: disputed twice, in a vote now), then five steps in plain words:
+
+1. **Check**: the signed Predge record, verified on the phone, and the verdict recorded on Monad ("Verified ✓", "Recorded on Monad ↗").
+2. **Who's exposed**: Nansen holder cost on each side (saved result of a paid call, 12 Oct).
+3. **Act, one tap**: when the guard says don't buy, **Insure against a flip** buys CHANGE dispute notes on Kuru (each pays $1 if the disputed answer flips; test dollars, confirm dialog plus fingerprint). For BTC price markets the action is a Perpl BTC short; otherwise **Alert me when it settles** adds the market to the watchlist.
+4. **Add money**: live quote for USDC from Base to Monad (Aurora intents); data is paid per call with x402 in USDC on Monad.
+5. **Your key**: a mera passkey. Fingerprint, no seed phrase.
+
+Then **Only possible on Monad** and **How it works: 9 integrations**, one card per sponsor, each with one live, read-only action and a proof link:
 
 | Card | Live action | Proof |
 |---|---|---|
@@ -28,7 +36,9 @@ From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 Polymarket marke
 
 Nothing on the Integrations screen signs or sends a transaction.
 
-**Everything else** (Today, Play, Discover, Me, Daily Dispute, Rule Detective, badges, alerts, widget, share card, QR) works as in the default build. Receipts are Monad transactions from the mera passkey wallet: a zero-value transaction to itself whose calldata is the receipt text, on Monad testnet by default or mainnet after a confirmation. Left out of this edition: the evidence-pack payment, token-holder perks and the League (its sign-in server accepts only the default build's wallet signature).
+**Everything else** (Today, Play, Discover, Me, Daily Dispute, Rule Detective, badges, alerts, widget, share card, QR) works as in the default build. Receipts are Monad transactions from the mera passkey wallet: a zero-value transaction to itself whose calldata is the receipt text, on Monad testnet by default or mainnet after a confirmation. The League (friends, weekly XP, clans) signs in with the passkey wallet: the server issues a Sign-In-With-Ethereum style challenge and checks an EIP-191 `personal_sign` signature (predgeAI/settle-watch-league). Left out of this edition: the evidence-pack payment and token-holder perks.
+
+**Only possible on Monad: how we measured it.** `scripts/monad-measure.ts` reads Predge's mainnet run files (`monad/mainnet/runs/live-*.json` in predgeAI/erc8004-outcome-validator), and for every verdict with both a request and a response transaction fetches both from `https://rpc.monad.xyz`. Request-to-verdict time is the response block's timestamp minus the request block's timestamp; cost is the response transaction's gas limit times its effective gas price, because Monad charges the gas limit, not gas used. Result (2026-10-13 11:05 UTC): 26 verdicts, median 8 s and 25 blocks from request to verdict, median 0.0243 MON per verdict, 0.0464 MON per request plus verdict. Stored in `src/monad/measured.json`.
 
 Build it:
 
@@ -36,6 +46,7 @@ Build it:
 npm ci
 EXPO_PUBLIC_EDITION=monad npx tsx scripts/monad-copy-check.ts   # no other chain named in any language
 EXPO_PUBLIC_EDITION=monad npx tsx scripts/monad-live.ts         # every live read, read-only
+npx tsx scripts/monad-measure.ts <path>/monad/mainnet/runs       # refresh the Monad latency and cost figures
 EXPO_PUBLIC_EDITION=monad npx expo prebuild --platform android --clean
 cd android && EXPO_PUBLIC_EDITION=monad ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 ```
@@ -44,7 +55,7 @@ Without `EXPO_PUBLIC_EDITION` the build is the default app described on the `mai
 
 ## Security
 
-Every record is signed by Predge with ed25519 and verified on the phone against pinned keys before it is shown as verified. Nothing on the Integrations screen signs or sends a transaction; receipts and the Perpl hedge need a passkey confirmation.
+Every record is signed by Predge with ed25519 and verified on the phone against pinned keys before it is shown as verified. Nothing on the Integrations screen signs or sends a transaction; receipts, the Kuru notes and the Perpl hedge need a confirm dialog and the passkey; nothing is sent to mainnet without a confirm dialog.
 
 ## Support
 

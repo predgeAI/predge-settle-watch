@@ -979,7 +979,7 @@ export default function App() {
           onWatch={(id) => addMarket(id)}
           add={add}
         />
-        <MonadTab active={tab === "monad"} refreshControl={refreshControl()} items={items} />
+        <MonadTab active={tab === "monad"} refreshControl={refreshControl()} items={items} onWatch={(id) => void addMarket(id)} />
         <MeTab
           active={tab === "me"}
           refreshControl={refreshControl()}

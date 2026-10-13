@@ -11,7 +11,7 @@ if (!IS_MONAD) {
 
 // Strings that only the default edition's features show (evidence pack payment, token perks, devnet
 // faucet, wallet-app errors, League sign-in). The Monad edition does not render these features.
-const HIDDEN = [/^skr\./, /^perks\./, /^faucet\./, /^lg\./, /^badge\.(skr_holder|pack_opener)\./, /^xp\.pack_open$/, /^wallet\.(devnetSol|connectFail|errNetwork|errExpired|errDeclined|errNoSig|errNoAccount|errOtherAccount|errTxChanged|errDropped|errNotConfirmed|errClosed)$/, /^anchor\.(resignTitle|resignBody|droppedBody|savedConfirmed|notFinishedBody)$/];
+const HIDDEN = [/^skr\./, /^perks\./, /^faucet\./, /^badge\.(skr_holder|pack_opener)\./, /^xp\.pack_open$/, /^wallet\.(devnetSol|connectFail|errNetwork|errExpired|errDeclined|errNoSig|errNoAccount|errOtherAccount|errTxChanged|errDropped|errNotConfirmed|errClosed)$/, /^anchor\.(resignTitle|resignBody|droppedBody|savedConfirmed|notFinishedBody)$/];
 const BAD = /solana|\bskr\b|seeker|phantom|solflare|mobile wallet adapter|\bmwa\b|devnet|\bsol\b|lamport|seed vault|blockhash|\bspl\b|ソラナ|索拉纳|솔라나|солан/i;
 
 let bad = 0;

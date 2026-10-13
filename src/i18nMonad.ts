@@ -7,6 +7,7 @@ type Over = Partial<Record<Key, string>>;
 
 export const MONAD: Record<Lang, Over> = {
   en: {
+    "lg.signInBody": "Sign in with your passkey wallet (from the MONAD tab) to play with friends. It signs one free message: no transaction, no fee. Other players only see the nickname you pick, never your address.",
     "common.confirmingSolana": "Confirming on Monad...",
     "timeline.receipt": "Receipt saved on Monad {net} ({action})",
     "xp.anchor": "Saved a receipt on Monad",
@@ -33,6 +34,7 @@ export const MONAD: Record<Lang, Over> = {
     "share.message": "I verified this Polymarket market on my phone with Settle Watch. Receipt on Monad: {url}",
   },
   es: {
+    "lg.signInBody": "Entra con tu billetera passkey (de la pestaña MONAD) para jugar con amigos. Firma un mensaje gratis: sin transacción, sin comisión. Los demás jugadores solo ven el apodo que elijas, nunca tu dirección.",
     "common.confirmingSolana": "Confirmando en Monad...",
     "timeline.receipt": "Recibo guardado en Monad {net} ({action})",
     "xp.anchor": "Guardaste un recibo en Monad",
@@ -59,6 +61,7 @@ export const MONAD: Record<Lang, Over> = {
     "share.message": "Verifiqué este mercado de Polymarket en mi teléfono con Settle Watch. Recibo en Monad: {url}",
   },
   pt: {
+    "lg.signInBody": "Entre com sua carteira passkey (da aba MONAD) para jogar com amigos. Ela assina uma mensagem grátis: sem transação, sem taxa. Os outros jogadores só veem o apelido que você escolher, nunca seu endereço.",
     "common.confirmingSolana": "Confirmando na Monad...",
     "timeline.receipt": "Recibo salvo na Monad {net} ({action})",
     "xp.anchor": "Salvou um recibo na Monad",
@@ -85,6 +88,7 @@ export const MONAD: Record<Lang, Over> = {
     "share.message": "Verifiquei este mercado da Polymarket no meu celular com o Settle Watch. Recibo na Monad: {url}",
   },
   zh: {
+    "lg.signInBody": "用你的通行密钥钱包（在 MONAD 标签页）登录，和好友一起玩。它只签署一条免费消息：没有交易，也没有手续费。其他玩家只能看到你选的昵称，看不到你的地址。",
     "common.confirmingSolana": "正在 Monad 上确认...",
     "timeline.receipt": "回执已保存到 Monad {net}（{action}）",
     "xp.anchor": "在 Monad 上保存了一张回执",
@@ -111,6 +115,7 @@ export const MONAD: Record<Lang, Over> = {
     "share.message": "我用 Settle Watch 在手机上验证了这个 Polymarket 市场。Monad 上的回执：{url}",
   },
   ko: {
+    "lg.signInBody": "패스키 지갑(MONAD 탭)으로 로그인해서 친구와 함께 즐기세요. 무료 메시지 하나에 서명할 뿐, 트랜잭션도 수수료도 없어요. 다른 플레이어는 내가 고른 닉네임만 보고 주소는 절대 보지 못해요.",
     "common.confirmingSolana": "Monad에서 확인 중...",
     "timeline.receipt": "Monad {net}에 영수증 저장됨 ({action})",
     "xp.anchor": "Monad에 영수증을 저장했어요",
@@ -137,6 +142,7 @@ export const MONAD: Record<Lang, Over> = {
     "share.message": "Settle Watch로 이 Polymarket 마켓을 내 휴대폰에서 검증했어요. Monad 영수증: {url}",
   },
   ru: {
+    "lg.signInBody": "Войди через кошелёк на passkey (вкладка MONAD), чтобы играть с друзьями. Он подписывает одно бесплатное сообщение: без транзакции и без комиссии. Другие игроки видят только твой ник, но не адрес.",
     "common.confirmingSolana": "Подтверждаем в Monad...",
     "timeline.receipt": "Квитанция сохранена в Monad {net} ({action})",
     "xp.anchor": "Квитанция сохранена в Monad",

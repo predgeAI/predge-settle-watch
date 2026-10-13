@@ -51,7 +51,7 @@ const open = (url: string) => {
 };
 
 /** A live read with its own busy, result and error state. */
-function useLive<T>(fn: () => Promise<T>, auto: boolean) {
+export function useLive<T>(fn: () => Promise<T>, auto: boolean) {
   const [state, setState] = useState<{ busy: boolean; data: T | null; err: string | null; at: number | null }>({ busy: false, data: null, err: null, at: null });
   const run = useCallback(async () => {
     setState((s) => ({ ...s, busy: true, err: null }));
