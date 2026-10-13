@@ -9,7 +9,7 @@ export class LeagueError extends Error {
   }
 }
 
-export interface Session { token: string; expiresAt: string }
+export interface Session { token: string; expiresAt: string; /** Monad edition: the wallet this session belongs to (lowercase). */ wallet?: string }
 export interface Me {
   address: string; nickname: string | null; avatar: string; needsNickname: boolean; onboarded: boolean;
   inviteCode: string; inviteLink: string; deepLink: string; friends: number;

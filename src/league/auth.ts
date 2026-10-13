@@ -6,7 +6,7 @@ import { LEAGUE_API, LEAGUE_EVM } from "./config";
 import * as signer from "../monad/signer";
 import { checkSignInMessage, leagueHost } from "./logic";
 import { loadWallet } from "../store";
-import { api, LeagueError, saveSession, type Session } from "./api";
+import { api, LeagueError, loadSession, saveSession, type Session } from "./api";
 import { t } from "../i18n";
 
 /**
@@ -48,9 +48,17 @@ async function signInWithPasskey(): Promise<Session> {
   } catch {
     throw new LeagueError("wallet", t("lg.err.wallet"), 0);
   }
-  const session = await api.verify(address, message, signature);
+  const session = { ...(await api.verify(address, message, signature)), wallet: address };
   await saveSession(session);
   return session;
+}
+
+/** Monad edition: a League session belongs to one wallet; drop it when another wallet (or none) is signed in. */
+export async function dropForeignSession(): Promise<void> {
+  if (!LEAGUE_EVM) return;
+  const s = await loadSession();
+  const cur = signer.current()?.address.toLowerCase();
+  if (s && s.wallet !== cur) await saveSession(null);
 }
 
 export async function signInWithWallet(): Promise<Session> {

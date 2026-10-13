@@ -11,14 +11,14 @@ module.exports = ({ config }) => {
   return {
     ...config,
     name: "Settle Watch",
-    version: "0.6.2-monad",
+    version: "0.6.3-monad",
     scheme: "settlewatchmonad",
     icon: "./assets/monad/icon.png",
     backgroundColor: "#0e0b1f",
     splash: { ...config.splash, image: "./assets/monad/splash-icon.png", backgroundColor: "#0e0b1f" },
     android: {
       ...config.android,
-      versionCode: 3,
+      versionCode: 4,
       adaptiveIcon: {
         ...config.android.adaptiveIcon,
         foregroundImage: "./assets/monad/adaptive-icon.png",
