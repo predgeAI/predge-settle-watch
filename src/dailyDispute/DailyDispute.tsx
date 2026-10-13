@@ -3,6 +3,7 @@ import { Modal, SafeAreaView, ScrollView, StyleSheet, View } from "react-native"
 import { Text } from "../Text";
 import { t } from "../i18n";
 import * as Clipboard from "expo-clipboard";
+import { IS_MONAD } from "../edition";
 import raw from "./puzzles.json";
 import { dayOf, XP, type ActionKind } from "../game";
 import { alpha, C, PX, T } from "../theme";
@@ -12,7 +13,8 @@ import * as haptic from "../haptic";
 import { loadPuzzleState, savePuzzleState } from "./store";
 import { liveStreak, NEW_PUZZLE_STATE, play, playedToday, puzzleFor, revealLine, shareText, type Pick, type Puzzle, type PuzzleState } from "./logic";
 
-const PUZZLES = raw as Puzzle[];
+// The Monad edition skips puzzles about another chain's token, so every question stays on topic.
+const PUZZLES = (raw as Puzzle[]).filter((p) => !(IS_MONAD && /\bsolana\b|\bsol\b/i.test(p.q)));
 
 function useState_() {
   const [s, setS] = useState<PuzzleState>(NEW_PUZZLE_STATE);

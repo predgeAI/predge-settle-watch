@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Modal, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../Text";
 import { joinList, t } from "../i18n";
+import { IS_MONAD } from "../edition";
 import raw from "./cases.json";
 import { dayOf, XP, type ActionKind } from "../game";
 import { puzzleNumber } from "../dailyDispute/logic";
@@ -11,7 +12,8 @@ import { PixelIcon } from "../sprites";
 import * as haptic from "../haptic";
 import { caseIndex, kindHint, kindLabel, otherKinds, segments, type Case } from "./logic";
 
-const CASES = raw as Case[];
+// The Monad edition skips cases about another chain's token.
+const CASES = (raw as Case[]).filter((c) => !(IS_MONAD && /\bsolana\b|\bsol\b/i.test(`${c.q} ${c.text}`)));
 
 export function RuleDetectiveCard({ onOpen }: { onOpen: () => void }) {
   return (

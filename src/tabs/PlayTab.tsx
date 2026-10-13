@@ -2,7 +2,7 @@
 import React from "react";
 import { View, type ScrollViewProps } from "react-native";
 import { C } from "../theme";
-import { BADGES, type GameState, levelOf, weeklyRecap } from "../game";
+import { SHOWN_BADGES as BADGES, type GameState, levelOf, weeklyRecap } from "../game";
 import { BadgeIcon, Button, LevelBadge, PixelBox, Press } from "../ui";
 import { FLAGS } from "../features";
 import { DailyDisputeCard } from "../dailyDispute/DailyDispute";

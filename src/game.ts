@@ -2,6 +2,7 @@
 // Pure functions only (no React Native imports) so they run in the offline selftest.
 // Everything is local to the phone. No server, no tokens, no money.
 import { en, t, tn, type Key } from "./i18n";
+import { IS_MONAD } from "./edition";
 
 export type ActionKind = "verify" | "tamper" | "anchor" | "add_market" | "early_catch" | "puzzle_win" | "puzzle_play" | "rule_play" | "pack_open" | "positions_sync" | "learn";
 
@@ -59,6 +60,8 @@ export const BADGES = [
   { id: "skr_holder", name: en["badge.skr_holder.name"], hint: en["badge.skr_holder.hint"] },
 ] as const;
 export type BadgeId = (typeof BADGES)[number]["id"];
+/** Badges a player can earn in this build. The Monad edition has no evidence-pack payment and no token perks. */
+export const SHOWN_BADGES: readonly (typeof BADGES)[number][] = IS_MONAD ? BADGES.filter((b) => b.id !== "pack_opener" && b.id !== "skr_holder") : BADGES;
 export const badgeName = (id: BadgeId) => t(`badge.${id}.name` as Key);
 export const badgeHint = (id: BadgeId) => t(`badge.${id}.hint` as Key);
 

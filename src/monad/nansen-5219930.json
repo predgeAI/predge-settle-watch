@@ -1,0 +1,36 @@
+{
+  "marketId": "5219930",
+  "question": "Will Trump say \"Ammunition\" this week?",
+  "decision": "hedge",
+  "asOf": "2026-10-12T21:10:06.489Z",
+  "contestedOutcome": "No",
+  "contestedCostUsd": 91169.5,
+  "otherCostUsd": 36208.47,
+  "payments": [
+    {
+      "endpoint": "top-holders",
+      "amountUSDC": "0.05",
+      "tx": "0x54ec0ceac648569729a55af3785f52ed71362b1bcadd37ab17f868a89501d42e"
+    },
+    {
+      "endpoint": "position-detail",
+      "amountUSDC": "0.05",
+      "tx": "0xd00620a331b54844d2cb012d590f981680d7691b3c914bd946d9471a7f6a26af"
+    },
+    {
+      "endpoint": "address-summary",
+      "amountUSDC": "0.01",
+      "tx": "0x274555e2d5bfbb71a8f260ecf5118481a15339567ce3aa14c82da1b33d72e6e9"
+    },
+    {
+      "endpoint": "address-summary",
+      "amountUSDC": "0.01",
+      "tx": "0x7c286df2af324a6a935778baba32bce11c2e4077b6216c0ed5bf4f9a32b277b2"
+    },
+    {
+      "endpoint": "address-summary",
+      "amountUSDC": "0.01",
+      "tx": "0xab8e91462d11f7209222d456c8fe383734bd5ee1a25baf64bd207430b4346c2d"
+    }
+  ]
+}

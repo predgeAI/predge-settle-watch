@@ -43,6 +43,7 @@ import {
   badgeHint,
   badgeName,
   BADGES,
+  SHOWN_BADGES,
   canClockIn,
   clockIn,
   lastSeven,
@@ -93,6 +94,10 @@ import { TabBar, type TabId } from "./src/tabs/TabBar";
 import { fetchPositions, normalizeAddress, PositionsError } from "./src/positions/api";
 import { applyHeld, clearHeld, planSync, positionsErrorText } from "./src/positions/sync";
 import { loadPositionsState, savePositionsState, type PositionsState } from "./src/positions/store";
+import { IS_MONAD } from "./src/edition";
+import * as passkey from "./src/monad/passkey";
+import { balanceMon, receiptError, sendReceipt } from "./src/monad/receipt";
+import type { LocalAccount } from "viem";
 
 // Use the phone's language for the intro until the saved choice loads.
 setLanguage(detectLanguage());
@@ -198,8 +203,12 @@ export default function App() {
   const [glossTick, setGlossTick] = useState(0);
   const [introDone, setIntroDone] = useState(false);
   const [clockPlay, setClockPlay] = useState(0);
-  // Bottom tabs. Always opens on TODAY; the choice is not saved.
-  const [tab, setTab] = useState<TabId>("today");
+  // Bottom tabs. Always opens on TODAY (MONAD in the Monad edition); the choice is not saved.
+  const HOME_TAB: TabId = IS_MONAD ? "monad" : "today";
+  const [tab, setTab] = useState<TabId>(HOME_TAB);
+  // Monad edition: the passkey wallet from the MONAD tab signs receipts.
+  const [monadAccount, setMonadAccount] = useState<LocalAccount | undefined>(IS_MONAD ? passkey.current() : undefined);
+  const [monadBalance, setMonadBalance] = useState<number | null>(null);
   // "Watch my positions": a Polymarket wallet address kept on this phone, synced on foreground and on demand.
   const [positions, setPositions] = useState<PositionsState>({});
   const [posBusy, setPosBusy] = useState(false);
@@ -340,7 +349,7 @@ export default function App() {
       const g = await loadGame();
       gameRef.current = g;
       setGame(g);
-      const w = await loadWallet();
+      const w = IS_MONAD ? null : await loadWallet();
       setWallet(w);
       refreshBalance(w, s.cluster);
       if (s.onboarded) {
@@ -567,6 +576,21 @@ export default function App() {
     [persist]
   );
 
+  useEffect(() => (IS_MONAD ? passkey.onAccountChange(setMonadAccount) : undefined), []);
+  const refreshMonadBalance = useCallback(async () => {
+    if (!IS_MONAD) return;
+    const a = passkey.current();
+    if (!a) return setMonadBalance(null);
+    try {
+      setMonadBalance(await balanceMon(a.address, settings?.cluster ?? DEFAULT_SETTINGS.cluster));
+    } catch {
+      setMonadBalance(null);
+    }
+  }, [settings?.cluster]);
+  useEffect(() => {
+    refreshMonadBalance();
+  }, [monadAccount, refreshMonadBalance]);
+
   const onConnect = useCallback(async () => {
     setBusy("wallet");
     try {
@@ -691,9 +715,56 @@ export default function App() {
     [wallet, cluster, net, refreshBalance, reduced, recordAnchor]
   );
 
+  /** Monad edition: the receipt is a transaction from the passkey wallet, signed on this phone. */
+  const doAnchorMonad = useCallback(
+    async (item: WatchItem, action: "watch" | "acknowledge") => {
+      const account = passkey.current();
+      const v = item.verification;
+      const last = item.last;
+      if (!account || !v || !usableForReceipt(v) || !v.packHash || !last) return;
+      const packHash = v.packHash;
+      setBusy(`anchor-send:${item.key}`);
+      anchoringRef.current = true;
+      try {
+        const text = memoText({ action, marketId: last.market.market_id, riskLevel: last.risk_level, packHash });
+        const hash = await sendReceipt(account, text, cluster);
+        await recordAnchor(item.key, hash, packHash, action, last.risk_level, cluster);
+        refreshMonadBalance();
+        haptic.success();
+        setStampPlay((n) => n + 1);
+        setStamp(true);
+        await new Promise((res) => setTimeout(res, reduced ? 300 : 1300));
+        setStamp(false);
+        showDialog(t("anchor.okTitle", { net }), `${t("anchor.okBody", { sig: short(hash, 6) })}${t("anchor.onChain")}`, [
+          { text: t("anchor.openExplorer"), onPress: () => openExplorer(hash, cluster) },
+          { text: t("share.card"), onPress: () => shareReceipt(item, { signature: hash, packHash, riskLevel: last.risk_level, at: new Date().toISOString(), cluster }) },
+          { text: t("common.ok") },
+        ]);
+      } catch (e) {
+        showDialog(t("anchor.failed"), `${receiptError(e)}\n\n${cluster === "devnet" ? t("anchor.feeDevnet") : t("anchor.feeMain")}`);
+      } finally {
+        anchoringRef.current = false;
+        setBusy(null);
+      }
+    },
+    [cluster, net, reduced, recordAnchor, refreshMonadBalance]
+  );
+
   const onAnchor = useCallback(
     (item: WatchItem, action: "watch" | "acknowledge") => {
-      if (!wallet) return showDialog(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
+      if (IS_MONAD && !passkey.current()) {
+        return showDialog(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }), [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: "MONAD",
+            onPress: () => {
+              setDetailKey(null);
+              setTab("monad");
+            },
+          },
+        ]);
+      }
+      if (!IS_MONAD && !wallet) return showDialog(t("anchor.connectFirst"), t("anchor.connectFirstBody", { net }));
       if (!item.verification?.verified || !item.verification.packHash || !item.last) {
         return showDialog(t("anchor.notVerified"), t("anchor.notVerifiedBody"));
       }
@@ -702,12 +773,12 @@ export default function App() {
       if (cluster === "mainnet-beta") {
         return showDialog(t("anchor.mainnetTitle"), t("anchor.mainnetBody"), [
           { text: t("common.cancel"), style: "cancel" },
-          { text: t("anchor.anchor"), onPress: () => doAnchor(item, action) },
+          { text: t("anchor.anchor"), onPress: () => (IS_MONAD ? doAnchorMonad : doAnchor)(item, action) },
         ]);
       }
-      doAnchor(item, action);
+      (IS_MONAD ? doAnchorMonad : doAnchor)(item, action);
     },
-    [wallet, cluster, net, doAnchor]
+    [wallet, cluster, net, doAnchor, doAnchorMonad]
   );
 
   // Finish or explain a receipt that was interrupted, for example if Android recreated the app behind the wallet.
@@ -778,8 +849,9 @@ export default function App() {
     setRefreshing(true);
     await refreshAll();
     await refreshBalance(wallet, cluster);
+    await refreshMonadBalance();
     setRefreshing(false);
-  }, [refreshAll, refreshBalance, wallet, cluster]);
+  }, [refreshAll, refreshBalance, refreshMonadBalance, wallet, cluster]);
 
   const today = useMemo(
     () =>
@@ -814,7 +886,7 @@ export default function App() {
 
   // Showing the intro again leaves the tabs, so coming back starts on TODAY.
   useEffect(() => {
-    if (settings && !settings.onboarded) setTab("today");
+    if (settings && !settings.onboarded) setTab(HOME_TAB);
   }, [settings?.onboarded]);
 
   const lastCheck = items.map((i) => i.lastPolledAt ?? "").sort().pop();
@@ -825,7 +897,7 @@ export default function App() {
   const week = lastSeven(game);
   const recap = weeklyRecap(game);
   const canIn = canClockIn(game);
-  const unlocked = BADGES.filter((b) => game.badges[b.id]).length;
+  const unlocked = SHOWN_BADGES.filter((b) => game.badges[b.id]).length;
   const top = leagueOpen ? "league" : ruleOpen ? "rule" : puzzleOpen ? "puzzle" : badgesOpen ? "badges" : detail ? "detail" : "main";
   const overlays = (where: string) => (
     <>
@@ -923,6 +995,10 @@ export default function App() {
           onDisconnect={onDisconnect}
           onAirdrop={onAirdrop}
           onSwitchCluster={onSwitchCluster}
+          monadAddress={monadAccount?.address ?? null}
+          monadBalance={monadBalance}
+          onOpenMonad={() => setTab("monad")}
+          onMonadSignOut={() => passkey.signOut()}
           updateSettings={updateSettings}
           onCheckNow={refreshAll}
           onDigestNow={onDigestNow}
@@ -1070,7 +1146,7 @@ export default function App() {
                     </Pressable>
                   ))}
                 </PixelBox>
-                <EvidencePackCard item={detail} wallet={wallet} disabled={!!busy} onUnlocked={(ref) => award("pack_open", { ref })} />
+                {IS_MONAD ? null : <EvidencePackCard item={detail} wallet={wallet} disabled={!!busy} onUnlocked={(ref) => award("pack_open", { ref })} />}
 
                 <PixelBox style={styles.cardGap} inner={styles.cardPad}>
                   <Text style={styles.cardTitle}>{t("detail.timeline")}</Text>
@@ -1129,9 +1205,9 @@ export default function App() {
                 </Text>
                 <Text style={[styles.subtitle, { marginTop: 4 }]}>{t("badges.streak", { streak, best: game.best })}</Text>
               </View>
-              <Text style={styles.section}>{t("badges.section", { n: unlocked, total: BADGES.length })}</Text>
+              <Text style={styles.section}>{t("badges.section", { n: unlocked, total: SHOWN_BADGES.length })}</Text>
               <View style={styles.badgeGrid}>
-                {BADGES.map((b) => {
+                {SHOWN_BADGES.map((b) => {
                   const at = game.badges[b.id];
                   return (
                     <View key={b.id} style={{ width: "48%", flexGrow: 1 }} accessibilityLabel={t(at ? "badges.a11yUnlocked" : "badges.a11yLocked", { name: badgeName(b.id) })}>
@@ -1146,7 +1222,7 @@ export default function App() {
               </View>
               <Text style={styles.section}>{t("xpHow.title")}</Text>
               <PixelBox style={styles.cardGap} inner={styles.cardPad}>
-                {(Object.keys(XP) as (keyof typeof XP)[]).map((k) => (
+                {(Object.keys(XP) as (keyof typeof XP)[]).filter((k) => !(IS_MONAD && k === "pack_open")).map((k) => (
                   <View key={k} style={[styles.rowBetween, { paddingVertical: 5 }]}>
                     <Text style={[styles.body, { flex: 1 }]}>{actionLabel(k)}</Text>
                     <Text style={[styles.chipText, { color: C.green, fontSize: 10 }]}>+{XP[k]}</Text>

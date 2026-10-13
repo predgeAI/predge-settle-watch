@@ -1,3 +1,5 @@
+import { IS_MONAD } from "./edition";
+
 export const PREDGE_API = "https://api.predge.io";
 export const KEYS_URL = `${PREDGE_API}/.well-known/predge-keys.json`;
 
@@ -12,10 +14,17 @@ export const VERIFY_CHECKS = 8;
 // Solana. Receipts go to devnet by default; the user can switch to mainnet in
 // Settings, where a memo costs only the network fee (about 0.000005 SOL).
 export type Cluster = "devnet" | "mainnet-beta";
-export const CLUSTERS: Record<Cluster, { chain: "solana:devnet" | "solana:mainnet"; rpc: string; label: string }> = {
-  devnet: { chain: "solana:devnet", rpc: "https://api.devnet.solana.com", label: "Devnet" },
-  "mainnet-beta": { chain: "solana:mainnet", rpc: "https://api.mainnet-beta.solana.com", label: "Mainnet" },
-};
+// In the Monad edition the same two settings mean Monad testnet (chain 10143, the default) and
+// Monad mainnet (chain 143); receipts are then EVM transactions signed by the passkey wallet.
+export const CLUSTERS: Record<Cluster, { chain: "solana:devnet" | "solana:mainnet"; rpc: string; label: string }> = IS_MONAD
+  ? {
+      devnet: { chain: "solana:devnet", rpc: "https://testnet-rpc.monad.xyz", label: "Testnet" },
+      "mainnet-beta": { chain: "solana:mainnet", rpc: "https://rpc.monad.xyz", label: "Mainnet" },
+    }
+  : {
+      devnet: { chain: "solana:devnet", rpc: "https://api.devnet.solana.com", label: "Devnet" },
+      "mainnet-beta": { chain: "solana:mainnet", rpc: "https://api.mainnet-beta.solana.com", label: "Mainnet" },
+    };
 export const DEFAULT_CLUSTER: Cluster = "devnet";
 export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
@@ -30,7 +39,14 @@ export const SKR_TREASURY = "8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S";
 /** Base58 transaction signature (64 bytes encodes to 86-88 chars). */
 export const TX_SIGNATURE_RE = /^[1-9A-HJ-NP-Za-km-z]{80,90}$/;
 
+/** EVM transaction hash (Monad edition receipts). */
+export const EVM_TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
+
 export const EXPLORER_TX = (sig: string, cluster: Cluster = DEFAULT_CLUSTER) => {
+  if (IS_MONAD) {
+    if (!EVM_TX_HASH_RE.test(sig)) throw new Error("Not a transaction hash");
+    return cluster === "devnet" ? `https://testnet.monadvision.com/tx/${sig}` : `https://monadvision.com/tx/${sig}`;
+  }
   if (!TX_SIGNATURE_RE.test(sig)) throw new Error("Not a Solana transaction signature");
   return cluster === "devnet"
     ? `https://explorer.solana.com/tx/${sig}?cluster=devnet`

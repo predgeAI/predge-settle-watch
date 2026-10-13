@@ -16,7 +16,8 @@ import { entropyToMnemonic, mnemonicToSeedSync } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import type { LocalAccount } from "viem";
 
-// The relying party. predge.io/.well-known/assetlinks.json must list io.predge.settlewatch with
+// The relying party. predge.io/.well-known/assetlinks.json must list io.predge.settlewatch (and
+// io.predge.settlewatch.monad for the Monad edition) with
 // delegate_permission/common.get_login_creds for Android to allow passkeys for this host.
 export const RP_ID = "predge.io";
 const CRED_KEY = "sw.monad.credential.v1";
@@ -28,6 +29,19 @@ interface StoredCredential {
 
 let session: Secp256k1SigningSession | undefined;
 let account: LocalAccount | undefined;
+const listeners = new Set<(a: LocalAccount | undefined) => void>();
+
+/** Calls fn with the signed-in account (or undefined) after every sign-in and sign-out. */
+export function onAccountChange(fn: (a: LocalAccount | undefined) => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+function emit() {
+  for (const fn of listeners) fn(account);
+}
 
 function deriveEvmKey(prfOutput: Uint8Array, index = 0): Uint8Array {
   const seed = mnemonicToSeedSync(entropyToMnemonic(prfOutput, wordlist));
@@ -43,6 +57,7 @@ function startSession(prfOutput: Uint8Array): LocalAccount {
   key.fill(0);
   prfOutput.fill(0);
   account = toViemAccount(session) as LocalAccount;
+  emit();
   return account;
 }
 
@@ -86,6 +101,7 @@ export function signOut() {
   session?.end();
   session = undefined;
   account = undefined;
+  emit();
 }
 
 export function describeError(e: unknown): string {

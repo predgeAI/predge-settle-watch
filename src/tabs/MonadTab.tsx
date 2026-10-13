@@ -13,6 +13,23 @@ import type { WatchItem } from "../store";
 import { TabHeader, TabScroll, short } from "./shared";
 import { btcMarket, closePosition, NET, openPerplAccount, placeShort, planShort, requestTestAusd, snapshot, usd, type Market, type Snapshot } from "../monad/chain";
 import * as passkey from "../monad/passkey";
+import { IS_MONAD } from "../edition";
+import { IntegrationsModal, L, LButton, MonadHero } from "../monad/IntegrationsScreen";
+
+// The Monad edition draws this tab light, with one accent; the default edition keeps the pixel look.
+const Box: typeof PixelBox = IS_MONAD
+  ? (props) => <View style={[props.style, { backgroundColor: L.card, borderWidth: 2, borderColor: L.line }]}><View style={props.inner}>{props.children}</View></View>
+  : PixelBox;
+const Btn: typeof Button = IS_MONAD
+  ? (props) => (
+      <View style={[props.style, { alignItems: "stretch" }]}>
+        <LButton title={props.title} onPress={props.onPress} ghost={props.kind === "ghost"} disabled={props.disabled} small={props.small} stretch />
+      </View>
+    )
+  : Button;
+const P = IS_MONAD
+  ? { text: L.ink, dim: L.dim, kicker: L.accentInk, a: L.accentInk, b: L.accentInk, c: L.accentInk, tx: L.accentInk, err: L.accentInk, pos: L.accentSoft }
+  : { text: C.text, dim: C.dim, kicker: C.greenBright, a: C.greenBright, b: C.purpleSoft, c: C.teal, tx: C.teal, err: C.red, pos: alpha(C.orange, 0.1) };
 
 const MIN_GAS_MON = 10n ** 17n; // 0.1 testnet MON keeps several transactions going
 const SIZES = [25, 50, 100];
@@ -43,6 +60,7 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
   const [err, setErr] = useState<string | null>(null);
 
   const exposure = useMemo(() => cryptoExposure(p.items), [p.items]);
+  const [integrations, setIntegrations] = useState(false);
 
   useEffect(() => {
     passkey.storedCredential().then((c) => setHasCred(!!c));
@@ -124,19 +142,29 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
   const hasAccount = !!snap && snap.perplAccountId > 0n;
 
   return (
-    <TabScroll active={p.active} refreshControl={p.refreshControl}>
-      <TabHeader title="MONAD" sub="Passkey wallet, AUSD and Perpl hedges. Monad testnet." right={<Chip text="TESTNET" color={C.purpleSoft} />} />
+    <TabScroll active={p.active} refreshControl={p.refreshControl} bg={IS_MONAD ? L.bg : undefined}>
+      {IS_MONAD ? (
+        <>
+          <TabHeader title="MONAD" sub="Polymarket settlement risk, verified on your phone and on Monad." />
+          <MonadHero onOpen={() => setIntegrations(true)} />
+          <IntegrationsModal visible={integrations} onClose={() => setIntegrations(false)} onWallet={() => setIntegrations(false)} />
+          <Text style={[st.kicker, { marginTop: 26 }]}>YOUR PASSKEY WALLET · MONAD TESTNET</Text>
+          <Text style={st.fine}>Perpl hedge with AUSD margin from Agora. Test tokens only.</Text>
+        </>
+      ) : (
+        <TabHeader title="MONAD" sub="Passkey wallet, AUSD and Perpl hedges. Monad testnet." right={<Chip text="TESTNET" color={C.purpleSoft} />} />
+      )}
 
       {!account ? (
-        <PixelBox border={C.purple} bg={C.surface} style={st.card} inner={st.pad}>
+        <Box border={C.purple} bg={C.surface} style={st.card} inner={st.pad}>
           <Text style={st.kicker}>SIGN IN</Text>
           <Text style={st.body}>
             Your Monad wallet comes from a passkey on this phone: fingerprint or screen lock, no seed phrase. The same passkey gives the same address every time.
           </Text>
           <View style={st.gap} />
-          {hasCred ? <Button title={busy ? "WAITING..." : "SIGN IN WITH PASSKEY"} disabled={!!busy} onPress={() => signIn(false)} /> : null}
+          {hasCred ? <Btn title={busy ? "WAITING..." : "SIGN IN WITH PASSKEY"} disabled={!!busy} onPress={() => signIn(false)} /> : null}
           <View style={{ height: 10 }} />
-          <Button
+          <Btn
             title={hasCred ? "NEW PASSKEY" : busy ? "WAITING..." : "CREATE PASSKEY"}
             kind={hasCred ? "ghost" : "primary"}
             disabled={!!busy}
@@ -145,17 +173,17 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
           {!hasCred ? (
             <>
               <View style={{ height: 10 }} />
-              <Button title="I HAVE ONE: SIGN IN" kind="ghost" small disabled={!!busy} onPress={() => signIn(false)} />
+              <Btn title="I HAVE ONE: SIGN IN" kind="ghost" small disabled={!!busy} onPress={() => signIn(false)} />
             </>
           ) : null}
           <Text style={st.fine}>Powered by mera. Passkeys for {passkey.RP_ID}.</Text>
-        </PixelBox>
+        </Box>
       ) : (
         <>
-          <PixelBox border={C.green} bg={C.surface} style={st.card} inner={st.pad}>
+          <Box border={C.green} bg={C.surface} style={st.card} inner={st.pad}>
             <View style={st.rowBetween}>
               <Text style={st.kicker}>WALLET</Text>
-              <Button
+              <Btn
                 title="SIGN OUT"
                 kind="ghost"
                 small
@@ -177,32 +205,32 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
             </Text>
             <Text style={st.fine}>Tap the address to copy it.</Text>
             <View style={st.balRow}>
-              <Bal label="AUSD" value={snap ? usd(snap.ausd).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "..."} color={C.greenBright} />
-              <Bal label="MON" value={snap ? (Number(snap.mon) / 1e18).toFixed(3) : "..."} color={C.purpleSoft} />
-              <Bal label="ON PERPL" value={snap ? (hasAccount ? usd(snap.perplBalance).toFixed(2) : "-") : "..."} color={C.teal} />
+              <Bal label="AUSD" value={snap ? usd(snap.ausd).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "..."} color={P.a} />
+              <Bal label="MON" value={snap ? (Number(snap.mon) / 1e18).toFixed(3) : "..."} color={P.b} />
+              <Bal label="ON PERPL" value={snap ? (hasAccount ? usd(snap.perplBalance).toFixed(2) : "-") : "..."} color={P.c} />
             </View>
-          </PixelBox>
+          </Box>
 
           {lowGas ? (
             <Step n={1} title="Get testnet MON for gas" body="Paste your address at the Monad faucet. About 0.1 MON covers every step here.">
-              <Button title="OPEN MONAD FAUCET" small onPress={() => Linking.openURL("https://faucet.monad.xyz")} />
+              <Btn title="OPEN MONAD FAUCET" small onPress={() => Linking.openURL("https://faucet.monad.xyz")} />
             </Step>
           ) : null}
 
           {needAusd ? (
             <Step n={2} title="Get test AUSD" body={`Agora's faucet sends 10,000 test AUSD to this wallet. Perpl needs ${snap ? usd(snap.minOpen) : 100} AUSD to open an account.`}>
-              <Button title={busy === "AUSD faucet" ? "SENDING..." : "GET 10,000 TEST AUSD"} small disabled={!!busy || lowGas} onPress={() => run("AUSD faucet", () => requestTestAusd(account))} />
+              <Btn title={busy === "AUSD faucet" ? "SENDING..." : "GET 10,000 TEST AUSD"} small disabled={!!busy || lowGas} onPress={() => run("AUSD faucet", () => requestTestAusd(account))} />
             </Step>
           ) : null}
 
           {canOpen && snap ? (
             <Step n={3} title="Open a Perpl account" body={`Moves ${usd(snap.minOpen)} AUSD into Perpl's exchange contract as margin. Two transactions: approve, then open.`}>
-              <Button title={busy === "Open Perpl account" ? "OPENING..." : `DEPOSIT ${usd(snap.minOpen)} AUSD`} small disabled={!!busy || lowGas} onPress={() => run("Open Perpl account", () => openPerplAccount(account, snap.minOpen))} />
+              <Btn title={busy === "Open Perpl account" ? "OPENING..." : `DEPOSIT ${usd(snap.minOpen)} AUSD`} small disabled={!!busy || lowGas} onPress={() => run("Open Perpl account", () => openPerplAccount(account, snap.minOpen))} />
             </Step>
           ) : null}
 
           {hasAccount && snap ? (
-            <PixelBox border={C.orange} bg={C.surface} style={st.card} inner={st.pad}>
+            <Box border={C.orange} bg={C.surface} style={st.card} inner={st.pad}>
               <Text style={st.kicker}>HEDGE</Text>
               {exposure.length ? (
                 <Text style={st.body}>
@@ -214,7 +242,7 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
               <Text style={st.label}>SIZE (USD NOTIONAL)</Text>
               <View style={st.sizeRow}>
                 {SIZES.map((s) => (
-                  <Button key={s} title={`$${s}`} small kind={s === size ? "primary" : "ghost"} style={{ flex: 1 }} onPress={() => setSize(s)} />
+                  <Btn key={s} title={`$${s}`} small kind={s === size ? "primary" : "ghost"} style={{ flex: 1 }} onPress={() => setSize(s)} />
                 ))}
               </View>
               {market ? (
@@ -223,7 +251,7 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
                 </Text>
               ) : null}
               <View style={st.gap} />
-              <Button title={busy === "Perpl short BTC" ? "SENDING..." : "SHORT BTC ON PERPL"} disabled={!!busy || !market || lowGas} onPress={hedge} />
+              <Btn title={busy === "Perpl short BTC" ? "SENDING..." : "SHORT BTC ON PERPL"} disabled={!!busy || !market || lowGas} onPress={hedge} />
               {snap.position ? (
                 <View style={st.posBox}>
                   <Text style={st.label}>OPEN POSITION</Text>
@@ -232,7 +260,7 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
                     {(Number(snap.position.entry) / 10 ** (market?.priceDecimals ?? 1)).toFixed(1)}, margin {usd(snap.position.deposit).toFixed(2)} AUSD
                   </Text>
                   <View style={{ height: 8 }} />
-                  <Button
+                  <Btn
                     title={busy === "Perpl close" ? "CLOSING..." : "CLOSE POSITION"}
                     kind="ghost"
                     small
@@ -241,19 +269,19 @@ export function MonadTab(p: { active: boolean; refreshControl: ScrollViewProps["
                   />
                 </View>
               ) : null}
-            </PixelBox>
+            </Box>
           ) : null}
 
           {txs.length ? (
-            <PixelBox border={C.line} bg={C.surface} style={st.card} inner={st.pad}>
+            <Box border={C.line} bg={C.surface} style={st.card} inner={st.pad}>
               <Text style={st.kicker}>TRANSACTIONS</Text>
               {txs.map((x) => (
-                <Text key={x.hash} style={st.tx} onPress={() => Linking.openURL(`${NET.explorer}/tx/${x.hash}`)}>
+                <Text key={x.hash} style={st.tx} onPress={() => Linking.openURL(`${IS_MONAD ? "https://testnet.monadvision.com" : NET.explorer}/tx/${x.hash}`)}>
                   {x.label}: {short(x.hash, 6)}
                 </Text>
               ))}
-              <Text style={st.fine}>Tap a line to open it on Monadscan.</Text>
-            </PixelBox>
+              <Text style={st.fine}>Tap a line to open it on {IS_MONAD ? "MonadVision" : "Monadscan"}.</Text>
+            </Box>
           ) : null}
 
           {err ? <Text style={st.err}>{err}</Text> : null}
@@ -276,31 +304,31 @@ function Bal({ label, value, color }: { label: string; value: string; color: str
 
 function Step({ n, title, body, children }: { n: number; title: string; body: string; children: React.ReactNode }) {
   return (
-    <PixelBox border={C.purple} bg={C.surface} style={st.card} inner={st.pad}>
+    <Box border={C.purple} bg={C.surface} style={st.card} inner={st.pad}>
       <Text style={st.kicker}>STEP {n}</Text>
       <Text style={st.title}>{title}</Text>
       <Text style={st.body}>{body}</Text>
       <View style={st.gap} />
       {children}
-    </PixelBox>
+    </Box>
   );
 }
 
 const st = StyleSheet.create({
   card: { marginTop: 16 },
   pad: { padding: 14 },
-  kicker: { color: C.greenBright, fontFamily: PX, fontSize: 10, lineHeight: 14 },
-  title: { color: C.text, fontSize: T.heading, fontWeight: "700", marginTop: 8 },
-  body: { color: C.text, fontSize: T.body, lineHeight: 22, marginTop: 8 },
-  fine: { color: C.dim, fontSize: T.micro, lineHeight: 16, marginTop: 10 },
-  label: { color: C.dim, fontFamily: PX, fontSize: 8, lineHeight: 12, marginTop: 14 },
-  addr: { color: C.text, fontFamily: MONO, fontSize: T.small, lineHeight: 19, marginTop: 10 },
+  kicker: { color: P.kicker, fontFamily: PX, fontSize: 10, lineHeight: 14 },
+  title: { color: P.text, fontSize: T.heading, fontWeight: "700", marginTop: 8 },
+  body: { color: P.text, fontSize: T.body, lineHeight: 22, marginTop: 8 },
+  fine: { color: P.dim, fontSize: T.micro, lineHeight: 16, marginTop: 10 },
+  label: { color: P.dim, fontFamily: PX, fontSize: 8, lineHeight: 12, marginTop: 14 },
+  addr: { color: P.text, fontFamily: MONO, fontSize: T.small, lineHeight: 19, marginTop: 10 },
   balRow: { flexDirection: "row", gap: 10, marginTop: 6 },
   balVal: { fontFamily: PX, fontSize: 14, lineHeight: 22, marginTop: 6 },
   sizeRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   gap: { height: 14 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  posBox: { marginTop: 14, padding: 10, backgroundColor: alpha(C.orange, 0.1) },
-  tx: { color: C.teal, fontFamily: MONO, fontSize: T.small, lineHeight: 22, marginTop: 6 },
-  err: { color: C.red, fontSize: T.small, lineHeight: 19, marginTop: 14 },
+  posBox: { marginTop: 14, padding: 10, backgroundColor: P.pos },
+  tx: { color: P.tx, fontFamily: MONO, fontSize: T.small, lineHeight: 22, marginTop: 6 },
+  err: { color: P.err, fontSize: T.small, lineHeight: 19, marginTop: 14 },
 });

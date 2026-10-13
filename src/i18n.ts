@@ -2,6 +2,8 @@
 // Only text the app writes itself lives here. Market data, server text and on-chain memos are never translated.
 import { useSyncExternalStore } from "react";
 import { PLAIN } from "./i18nPlain";
+import { IS_MONAD } from "./edition";
+import { MONAD, MONAD_PLAIN } from "./i18nMonad";
 
 export type Lang = "en" | "es" | "pt" | "zh" | "ko" | "ru";
 
@@ -5056,7 +5058,12 @@ export function detectLanguage(): Lang {
 export type Vars = Record<string, string | number>;
 
 export function t(key: Key, vars?: Vars): string {
-  const s = (plain ? PLAIN[current][key] : undefined) ?? DICTS[current][key] ?? en[key] ?? key;
+  const s =
+    (IS_MONAD ? (plain ? MONAD_PLAIN[current][key] : undefined) ?? MONAD[current][key] ?? MONAD.en[key] : undefined) ??
+    (plain ? PLAIN[current][key] : undefined) ??
+    DICTS[current][key] ??
+    en[key] ??
+    key;
   return vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : s;
 }
 
