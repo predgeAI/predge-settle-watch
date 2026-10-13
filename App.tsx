@@ -912,7 +912,8 @@ export default function App() {
   const overlays = (where: string) => (
     <>
       <XpToast text={toast.text} tick={toast.tick} />
-      <CelebrationOverlay item={where === top ? (celebs[0] ?? null) : null} onClose={() => setCelebs((c) => c.slice(1))} />
+      {/* Monad edition: badges still count, but their pop-up waits until the user leaves the MONAD home. */}
+      <CelebrationOverlay item={where === top && !(IS_MONAD && tab === "monad" && where === "main") ? (celebs[0] ?? null) : null} onClose={() => setCelebs((c) => c.slice(1))} />
     </>
   );
   // The Watcher mirrors the watchlist: asleep when quiet, alarmed on caution or watch, cheering once clocked in.
