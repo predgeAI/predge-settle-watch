@@ -1,14 +1,16 @@
 // Polymarket positions for one wallet, read from Polymarket's public Data API.
 //
-// Endpoint: GET https://data-api.polymarket.com/positions?user=<proxy wallet>
-// This is Polymarket's v1 Data API. It is public and read-only, needs no key, and is not
-// a Predge service. Polymarket can change or retire it without notice, so everything that
+// Endpoint: GET https://data-api.polymarket.com/v2/positions?user=<proxy wallet>
+// This is Polymarket's v2 Data API (v1 /positions is retired on 2026-10-24, see
+// docs.polymarket.com/migrate/data-api-v1-to-v2). It is public and read-only, needs no key, and is not
+// a Predge service. v2 answers {data: [...], pagination} with snake_case fields; the parser
+// also still reads a bare v1 list so stored test data and old responses keep working. Polymarket can change or retire it without notice, so everything that
 // touches it lives in this file: strict input and response checks, a timeout, and errors
 // the screen can show. Nothing here throws anything but PositionsError.
 //
 // Pure TypeScript (no React Native imports) so the offline selftest can run it.
 
-export const POSITIONS_API = "https://data-api.polymarket.com/positions";
+export const POSITIONS_API = "https://data-api.polymarket.com/v2/positions";
 export const POSITIONS_TIMEOUT_MS = 15_000;
 /** The endpoint's own page size limit. One page is enough: the watchlist holds 50 markets. */
 export const POSITIONS_LIMIT = 100;
@@ -52,18 +54,24 @@ const str = (v: unknown, max: number): string | undefined => (typeof v === "stri
  * The body must be an array; single entries with a bad shape are dropped rather than trusted.
  */
 export function parsePositions(body: unknown): Position[] {
+  // v2: {data: [...], pagination: {...}}; v1: a bare list.
+  const envelope = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>).data : undefined;
+  if (Array.isArray(envelope)) body = envelope;
   if (!Array.isArray(body)) throw new PositionsError("shape", "Positions response is not a list");
   if (body.length > MAX_BODY_ITEMS) throw new PositionsError("shape", "Positions response is too long");
   const out: Position[] = [];
   for (const raw of body) {
     if (!raw || typeof raw !== "object") continue;
     const r = raw as Record<string, unknown>;
-    const cid = str(r.conditionId, 66);
+    const cid = str(r.condition_id ?? r.conditionId, 66);
     if (!cid || !CONDITION_RE.test(cid)) continue;
-    const size = typeof r.size === "number" ? r.size : typeof r.size === "string" ? Number(r.size) : NaN;
+    const rawSize = r.current_size ?? r.size;
+    const size = typeof rawSize === "number" ? rawSize : typeof rawSize === "string" ? Number(rawSize) : NaN;
     if (!Number.isFinite(size) || size <= 0) continue;
     const slug = str(r.slug, 200);
-    const endDate = str(r.endDate, 40);
+    const endDate = str(r.end_date ?? r.endDate, 40);
+    // v2 also says status: OPEN for a live position; anything else has nothing left to watch.
+    const settled = r.redeemable === true || (typeof r.status === "string" && r.status !== "OPEN");
     out.push({
       conditionId: cid.toLowerCase(),
       outcome: (str(r.outcome, 80) ?? "").trim(),
@@ -71,18 +79,21 @@ export function parsePositions(body: unknown): Position[] {
       title: (str(r.title, 300) ?? "").trim(),
       slug: slug && /^[a-z0-9][a-z0-9-]*$/i.test(slug) ? slug : undefined,
       endDate,
-      redeemable: r.redeemable === true,
+      redeemable: settled,
     });
   }
   return out;
 }
 
-/** Open positions only: settled markets (redeemable) are left out. */
-export const openPositions = (ps: Position[]) => ps.filter((p) => !p.redeemable);
+/** Below one share is dust (v1 dropped it server-side with sizeThreshold=1; v2 has no such filter). */
+export const MIN_SHARES = 1;
+
+/** Open positions only: settled markets (redeemable) and dust are left out. */
+export const openPositions = (ps: Position[]) => ps.filter((p) => !p.redeemable && p.size >= MIN_SHARES);
 
 export function positionsUrl(address: string): string {
-  // redeemable=false asks the API for open positions; parsePositions filters again in case it is ignored.
-  return `${POSITIONS_API}?user=${encodeURIComponent(address)}&sizeThreshold=1&limit=${POSITIONS_LIMIT}&redeemable=false`;
+  // v2 takes user and limit; open/settled and dust are filtered in parsePositions and openPositions.
+  return `${POSITIONS_API}?user=${encodeURIComponent(address)}&limit=${POSITIONS_LIMIT}`;
 }
 
 type FetchLike = (url: string, init: { headers: Record<string, string>; signal: AbortSignal }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;

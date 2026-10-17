@@ -596,6 +596,7 @@ t("verify ticks rise from 0.35 to 0.6, then a firm click", () => {
 
 // ---- watch my positions: address, response parsing, dedupe ----
 import positionsFixture from "./positions-fixture.json";
+import positionsFixtureV2 from "./positions-fixture-v2.json";
 import { fetchPositions, normalizeAddress, openPositions, parsePositions, positionsUrl, PositionsError } from "../src/positions/api";
 import { applyHeld, byMarket, clearHeld, conditionOf, fmtShares, heldOf, planSync } from "../src/positions/sync";
 
@@ -613,7 +614,7 @@ t("positions: address validation", () => {
   assert.equal(normalizeAddress("0x" + "a".repeat(40) + "&limit=1"), null);
   assert.equal(normalizeAddress("8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S"), null);
   assert.equal(normalizeAddress(undefined), null);
-  assert.ok(positionsUrl("0x" + "a".repeat(40)).startsWith("https://data-api.polymarket.com/positions?user=0x"));
+  assert.ok(positionsUrl("0x" + "a".repeat(40)).startsWith("https://data-api.polymarket.com/v2/positions?user=0x"));
 });
 t("positions: fixture parses, bad entries are dropped", () => {
   const ps = parsePositions(positionsFixture);
@@ -623,6 +624,14 @@ t("positions: fixture parses, bad entries are dropped", () => {
   assert.equal(ps[0].size, 19227.0184);
   assert.equal(ps[2].redeemable, true);
   assert.deepEqual(openPositions(ps).map((p) => p.conditionId), [CID_A, CID_B, CID_A]);
+});
+t("positions: v2 envelope parses to the same positions as the v1 list", () => {
+  assert.deepEqual(parsePositions(positionsFixtureV2), parsePositions(positionsFixture));
+  assert.deepEqual(parsePositions({ data: [], pagination: { has_more: false } }), []);
+  const v2 = { condition_id: CID_A, current_size: 5, outcome: "Yes", title: "t" };
+  assert.equal(parsePositions({ data: [{ ...v2, status: "OPEN" }] })[0].redeemable, false);
+  assert.equal(parsePositions({ data: [{ ...v2, status: "RESOLVED" }] })[0].redeemable, true);
+  assert.deepEqual(openPositions(parsePositions({ data: [{ ...v2, current_size: 0.4 }] })), []);
 });
 t("positions: response that is not a list is rejected", () => {
   for (const bad of [null, {}, { error: "x" }, "[]", 1]) assert.throws(() => parsePositions(bad), (e: unknown) => e instanceof PositionsError && e.kind === "shape");
@@ -701,6 +710,8 @@ at2("positions: fetch errors map to kinds", async () => {
   assert.equal(await kindOf(fetchPositions(ADDR, { timeoutMs: 20, fetchImpl: slow as never })), "timeout");
   const ok = await fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: true, status: 200, json: async () => positionsFixture })) });
   assert.equal(ok.length, 3);
+  const okV2 = await fetchPositions(ADDR, { fetchImpl: fakeFetch(async () => ({ ok: true, status: 200, json: async () => positionsFixtureV2 })) });
+  assert.equal(okV2.length, 3);
 });
 
 // ---- 60-second tour and term explanations ----
