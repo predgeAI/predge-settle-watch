@@ -202,26 +202,31 @@ export async function snapshot(address: Hex): Promise<Snapshot> {
   return { mon, ausd, perplAccountId: acct.accountId, perplBalance: acct.balanceCNS, position, mark, minOpen };
 }
 
-async function send(account: LocalAccount, req: Parameters<ReturnType<typeof walletFor>["writeContract"]>[0]): Promise<Hex> {
-  const w = walletFor(account);
+/** A local key, or (Monad edition) any signer that can build a wallet client: passkey, Privy or Dynamic. */
+export type AnyAccount = LocalAccount | { address: Hex; walletClient: (chain: any, rpc: string) => Promise<any> };
+
+async function send(account: AnyAccount, req: Parameters<ReturnType<typeof walletFor>["writeContract"]>[0]): Promise<Hex> {
+  const external = "walletClient" in account;
+  const w: any = external ? await account.walletClient(monadTestnet, NET.rpc) : walletFor(account as LocalAccount);
+  const from = external ? account.address : account;
   // Simulate first so a revert shows up as an error here, before any MON is spent.
   const { gas: _cap, ...call } = req as any;
-  await pub.simulateContract({ ...call, account });
+  await pub.simulateContract({ ...call, account: from });
   // Monad charges the gas limit, not gas used, so keep the limit close to the estimate.
-  const est = await pub.estimateContractGas({ ...call, account });
-  const hash = await w.writeContract({ ...call, gas: (est * 13n) / 10n } as any);
+  const est = await pub.estimateContractGas({ ...call, account: from });
+  const hash = await w.writeContract({ ...call, ...(external ? { account: w.account, chain: monadTestnet } : {}), gas: (est * 13n) / 10n } as any);
   const rc = await pub.waitForTransactionReceipt({ hash, timeout: 60_000 });
   if (rc.status !== "success") throw new Error(`Transaction reverted: ${hash}`);
   return hash;
 }
 
 /** Agora's testnet faucet: 10,000 test AUSD to this address. Needs a little testnet MON for gas. */
-export function requestTestAusd(account: LocalAccount) {
+export function requestTestAusd(account: AnyAccount) {
   return send(account, { address: NET.ausdFaucet, abi: FAUCET, functionName: "requestFunds", args: [account.address], gas: 150_000n } as any);
 }
 
 /** Approves the exchange for `amount` AUSD (if needed) and opens a Perpl account with it. */
-export async function openPerplAccount(account: LocalAccount, amount: bigint): Promise<Hex[]> {
+export async function openPerplAccount(account: AnyAccount, amount: bigint): Promise<Hex[]> {
   const out: Hex[] = [];
   const allowance = await pub.readContract({ address: NET.ausd, abi: ERC20, functionName: "allowance", args: [account.address, NET.exchange] });
   if (allowance < amount) out.push(await send(account, { address: NET.ausd, abi: ERC20, functionName: "approve", args: [NET.exchange, amount], gas: 120_000n } as any));
@@ -254,7 +259,7 @@ export function planShort(m: Market, notionalUsd: number): HedgePlan {
 }
 
 /** Sends the short to Perpl's on-chain order book. Immediate-or-cancel: fills now or not at all. */
-export function placeShort(account: LocalAccount, m: Market, plan: HedgePlan) {
+export function placeShort(account: AnyAccount, m: Market, plan: HedgePlan) {
   return send(account, {
     address: NET.exchange,
     abi: EXCHANGE,
@@ -283,7 +288,7 @@ export function placeShort(account: LocalAccount, m: Market, plan: HedgePlan) {
 }
 
 /** Closes the whole BTC position with an IOC order on the other side. */
-export function closePosition(account: LocalAccount, m: Market, pos: NonNullable<Snapshot["position"]>) {
+export function closePosition(account: AnyAccount, m: Market, pos: NonNullable<Snapshot["position"]>) {
   const isShort = pos.type === 1;
   return send(account, {
     address: NET.exchange,

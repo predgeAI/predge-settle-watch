@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { IS_MONAD } from "./edition";
 
 // Clock In palette: CRT phosphor green on near-black (from the hackathon site CSS),
 // paper cream for the hero card, Solana purple as the secondary accent. See docs/DESIGN.md.
@@ -13,8 +14,9 @@ export const C = {
   greenBright: "#c2ffc4",
   greenDeep: "#55965a",
   orange: "#e2703a",
-  purple: "#9945ff",
-  purpleSoft: "#b98bff",
+  // The Monad edition uses Monad purple as its one accent.
+  purple: IS_MONAD ? "#836ef9" : "#9945ff",
+  purpleSoft: IS_MONAD ? "#a99bfb" : "#b98bff",
   teal: "#28bee6",
   cream: "#efe7d6",
   creamDim: "#d8ccb4",

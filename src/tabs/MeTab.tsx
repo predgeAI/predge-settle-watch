@@ -15,6 +15,7 @@ import { normalizeAddress } from "../positions/api";
 import { positionsErrorText } from "../positions/sync";
 import type { PositionsState } from "../positions/store";
 import { FeedPicker } from "../discover/FeedPicker";
+import { IS_MONAD } from "../edition";
 
 export interface MeTabProps {
   active: boolean;
@@ -40,6 +41,44 @@ export interface MeTabProps {
   onSavePositions: (address: string) => void;
   onSyncPositions: () => void;
   onForgetPositions: () => void;
+  /** Monad edition: the passkey wallet from the MONAD tab. */
+  monadAddress?: string | null;
+  monadBalance?: number | null;
+  onOpenMonad?: () => void;
+  onMonadSignOut?: () => void;
+}
+
+/** Monad edition wallet row: the passkey wallet signs receipts; sign-in lives on the MONAD tab. */
+function MonadWalletCard(p: Pick<MeTabProps, "monadAddress" | "monadBalance" | "onOpenMonad" | "onMonadSignOut" | "net">) {
+  const addr = p.monadAddress;
+  return (
+    <PixelBox style={styles.cardGap} inner={[styles.cardPad, addr ? { gap: 10 } : styles.rowBetween]}>
+      <View style={addr ? undefined : { flex: 1 }}>
+        <Text style={styles.cardLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          {t("wallet.label", { net: `Monad ${p.net}` })}
+        </Text>
+        {addr ? (
+          <Pressable onPress={() => Clipboard.setStringAsync(addr)} accessibilityLabel={t("wallet.copy")}>
+            <Text style={styles.mono}>
+              {short(addr, 6)}
+              <Text style={styles.dim}>  {p.monadBalance == null ? "" : `${p.monadBalance.toFixed(4)} MON`}</Text>
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.dim}>{t("wallet.hint")}</Text>
+        )}
+      </View>
+      {addr ? (
+        <View style={styles.row}>
+          <Button small kind="ghost" title={t("wallet.disconnect")} onPress={() => p.onMonadSignOut?.()} />
+        </View>
+      ) : (
+        <View style={{ flexShrink: 1 }}>
+          <Button small title={t("wallet.connect")} onPress={() => p.onOpenMonad?.()} />
+        </View>
+      )}
+    </PixelBox>
+  );
 }
 
 /** "MY POLYMARKET POSITIONS": a public wallet address, read-only, kept on the phone. */
@@ -93,6 +132,9 @@ export function MeTab(p: MeTabProps) {
       <TabHeader title={t("tab.me")} sub={t("me.sub")} />
 
       {/* Wallet: one compact row */}
+      {IS_MONAD ? (
+        <MonadWalletCard monadAddress={p.monadAddress} monadBalance={p.monadBalance} onOpenMonad={p.onOpenMonad} onMonadSignOut={p.onMonadSignOut} net={net} />
+      ) : (
       <PixelBox style={styles.cardGap} inner={[styles.cardPad, wallet ? { gap: 10 } : styles.rowBetween]}>
         <View style={wallet ? undefined : { flex: 1 }}>
           <Text style={styles.cardLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
@@ -123,8 +165,9 @@ export function MeTab(p: MeTabProps) {
           </View>
         )}
       </PixelBox>
+      )}
 
-      {wallet ? <SkrPerksCard /> : null}
+      {wallet && !IS_MONAD ? <SkrPerksCard /> : null}
 
       <PositionsCard
         positions={p.positions}

@@ -1,13 +1,17 @@
 # Draws the Settle Watch app icons from the pixel mascot in src/sprites.json. Run: python3 scripts/make-icons.py
+# `python3 scripts/make-icons.py monad` draws the Monad edition set into assets/monad (Monad purple, dark violet ground).
 from PIL import Image, ImageDraw
-import json, os
+import json, os, sys
 here = os.path.dirname(__file__)
-out = os.path.join(here, "..", "assets")
+MONAD = len(sys.argv) > 1 and sys.argv[1] == "monad"
+out = os.path.join(here, "..", "assets", "monad") if MONAD else os.path.join(here, "..", "assets")
+os.makedirs(out, exist_ok=True)
 data = json.load(open(os.path.join(here, "..", "src", "sprites.json")))
 pal = {k: tuple(int(v[i:i + 2], 16) for i in (1, 3, 5)) for k, v in data["palette"].items()}
 m = data["mascot"]["idle"]
 S = 1024
-BG = (10, 15, 11)
+BG = (14, 11, 31) if MONAD else (10, 15, 11)
+ACCENT = (131, 110, 249, 255) if MONAD else (153, 69, 255, 255)
 
 def sprite(px, mono=False):
     w, h = len(m[0]) * px, len(m) * px
@@ -35,8 +39,9 @@ icon = Image.new("RGBA", (S, S), BG + (255,))
 d = ImageDraw.Draw(icon)
 for i in range(5):
     x = 130 + i * 190
-    d.rectangle([x, 880, x + 36, 916], fill=(194, 255, 196, 255 if i > 1 else 90))
-d.rectangle([0, 0, S, 24], fill=(153, 69, 255, 255))
+    dot = ACCENT[:3] if MONAD else (194, 255, 196)
+    d.rectangle([x, 880, x + 36, 916], fill=dot + (255 if i > 1 else 90,))
+d.rectangle([0, 0, S, 24], fill=ACCENT)
 center(sprite(54), icon)
 icon.convert("RGB").save(f"{out}/icon.png")
 # adaptive foreground (safe zone) and monochrome

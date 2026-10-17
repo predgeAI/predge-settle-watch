@@ -1,5 +1,6 @@
 // Discover: read-only list of popular open markets from Polymarket's public gamma API,
 // plus Predge's free segment statistic for a market, fetched only when a card is opened.
+import { IS_MONAD } from "../edition";
 import { fetchSettlementRisk } from "../api";
 import { t } from "../i18n";
 
@@ -55,6 +56,7 @@ export function parseMarkets(body: unknown): DiscoverMarket[] {
     const question = typeof r.question === "string" ? r.question.trim() : "";
     const slug = typeof r.slug === "string" ? r.slug : "";
     if (!/^\d{1,12}$/.test(id) || !question || question.length > 160 || SKIP.test(question)) continue;
+    if (IS_MONAD && /\b(solana|sol)\b/i.test(question)) continue; // the Monad edition's feed stays off another chain's token
     const v = Number(r.volume24hr ?? 0);
     out.push({ id, question, slug, endDate: typeof r.endDate === "string" ? r.endDate.slice(0, 10) : undefined, volume24hr: Number.isFinite(v) ? v : 0, ...labelsOf(r) });
     if (out.length >= 25) break;

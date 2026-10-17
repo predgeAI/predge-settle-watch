@@ -2,10 +2,11 @@ import { transact } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 import { PublicKey } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { APP_IDENTITY, CLUSTERS, DEFAULT_CLUSTER } from "../config";
-import { LEAGUE_API } from "./config";
+import { LEAGUE_API, LEAGUE_EVM } from "./config";
+import * as signer from "../monad/signer";
 import { checkSignInMessage, leagueHost } from "./logic";
 import { loadWallet } from "../store";
-import { api, LeagueError, saveSession, type Session } from "./api";
+import { api, LeagueError, loadSession, saveSession, type Session } from "./api";
 import { t } from "../i18n";
 
 /**
@@ -33,7 +34,35 @@ const toBase58 = (b64: string) => new PublicKey(Buffer.from(b64, "base64")).toBa
  * No network call happens while a wallet session is open (a lesson from receipts): the nonce is fetched
  * before it and the signature is verified after it.
  */
+/** Monad edition: the passkey wallet signs the server's challenge with personal_sign. No fee, no transaction. */
+async function signInWithPasskey(): Promise<Session> {
+  const account = signer.current();
+  if (!account) throw new LeagueError("no_account", t("lg.err.noAccount"), 0);
+  const address = account.address.toLowerCase();
+  const { message } = await api.nonce(address);
+  const bad = checkSignInMessage(message, { domain: leagueHost(LEAGUE_API), address, now: Date.now() });
+  if (bad) throw new LeagueError("bad_message", t("lg.err.badMessage"), 0);
+  let signature: string;
+  try {
+    signature = await account.signMessage(message);
+  } catch {
+    throw new LeagueError("wallet", t("lg.err.wallet"), 0);
+  }
+  const session = { ...(await api.verify(address, message, signature)), wallet: address };
+  await saveSession(session);
+  return session;
+}
+
+/** Monad edition: a League session belongs to one wallet; drop it when another wallet (or none) is signed in. */
+export async function dropForeignSession(): Promise<void> {
+  if (!LEAGUE_EVM) return;
+  const s = await loadSession();
+  const cur = signer.current()?.address.toLowerCase();
+  if (s && s.wallet !== cur) await saveSession(null);
+}
+
 export async function signInWithWallet(): Promise<Session> {
+  if (LEAGUE_EVM) return signInWithPasskey();
   const stored = await loadWallet();
   const chain = CLUSTERS[stored?.cluster ?? DEFAULT_CLUSTER].chain;
   try {

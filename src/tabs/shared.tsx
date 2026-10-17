@@ -159,7 +159,7 @@ export function AddMarketCard({ input, setInput, busy, addMarket }: AddMarketPro
  * One tab's ScrollView. Inactive tabs stay mounted but hidden, and the scroll offset is
  * restored when the tab comes back, so each tab keeps its place.
  */
-export function TabScroll({ active, refreshControl, children }: { active: boolean; refreshControl?: ScrollViewProps["refreshControl"]; children: React.ReactNode }) {
+export function TabScroll({ active, refreshControl, children, bg }: { active: boolean; refreshControl?: ScrollViewProps["refreshControl"]; children: React.ReactNode; bg?: string }) {
   const ref = useRef<ScrollView>(null);
   const y = useRef(0);
   useEffect(() => {
@@ -171,6 +171,7 @@ export function TabScroll({ active, refreshControl, children }: { active: boolea
     <View style={[{ flex: 1 }, !active && { display: "none" }]} accessibilityElementsHidden={!active} importantForAccessibility={active ? "auto" : "no-hide-descendants"}>
       <ScrollView
         ref={ref}
+        style={bg ? { backgroundColor: bg } : undefined}
         contentContainerStyle={styles.scroll}
         refreshControl={refreshControl}
         keyboardShouldPersistTaps="handled"

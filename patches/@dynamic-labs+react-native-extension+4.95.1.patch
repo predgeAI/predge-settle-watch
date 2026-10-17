@@ -1,0 +1,28 @@
+diff --git a/node_modules/@dynamic-labs/react-native-extension/android/build.gradle b/node_modules/@dynamic-labs/react-native-extension/android/build.gradle
+index 15e40dc..f2e8e91 100644
+--- a/node_modules/@dynamic-labs/react-native-extension/android/build.gradle
++++ b/node_modules/@dynamic-labs/react-native-extension/android/build.gradle
+@@ -1,6 +1,11 @@
+ apply plugin: 'com.android.library'
+-apply plugin: 'kotlin-android'
+-apply plugin: 'expo-module-gradle-plugin'
++
++// Expo SDK 52: the expo-module-gradle-plugin id does not exist yet; use ExpoModulesCorePlugin.gradle.
++def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
++apply from: expoModulesCorePlugin
++applyKotlinExpoModulesCorePlugin()
++useCoreDependencies()
++useExpoPublishing()
+ 
+ def packageJsonFile = file('../package.json')
+ def packageJson = new groovy.json.JsonSlurper().parseText(packageJsonFile.text)
+@@ -29,9 +34,6 @@ android {
+   }
+ }
+ 
+-dependencies {
+-  implementation project(':expo-modules-core')
+-}
+ 
+ def safeExtGet(prop, fallback) {
+   rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback

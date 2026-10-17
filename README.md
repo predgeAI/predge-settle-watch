@@ -1,201 +1,71 @@
 # Settle Watch
 
-**Settlement alerts for Polymarket markets, verified on your phone, with receipts on Solana.**
+## Monad edition (branch `edition/monad`, release `v0.6.4-monad`)
 
-Settle Watch is a native Android app built by Predge for Solana Mobile's **Clock In** hackathon (October 2026). It watches the markets you pick for UMA disputes, clarifications, token-holder votes and on-chain settlement. Every record is signed by Predge with ed25519, and the phone checks the signature itself before it shows the record as verified. With Mobile Wallet Adapter you can then write a receipt of exactly what you saw to Solana.
+**A third of disputed Polymarket markets settle differently than proposed. Settle Watch checks the settlement on your phone and on Monad.**
+
+From 1 Jan to 2 Oct 2026 there were 3,005 UMA disputes on 2,666 Polymarket markets; 853 of the 2,543 that settled (33.5%) settled differently from the disputed proposal, and at least $299M was traded on them. Example: Iran, $15M, proposed YES, settled NO. Its verdict (0) is on Monad mainnet and the app reads it live.
 
 | | |
 |---|---|
-| APK | [Latest release](https://github.com/predgeAI/predge-settle-watch/releases/latest) (Android 7+, arm64) |
-| Demo video | [Watch the demo][demo-video] |
-| Pitch deck | [settle-watch-pitch-deck.pdf][deck] (release asset) |
-| Package | `io.predge.settlewatch` |
-| Stack | React Native (Expo 52, prebuild), `@solana/web3.js` 1.99, Mobile Wallet Adapter 2.2.2, tweetnacl |
-| License | MIT |
+| APK | [v0.6.4-monad](https://github.com/predgeAI/predge-settle-watch/releases/tag/v0.6.4-monad) (Android 7+, arm64) |
+| Package | `io.predge.settlewatch.monad`, installs next to other Settle Watch builds |
+| Chains | Monad mainnet (chain 143) for verdicts and reads, Monad testnet (10143) for Perpl, Agora, Kuru, CRE and default receipts |
 
-<!-- Change the demo video link here only. Every demo video link in this README uses this one reference. -->
-[demo-video]: https://youtu.be/9eHI8X_-jX4
-[deck]: https://github.com/predgeAI/predge-settle-watch/releases/latest/download/settle-watch-pitch-deck.pdf
+**MONAD tab (opens first): one market, one flow.** One sentence, four real markets to pick from (Trump "Ammunition" is selected: disputed twice, in a vote now), then five steps in plain words:
 
-## The problem
+1. **Check**: the signed Predge record, verified on the phone, and the verdict recorded on Monad ("Verified ✓", "Recorded on Monad ↗").
+2. **Who's exposed**: Nansen holder cost on each side (saved result of a paid call, 12 Oct).
+3. **Act, one tap**: when the guard says don't buy, **Insure against a flip** buys CHANGE dispute notes on Kuru (each pays $1 if the disputed answer flips; test dollars, confirm dialog plus fingerprint). For BTC price markets the action is a Perpl BTC short; otherwise **Alert me when it settles** adds the market to the watchlist.
+4. **Add money**: live quote for USDC from Base to Monad (Aurora intents); data is paid per call with x402 in USDC on Monad.
+5. **Your key**: three ways, no seed phrase. **Fingerprint** (mera passkey), **Email** (Privy Expo SDK, embedded wallet, one-time code) or **Wallet** (Dynamic React Native SDK, email login with an embedded wallet). Whichever is signed in signs the Kuru notes, the Perpl hedge, receipts and the League.
 
-From 1 Jan to 2 Oct 2026 there were **3,005 UMA disputes on 2,666 Polymarket markets**. Of the 2,543 disputed markets that settled, **853 (33.5%) settled differently from the disputed proposal**. The median time from first dispute to on-chain resolution was **3.3 h**, so a holder who hears about it late has little time to act.
+### How to try it (2 min)
 
-Source: UMA Optimistic Oracle and Polymarket UMA CTF adapter logs on Polygon, scanned by Predge.
+1. Install the APK from the release and open it. Three short screens, then the MONAD tab.
+2. Sign in (step 5): Fingerprint, Email or Wallet.
+3. A new wallet has no test MON for fees. Tap **Get free test MON**: the app copies your address and opens the Monad faucet (faucet.monad.xyz); paste it, then come back. Or ask us at hello@predge.io and we send test MON to the address shown in My wallet. The app never holds a shared key.
+4. With Trump "Ammunition" selected, tap **Insure against a flip**, then Confirm. Test dollars only.
+5. See "You're insured" and the Recorded on Monad link.
+6. Tap **How it works: 9 integrations**.
 
-## What it does
+Then **Only possible on Monad** and **How it works: 9 integrations**, one card per sponsor, each with one live, read-only action and a proof link:
 
-| Detail, verified | Tamper test | League | Daily Dispute |
-|---|---|---|---|
-| ![Verified](docs/screens-0.3.1/10-detail-verified.png) | ![Tamper](docs/screens-0.3.1/11-tamper-rejected.png) | ![League](docs/screens-0.3.5/03-league-board.png) | ![Dispute](docs/screens-0.3.3/03-dispute-question.png) |
-
-Screenshots are from builds 0.3.1 to 0.3.5. The current build places the same screens in four bottom tabs.
-
-### Today
-- Today card: every watched market whose status changed in the last 24 h, and how many still need attention.
-- Daily clock-in with a streak (one free miss per week), XP and levels. All kept on the phone.
-- Watchlist of up to 50 markets. Counters (Caution, Watch, Quiet, Settled) double as filters.
-- Market detail: a plain-language status line, **Verified on this phone** with the checks one tap away, **Tamper test**, **Anchor watch receipt**, **Acknowledge alert**, the SKR evidence pack and past receipts.
-
-### Play
-- **Daily Dispute**: one real disputed market a day. Call HOLD or CHANGE, then see what happened.
-- **Rule Detective**: 19 real rule excerpts. Find the phrases that lead to disputes.
-- **Glossary**: 12 collectible cards that unlock as you use the app.
-- **League**: weekly XP boards for friends and a global top 50, plus clans. Sign in with your wallet (a signed message, no transaction).
-- Weekly recap and badges.
-
-### Discover
-- Popular open markets from Polymarket's public gamma API. One tap to watch.
-- Add a market by polymarket.com link, slug, numeric id or 0x condition id.
-
-### Me
-- Wallet card: connect with Mobile Wallet Adapter, SOL and SKR balances, devnet faucet button.
-- Settings: language, daily digest and its hour, receipt network (devnet or mainnet), check now, digest now, test alert, how it works.
-
-### Across the app
-- **Home-screen widget** (4x2, resizable): counts per status, the market that needs attention, streak, time of last check.
-- **Share card**: a 1080 x 1350 receipt image with the pack hash, the transaction signature and a QR code of the explorer link. The QR encoder is written in this repo and tested against ISO 18004 reference matrices.
-- **Receipts**: memo transactions on devnet (default) or mainnet. See [docs/RECEIPTS-AND-SKR.md](docs/RECEIPTS-AND-SKR.md).
-- **SKR evidence pack**: pay 1 SKR on mainnet to unlock the full record and local timeline for one market.
-- **6 languages**: English, Spanish, Portuguese (Brazil), Simplified Chinese, Korean, Russian. The widget follows the app language.
-- **Notifications**: one alert per changed market, a daily digest at the hour you choose, and a test alert marked [TEST]. Checks run every 60 s while the app is open and about every 15 min in the background, also after a reboot.
-- In-app pixel dialogs instead of system alerts, haptics, reduced-motion support.
-
-## Solana Mobile Stack
-
-**Mobile Wallet Adapter** ([src/wallet.ts](src/wallet.ts), [src/skr/chain.ts](src/skr/chain.ts), [src/league/auth.ts](src/league/auth.ts))
-- `authorize`, `reauthorize`, `deauthorize`. An auth token is reused only on the cluster it was issued for.
-- No network call inside a wallet session. The app fetches a blockhash first, opens the wallet only to sign, then sends from the app. Android can freeze a wallet in the background before it broadcasts, so this is more reliable.
-- `signTransactions`, then a check of the returned bytes (only our instructions plus wallet-added ComputeBudget and Lighthouse instructions; same fee payer), then app-side send: `landTransaction` re-sends the signed bytes every 2 s (`skipPreflight`, `maxRetries: 0`) until the signature is confirmed or the blockhash expires. If a wallet refuses sign-only, the app falls back to `signAndSendTransactions` with `minContextSlot`.
-- The signed transaction is saved before it is sent. If Android kills the app behind the wallet, `resumePending` finishes it on the next start. It never records a receipt the chain does not have.
-- `signMessages` over a SIWS-style message (domain, nonce, issued at, expiry) to sign in to the League. The app checks the domain, wallet, nonce and times before the wallet opens. No fee.
-- Config plugins: `with-activity-config` keeps the activity alive across configuration changes so a wallet session is not dropped; `with-mwa-queries` adds the `solana-wallet` intent query for Android 11+.
-
-**On-chain actions**
-- Watch receipt: one Memo program instruction. Devnet by default. Mainnet after a confirmation dialog.
-- SKR unlock, mainnet only: an optional `CreateIdempotent` for the treasury's token account, SPL Token `TransferChecked` of exactly 1 SKR (mint `SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3`, 6 decimals) to treasury `8gTLrkxZkL3yewzGBEQhv3Y3C7DzsfMUEZqybvP5Nh8S`, and a memo naming the pack. Instructions are built byte by byte, without the spl-token package.
-
-**App identity**
-- MWA identity: name `Settle Watch`, URI `https://predge.io`. `https://predge.io/.well-known/assetlinks.json` is served as `application/json` and binds `io.predge.settlewatch` to the release signing certificate (SHA-256 `07:D3:6A:05:...:EF:36`), so a wallet can check that the app claiming predge.io is the real one.
-
-**dApp Store readiness**
-- Release APK signed with a stable upload key kept outside the repo, fixed package name, Digital Asset Links in place, three Android permissions (notifications, boot completed, wake lock). The dApp Store listing has not been submitted yet.
-
-### Verified example transactions
-
-| Network | What | Transaction |
+| Card | Live action | Proof |
 |---|---|---|
-| Devnet | Watch receipt, market 5186278, 12 Oct 2026 | [3adw8K21...gsAyFyB](https://explorer.solana.com/tx/3adw8K21VicxJg9Ekxmq3bzRZrDSAZcN5doXvd1g8NYweDBNAfLUaGJcjKfupVLmGQA77v2K7jRpJdGn3gsAyFyB?cluster=devnet) |
-| Mainnet | SKR evidence pack unlock, market 5186278, 12 Oct 2026 | [27drBVRJ...oHvcTCvM](https://explorer.solana.com/tx/27drBVRJfdbsdKT9hd36hvntTf528MdJUkscNSzAXQ2199bfsWZkXGZNmjHiLnBuQVZcGFbNHdji3FDfoHvcTCvM) |
+| Predge Guard | Fetch the ed25519-signed settlement-risk record and verify it on the phone (pinned key, 8 checks) | [guard.predge.io](https://guard.predge.io/) |
+| Monad mainnet verdicts | `getValidationStatus(requestHash)` on PredgeAgentValidator `0xf4EE0Af6...eeF9`; checks that `responseHash` is keccak256 of a signed record that verifies | monadvision.com transaction per market (26 verdicts, 12 open requests) |
+| MetaMask agent plugin | The `mm predge guard` rule on Trump "Ammunition" (5219930): REFUSED to buy YES while disputed | [mm-plugin](https://github.com/predgeAI/erc8004-outcome-validator/tree/main/mm-plugin) |
+| Nansen | Holders' cost on each side of 5219930 (No $91,170 vs Yes $36,208), decision HEDGE. Saved result of a paid call, as of 12 Oct 21:10 UTC; not called live | x402 payments in USDC on Monad mainnet |
+| Kuru (testnet) | Best bid and ask of the CHANGE/tUSD book for the 5219930 dispute notes | order book `0x6Ee28124...30A8` |
+| Aurora | Live quote, USDC on Base to USDC on Monad (dry run, no deposit address) | delivery and x402 payment transactions on Monad mainnet |
+| Perpl + Agora (testnet) | Perpl account, AUSD margin and BTC mark for the passkey wallet `0x81e663d6...0969` | the MONAD tab's own passkey, faucet and hedge flow |
+| Chainlink CRE (testnet) | `safeToAct(requestHash)` on PredgeSettlementWatch `0x1518ad21...A90c` | [workflow](https://github.com/predgeAI/erc8004-outcome-validator/tree/main/cre), report transaction |
+| Privy / Dynamic | Opens Predge Guard on the web, where they sign you in | [guard.predge.io](https://guard.predge.io/) |
 
-Check any receipt yourself: `scripts/verify-receipt.sh <signature> [devnet|mainnet-beta]` prints its memo from a public RPC.
+Nothing on the Integrations screen signs or sends a transaction.
 
-## Monad tab (Metropolis, Agora mobile trading bounty)
+**Everything else** (Today, Play, Discover, Me, Daily Dispute, Rule Detective, badges, alerts, widget, share card, QR) works as in the default build. Receipts are Monad transactions from the mera passkey wallet: a zero-value transaction to itself whose calldata is the receipt text, on Monad testnet by default or mainnet after a confirmation. The League (friends, weekly XP, clans) signs in with the passkey wallet: the server issues a Sign-In-With-Ethereum style challenge and checks an EIP-191 `personal_sign` signature (predgeAI/settle-watch-league). Left out of this edition: the evidence-pack payment and token-holder perks.
 
-Build 0.5.0 adds a fifth tab, **MONAD**, on Monad testnet (chain 10143):
+**Only possible on Monad: how we measured it.** `scripts/monad-measure.ts` reads Predge's mainnet run files (`monad/mainnet/runs/live-*.json` in predgeAI/erc8004-outcome-validator), and for every verdict with both a request and a response transaction fetches both from `https://rpc.monad.xyz`. Request-to-verdict time is the response block's timestamp minus the request block's timestamp; cost is the response transaction's gas limit times its effective gas price, because Monad charges the gas limit, not gas used. Result (13 Oct, 26 verdicts with both transactions): 1 to 2 s (5 to 6 blocks) from request to verdict when sent one at a time (4-market run), 8 s median (25 blocks) in the 34-market batch; about 0.046 MON per request plus verdict (about $0.0011 at the 13 Oct MON price). Stored in `src/monad/measured.json`.
 
-- **Passkey login with mera.** `@category-labs/mera` with `react-native-passkey` (Android Credential Manager). The passkey's WebAuthn PRF output becomes a BIP-44 EVM key (`m/44'/60'/0'/0/0`), held in memory for the session and zeroed on sign-out. Only the credential id is stored. Relying party: `predge.io`. Code: [src/monad/passkey.ts](src/monad/passkey.ts).
-- **AUSD balance.** Wallet AUSD (`0xa9012a05...22dC`, 6 decimals), MON for gas, and the margin held on Perpl. A button calls Agora's public testnet faucet (`requestFunds`, 10,000 test AUSD).
-- **Perpl trade, fully on chain.** Approve and `createAccount` (Perpl's testnet minimum is 100 AUSD), then `execOrder` on Perpl's Exchange (`0x1964C32f...80cc`): an immediate-or-cancel BTC short (perp 16), limit 2% under mark, 2x leverage, sized $25, $50 or $100. Every transaction is simulated before it is signed, and the gas limit is the estimate plus 30% (Monad charges the limit). A close button sends the opposite IOC order. Code: [src/monad/chain.ts](src/monad/chain.ts).
-- **Why a hedge.** If a watched Polymarket crypto-price market (BTC, ETH, SOL) is disputed, the tab names it and offers the short: a dispute can flip the payout, so the price leg is offset while it settles.
-
-No mainnet path exists in this tab. Android needs `delegate_permission/common.get_login_creds` for `io.predge.settlewatch` in `https://predge.io/.well-known/assetlinks.json`.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  subgraph Polygon
-    OO[UMA Optimistic Oracle]
-    AD[Polymarket UMA CTF adapter]
-  end
-  API["Predge API<br/>GET /v1/settlement-risk/:market<br/>ed25519 over canonical JSON<br/>kid 13fa3d18a369e6c7"]
-  KEYS["/.well-known/predge-keys.json"]
-  subgraph Phone["Settle Watch on Android"]
-    W["watcher.ts<br/>60 s poll, background task,<br/>alerts, digest, widget"]
-    V["verify.ts<br/>pinned key, canonical bytes,<br/>signature, field binding, freshness"]
-    MWA["wallet.ts and skr/<br/>Mobile Wallet Adapter"]
-  end
-  WALLET["Wallet app<br/>(Seed Vault on Seeker)"]
-  SOL["Solana<br/>Memo program, SPL Token"]
-  LG["settle-watch-league<br/>SIWS sign-in, weekly XP, clans"]
-  OO --> API
-  AD --> API
-  API -->|signed record| W --> V
-  KEYS --> V
-  V -->|sha256 of signed bytes| MWA
-  MWA <-->|sign| WALLET
-  MWA -->|send, re-send, confirm| SOL
-  W -.->|XP events| LG
-  WALLET -.->|signMessages| LG
-```
-
-Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Security model in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
-
-The Predge API existed before the hackathon and is a dependency. This repository (the Android app, on-device verification, alerts, widget, share card, receipts, SKR payments, League client) and the League backend `settle-watch-league` were built for Clock In.
-
-## Try it in 5 minutes
-
-1. Install the APK from [Releases](https://github.com/predgeAI/predge-settle-watch/releases/latest) on a Seeker or any arm64 Android phone.
-2. Install a Mobile Wallet Adapter wallet (Phantom, Solflare, or Seed Vault on Seeker) and set it to devnet.
-3. Go through the short intro. Three example markets are added for you. Allow notifications.
-4. **Me**: tap **Connect wallet**. Tap **Devnet SOL** if the balance is zero.
-5. **Today**: open the Caution market. See **Verified on this phone**, tap **Show the checks**, then **Tamper test**.
-6. Tap **Anchor watch receipt**, approve in the wallet, then **Open explorer** or **Share card**.
-7. Optional, mainnet: with at least 1 SKR and a little SOL, tap **Unlock with 1 SKR** on the same market.
-
-## Build from source
-
-Requirements: Node 20, JDK 17, Android SDK 35 (build-tools 35.0.0, NDK 26.1.10909125). No Expo account or EAS needed.
+Build it:
 
 ```bash
 npm ci
-npm test                      # 94 offline checks
-npx expo prebuild --platform android
-cd android
-./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
-# android/app/build/outputs/apk/release/app-release.apk
+EXPO_PUBLIC_EDITION=monad npx tsx scripts/monad-copy-check.ts   # no other chain named in any language
+EXPO_PUBLIC_EDITION=monad npx tsx scripts/monad-live.ts         # every live read, read-only
+npx tsx scripts/monad-measure.ts <path>/monad/mainnet/runs       # refresh the Monad latency and cost figures
+EXPO_PUBLIC_EDITION=monad npx expo prebuild --platform android --clean
+cd android && EXPO_PUBLIC_EDITION=monad ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 ```
 
-Release signing: set `SETTLEWATCH_UPLOAD_STORE_FILE`, `SETTLEWATCH_UPLOAD_STORE_PASSWORD`, `SETTLEWATCH_UPLOAD_KEY_ALIAS` and `SETTLEWATCH_UPLOAD_KEY_PASSWORD` as Gradle properties, for example in `~/.gradle/gradle.properties`. They are never committed. Without them the build falls back to the debug key, and that APK does not match `assetlinks.json`.
-
-`npm test` runs [scripts/selftest.ts](scripts/selftest.ts): input parsing and lookalike hosts, API shape checks, canonical JSON, streak and XP rules, puzzle data, widget summary, the QR encoder against reference matrices, the share card, SKR instruction bytes and account order, record freshness and the key-list fallback on a live signed record, the check of wallet-returned transactions on the real devnet receipt and mainnet payment, evidence pack field tags, the League sign-in message check, and League ranking.
-
-`npx tsx scripts/verify-live.ts 5186278 4585694 601819` runs the app's own verifier against live signed records and confirms that the tamper test fails.
-
-## Feature status
-
-Every row below was run on a physical Android phone (Realme) with the 0.4.0 release APK.
-
-| Feature | Status |
-|---|---|
-| Watchlist, plain-word statuses, Today tab | Live |
-| On-device verification (8 checks, tamper test rejects) | Live |
-| Watch receipt: memo tx via Mobile Wallet Adapter (Solflare, Phantom) | Live on devnet; mainnet after the network switch |
-| Evidence pack unlock for 1 SKR | Live on mainnet ([tx](https://explorer.solana.com/tx/27drBVRJfdbsdKT9hd36hvntTf528MdJUkscNSzAXQ2199bfsWZkXGZNmjHiLnBuQVZcGFbNHdji3FDfoHvcTCvM)) |
-| SKR holder perks (tier, extra slots) | Live, read from the wallet's SKR balance |
-| Daily Dispute, streaks, XP, Hall of Disputes | Live |
-| Weekly league, friends, clans | Live; points are game points, capped by the server, not verified |
-| Watch my positions (paste a Polymarket wallet) | Live, read-only public data |
-| Alerts and daily digest | Live, on Android's background schedule (15 min minimum), no push server |
-| Home-screen widget, share card | Live |
-| Six languages | Live |
-| Solana dApp Store listing | Planned |
-
-## Status
-
-- Built for Clock In, October 2026. First commit 5 Oct 2026.
-- No users, downloads or revenue are claimed.
-- Devnet: watch receipts by default. Mainnet: watch receipts after you switch the network, and every SKR payment.
-- League scores are game points reported by the app and capped by the server. They are not verified and carry no value.
-- Background checks follow Android's schedule (15 min minimum, may be deferred). There is no push server.
-- `risk_level` and `recommendation` are Predge's reading of chain facts, not advice.
-- Known limitations: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md#known-limitations).
+Without `EXPO_PUBLIC_EDITION` the build is the default app described on the `main` branch.
 
 ## Security
 
-Report issues to hello@predge.io. See [SECURITY.md](SECURITY.md).
+Every record is signed by Predge with ed25519 and verified on the phone against pinned keys before it is shown as verified. Nothing on the Integrations screen signs or sends a transaction; receipts, the Kuru notes and the Perpl hedge need a confirm dialog and the passkey; nothing is sent to mainnet without a confirm dialog.
 
 ## Support
 
-Open source under MIT, maintained by Predge. Donations cover RPC and hosting and buy no service or token: EVM `0x9084f5000E07C7133D6dA5eE4f271AB6D1821144`, Solana `9dxMRRtC7RKZH5rFZpUywjmnQ87H9qHhtW43u5LYmpV`, or [Drips](https://www.drips.network/app/projects/github/predgeAI/predge-settle-watch).
+Open source under MIT, maintained by Predge. Donations cover RPC and hosting and buy no service or token: EVM `0x9084f5000E07C7133D6dA5eE4f271AB6D1821144`.

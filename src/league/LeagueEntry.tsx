@@ -6,7 +6,9 @@ import { C, PX, T } from "../theme";
 import { Button, PixelBox, Press, Scanlines } from "../ui";
 import { PixelIcon } from "../sprites";
 import { api, loadSession, LeagueError, type Me } from "./api";
-import { signInWithWallet } from "./auth";
+import { dropForeignSession, signInWithWallet } from "./auth";
+import { LEAGUE_EVM } from "./config";
+import * as signerMod from "../monad/signer";
 import { ClanScreen } from "./ClanScreen";
 import { InviteScreen } from "./InviteScreen";
 import { LeagueScreen } from "./LeagueScreen";
@@ -71,6 +73,7 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
 
   const load = useCallback(async () => {
     setErr(null);
+    await dropForeignSession();
     if (!(await loadSession())) return setStage("signin");
     try {
       const m = await api.me();
@@ -99,21 +102,27 @@ export function LeagueModal(props: { visible: boolean; onClose: () => void; over
     if (props.visible) void load();
   }, [props.visible, load]);
 
+  // Monad edition: Dynamic's confirm sheet lives in a WebView under the app root, so step aside while it signs.
+  const [aside, setAside] = useState(false);
   const signIn = async () => {
     setBusy(true);
     setErr(null);
+    const hide = LEAGUE_EVM && signerMod.current()?.kind === "wallet";
+    if (hide) setAside(true);
     try {
       await signInWithWallet();
+      if (hide) setAside(false);
       await load();
     } catch (e) {
       setErr(e instanceof LeagueError ? e.message : t("lg.signInFailed"));
     } finally {
+      setAside(false);
       setBusy(false);
     }
   };
 
   return (
-    <Modal visible={props.visible} statusBarTranslucent animationType="slide" onRequestClose={props.onClose}>
+    <Modal visible={props.visible && !aside} statusBarTranslucent animationType="slide" onRequestClose={props.onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 56 }}>
           <View style={{ marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 16, backgroundColor: "#0f1d13", borderBottomWidth: 4, borderBottomColor: C.green }}>
